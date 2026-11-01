@@ -1,0 +1,336 @@
+import { store } from "./store";
+
+type Dict = Record<string, string>;
+
+const zh: Dict = {
+  "nav.overview": "总览",
+  "nav.pairs": "同步任务",
+  "nav.devices": "设备",
+  "nav.history": "历史",
+  "nav.settings": "设置",
+
+  "status.devices_connected": "{n} 台设备已连接",
+  "status.no_devices": "未连接设备",
+
+  "overview.title": "总览",
+  "overview.desc": "把常用文件夹与移动设备配成一对，插入设备即可同步。",
+  "overview.pending_banner": "{n} 个任务存在差异，等待你处理",
+  "overview.pending_cta": "去处理",
+  "overview.stat_pairs": "同步任务",
+  "overview.stat_devices": "已连接设备",
+  "overview.stat_pending": "待处理差异",
+  "overview.empty_pairs_title": "还没有同步任务",
+  "overview.empty_pairs_desc":
+    "创建一个任务，选择本地文件夹和移动设备上的对应文件夹。设备插入后，同备会自动检查两侧差异。",
+  "overview.empty_pairs_cta": "新建同步任务",
+  "overview.recent": "最近同步",
+
+  "pairs.title": "同步任务",
+  "pairs.desc": "每个任务把一个本地文件夹与一台设备上的文件夹配对。",
+  "pairs.add": "新建同步任务",
+  "pairs.check": "立即检查",
+  "pairs.review": "处理差异",
+  "pairs.edit": "编辑",
+  "pairs.delete": "删除",
+  "pairs.delete_confirm": "确认删除？",
+  "pairs.device_online": "设备已连接",
+  "pairs.device_offline": "设备未连接",
+  "pairs.pending_count": "{n} 处差异",
+  "pairs.syncing": "同步中…",
+  "pairs.disabled": "已停用",
+  "pairs.enable": "启用",
+  "pairs.disable": "停用",
+  "pairs.last_sync": "上次同步",
+
+  "editor.new": "新建同步任务",
+  "editor.edit": "编辑同步任务",
+  "editor.name": "名称",
+  "editor.name_placeholder": "例如：项目备份",
+  "editor.local": "本地文件夹",
+  "editor.local_pick": "选择…",
+  "editor.device": "目标设备",
+  "editor.device_hint": "选择已插入的移动存储设备",
+  "editor.device_none": "未检测到可用设备，请插入设备后重试。",
+  "editor.remote": "设备上的文件夹",
+  "editor.remote_placeholder": "例如：Backup/Projects（留空为设备根目录）",
+  "editor.remote_root": "设备根目录",
+
+  "devices.title": "设备",
+  "devices.desc": "后台会自动监控新插入的移动存储设备，并标记与任务关联的设备。",
+  "devices.none": "未检测到移动存储设备",
+  "devices.matched_pairs": "关联任务",
+  "devices.no_pairs": "未关联任务",
+
+  "history.title": "历史",
+  "history.desc": "同步执行记录，按时间倒序。",
+  "history.clear": "清空历史",
+  "history.clear_confirm": "确认清空？",
+  "history.none": "暂无同步记录",
+  "history.errors": "{n} 个错误",
+  "history.to_remote": "→设备 {n}",
+  "history.to_local": "→本地 {n}",
+  "history.deleted": "删除 {n}",
+  "history.moved": "同步 {n} 个文件",
+
+  "diff.title": "差异待处理",
+  "diff.scanned_at": "检查于",
+  "diff.all_counts": "共 {n} 项",
+  "diff.col_status": "状态",
+  "diff.col_path": "文件",
+  "diff.col_local": "本地",
+  "diff.col_remote": "设备",
+  "diff.col_action": "处理方式",
+  "diff.bulk_suggest": "全部按建议",
+  "diff.bulk_l2r": "全部本地→设备",
+  "diff.bulk_r2l": "全部设备→本地",
+  "diff.bulk_skip": "全部跳过",
+  "diff.start": "开始同步",
+  "diff.conflict_hint": "{n} 处冲突",
+  "diff.cancel": "取消",
+  "diff.progress": "正在同步",
+  "diff.syncing_hint": "同步进行中，请不要断开设备",
+  "diff.done": "同步完成",
+  "diff.close": "关闭",
+  "diff.summary_copied_r": "已复制到设备 {n}",
+  "diff.summary_copied_l": "已复制到本地 {n}",
+  "diff.summary_deleted_r": "已删除设备侧 {n}",
+  "diff.summary_deleted_l": "已删除本地侧 {n}",
+  "diff.summary_skipped": "已跳过 {n}",
+  "diff.summary_failed": "失败 {n}",
+
+  "st.new_local": "本地新增",
+  "st.new_remote": "设备新增",
+  "st.changed_local": "本地已修改",
+  "st.changed_remote": "设备已修改",
+  "st.both_changed": "两侧均修改",
+  "st.deleted_remote": "设备侧已删除",
+  "st.deleted_local": "本地侧已删除",
+  "st.type_conflict": "类型冲突",
+
+  "act.local_to_remote": "复制到设备",
+  "act.remote_to_local": "复制到本地",
+  "act.delete_remote": "删除设备侧",
+  "act.delete_local": "删除本地侧",
+  "act.skip": "跳过",
+
+  "settings.title": "设置",
+  "settings.general": "通用",
+  "settings.language": "界面语言",
+  "settings.launch": "开机自启",
+  "settings.poll": "扫描间隔（秒）",
+  "settings.poll_hint": "后台检查设备插入的频率。",
+  "settings.sync_section": "同步",
+  "settings.auto_scan": "插入设备时自动检查",
+  "settings.auto_scan_hint": "设备插入后立即扫描差异并提醒你处理。",
+  "settings.auto_sync": "无冲突时自动同步",
+  "settings.auto_sync_hint": "仅新增与单侧修改会自动执行；冲突与删除始终需要你确认。",
+  "settings.notify": "系统通知",
+  "settings.notify_hint": "发现差异或自动同步完成时发送系统通知。",
+  "settings.about": "关于",
+  "settings.version": "版本",
+  "settings.data": "数据目录",
+  "settings.data_hint": "配置、同步清单与历史记录的存放位置。",
+  "settings.tray_hint": "已保存。托盘菜单语言将在重启后生效。",
+
+  "toast.saved": "已保存",
+  "toast.pair_saved": "同步任务已保存",
+  "toast.pair_deleted": "同步任务已删除",
+  "toast.history_cleared": "历史已清空",
+  "toast.uptodate": "两侧完全一致，无需同步。",
+  "toast.review_available": "「{name}」发现 {n} 处差异",
+
+  "common.cancel": "取消",
+  "common.save": "保存",
+};
+
+const en: Dict = {
+  "nav.overview": "Overview",
+  "nav.pairs": "Sync Pairs",
+  "nav.devices": "Devices",
+  "nav.history": "History",
+  "nav.settings": "Settings",
+
+  "status.devices_connected": "{n} device(s) connected",
+  "status.no_devices": "No device connected",
+
+  "overview.title": "Overview",
+  "overview.desc": "Pair a local folder with a removable drive — plug in and sync.",
+  "overview.pending_banner": "{n} pair(s) have differences waiting for you",
+  "overview.pending_cta": "Review",
+  "overview.stat_pairs": "Sync pairs",
+  "overview.stat_devices": "Devices connected",
+  "overview.stat_pending": "Pending differences",
+  "overview.empty_pairs_title": "No sync pairs yet",
+  "overview.empty_pairs_desc":
+    "Create a pair between a local folder and a folder on your removable drive. When the drive is plugged in, Synbackup checks both sides for you.",
+  "overview.empty_pairs_cta": "New Sync Pair",
+  "overview.recent": "Recent syncs",
+
+  "pairs.title": "Sync Pairs",
+  "pairs.desc": "Each pair links one local folder with one folder on a device.",
+  "pairs.add": "New Sync Pair",
+  "pairs.check": "Check Now",
+  "pairs.review": "Review",
+  "pairs.edit": "Edit",
+  "pairs.delete": "Delete",
+  "pairs.delete_confirm": "Delete for sure?",
+  "pairs.device_online": "Device connected",
+  "pairs.device_offline": "Device offline",
+  "pairs.pending_count": "{n} difference(s)",
+  "pairs.syncing": "Syncing…",
+  "pairs.disabled": "Disabled",
+  "pairs.enable": "Enable",
+  "pairs.disable": "Disable",
+  "pairs.last_sync": "Last sync",
+
+  "editor.new": "New Sync Pair",
+  "editor.edit": "Edit Sync Pair",
+  "editor.name": "Name",
+  "editor.name_placeholder": "e.g. Project backup",
+  "editor.local": "Local folder",
+  "editor.local_pick": "Browse…",
+  "editor.device": "Target device",
+  "editor.device_hint": "Pick a connected removable drive",
+  "editor.device_none": "No device detected. Plug one in and try again.",
+  "editor.remote": "Folder on device",
+  "editor.remote_placeholder": "e.g. Backup/Projects (empty = drive root)",
+  "editor.remote_root": "Drive root",
+
+  "devices.title": "Devices",
+  "devices.desc": "Removable drives are monitored in the background and matched to your pairs.",
+  "devices.none": "No removable drive detected",
+  "devices.matched_pairs": "Pairs",
+  "devices.no_pairs": "No pairs linked",
+
+  "history.title": "History",
+  "history.desc": "Sync runs, newest first.",
+  "history.clear": "Clear History",
+  "history.clear_confirm": "Clear for sure?",
+  "history.none": "No sync history yet",
+  "history.errors": "{n} error(s)",
+  "history.to_remote": "→drive {n}",
+  "history.to_local": "→local {n}",
+  "history.deleted": "deleted {n}",
+  "history.moved": "{n} file(s) synced",
+
+  "diff.title": "Differences to Review",
+  "diff.scanned_at": "Scanned",
+  "diff.all_counts": "{n} item(s)",
+  "diff.col_status": "Status",
+  "diff.col_path": "File",
+  "diff.col_local": "Local",
+  "diff.col_remote": "Drive",
+  "diff.col_action": "Action",
+  "diff.bulk_suggest": "Apply Suggested",
+  "diff.bulk_l2r": "All Local → Drive",
+  "diff.bulk_r2l": "All Drive → Local",
+  "diff.bulk_skip": "Skip All",
+  "diff.start": "Start Sync",
+  "diff.conflict_hint": "{n} conflict(s)",
+  "diff.cancel": "Cancel",
+  "diff.progress": "Syncing",
+  "diff.syncing_hint": "Sync in progress — keep the device connected",
+  "diff.done": "Sync Complete",
+  "diff.close": "Close",
+  "diff.summary_copied_r": "Copied to drive {n}",
+  "diff.summary_copied_l": "Copied to local {n}",
+  "diff.summary_deleted_r": "Deleted on drive {n}",
+  "diff.summary_deleted_l": "Deleted on local {n}",
+  "diff.summary_skipped": "Skipped {n}",
+  "diff.summary_failed": "Failed {n}",
+
+  "st.new_local": "New on local",
+  "st.new_remote": "New on drive",
+  "st.changed_local": "Changed on local",
+  "st.changed_remote": "Changed on drive",
+  "st.both_changed": "Changed on both",
+  "st.deleted_remote": "Deleted on drive",
+  "st.deleted_local": "Deleted on local",
+  "st.type_conflict": "Type conflict",
+
+  "act.local_to_remote": "Copy to drive",
+  "act.remote_to_local": "Copy to local",
+  "act.delete_remote": "Delete on drive",
+  "act.delete_local": "Delete on local",
+  "act.skip": "Skip",
+
+  "settings.title": "Settings",
+  "settings.general": "General",
+  "settings.language": "Language",
+  "settings.launch": "Launch at login",
+  "settings.poll": "Scan interval (seconds)",
+  "settings.poll_hint": "How often the backend checks for plugged-in devices.",
+  "settings.sync_section": "Sync",
+  "settings.auto_scan": "Auto-check on insert",
+  "settings.auto_scan_hint": "Scan for differences as soon as a device is plugged in.",
+  "settings.auto_sync": "Auto-sync when conflict-free",
+  "settings.auto_sync_hint":
+    "Only copies and one-side changes run automatically; conflicts and deletions always ask first.",
+  "settings.notify": "System notifications",
+  "settings.notify_hint": "Notify when differences are found or auto-sync finishes.",
+  "settings.about": "About",
+  "settings.version": "Version",
+  "settings.data": "Data folder",
+  "settings.data_hint": "Where config, manifests and history are stored.",
+  "settings.tray_hint": "Saved. Tray menu language applies after restart.",
+
+  "toast.saved": "Saved",
+  "toast.pair_saved": "Sync pair saved",
+  "toast.pair_deleted": "Sync pair deleted",
+  "toast.history_cleared": "History cleared",
+  "toast.uptodate": "Both sides are already in sync.",
+  "toast.review_available": "{n} difference(s) found in \"{name}\"",
+
+  "common.cancel": "Cancel",
+  "common.save": "Save",
+};
+
+export function t(key: string, params?: Record<string, string | number>): string {
+  const lang = store.settings.language;
+  const dict = lang === "en-US" ? en : zh;
+  let text = dict[key] ?? zh[key] ?? key;
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      text = text.replaceAll(`{${k}}`, String(v));
+    }
+  }
+  return text;
+}
+
+export function fmtSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let v = bytes;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  const s = i === 0 ? String(v) : v >= 100 ? v.toFixed(0) : v.toFixed(1);
+  return `${s} ${units[i]}`;
+}
+
+export function fmtTime(ms: number): string {
+  if (!ms) return "—";
+  const lang = store.settings.language === "en-US" ? "en-US" : "zh-CN";
+  const d = new Date(ms);
+  const sameDay = new Date().toDateString() === d.toDateString();
+  return d.toLocaleString(
+    lang,
+    sameDay
+      ? { hour: "2-digit", minute: "2-digit" }
+      : { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" },
+  );
+}
+
+export function fmtDateTime(ms: number): string {
+  if (!ms) return "—";
+  const lang = store.settings.language === "en-US" ? "en-US" : "zh-CN";
+  return new Date(ms).toLocaleString(lang, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
