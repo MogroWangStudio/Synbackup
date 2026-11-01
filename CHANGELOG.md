@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### 新增
+
+- GitHub Actions CI：每次推送自动构建 Windows x64 便携版 exe 与 macOS arm64 DMG，产物按 `Synbackup-<版本>-<平台>` 命名。
+
 ### 计划
 
 - 正式视觉设计、logo 与应用图标（当前为占位设计）

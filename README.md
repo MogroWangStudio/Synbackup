@@ -62,6 +62,15 @@ npm run build         # vue-tsc 类型检查 + vite 构建
 cd src-tauri && cargo check
 ```
 
+## CI
+
+每次推送都会通过 GitHub Actions 自动构建（`.github/workflows/ci.yml`），产物在 Actions 页面的 Artifacts 中下载：
+
+- `Synbackup-<版本>-windows-x64` — Windows x64 便携版（单文件 exe，目标机器需已安装 WebView2 Runtime，Win10/11 默认内置）
+- `Synbackup-<版本>-macos-arm64` — macOS Apple Silicon DMG（未签名，首次打开需右键 → 打开）
+
+版本号取自 `src-tauri/tauri.conf.json`。
+
 占位图标由 `scripts/generate_icon.py` 生成（纯标准库 Python），`npx tauri icon` 产出全套尺寸。正式 logo 与视觉规范确定后，替换 `scripts/app-icon-source.png` 重新执行即可。
 
 ## 数据位置

@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Windows x64 便携版
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v7
+
+      - name: 安装 Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安装 Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust 编译缓存
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: 读取版本号
+        id: version
+        shell: pwsh
+        run: |
+          $version = node -p "require('./src-tauri/tauri.conf.json').version"
+          Add-Content $env:GITHUB_OUTPUT "version=$version"
+
+      - name: 安装前端依赖
+        run: npm ci
+
+      - name: 构建便携版（跳过安装包）
+        run: npm run tauri build -- --no-bundle
+
+      - name: 整理产物
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          $exe = "src-tauri/target/release/synbackup.exe"
+          if (-not (Test-Path $exe)) {
+            $exe = (Get-ChildItem src-tauri/target/release -Filter *.exe | Select-Object -First 1).FullName
+          }
+          Copy-Item $exe "artifacts/Synbackup-${{ steps.version.outputs.version }}-windows-x64.exe"
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v7
+        with:
+          name: Synbackup-${{ steps.version.outputs.version }}-windows-x64
+          path: artifacts/*
+          if-no-files-found: error
+
+  build-macos:
+    name: macOS arm64 DMG
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v7
+
+      - name: 安装 Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安装 Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust 编译缓存
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: 读取版本号
+        id: version
+        run: |
+          echo "version=$(node -p "require('./src-tauri/tauri.conf.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: 安装前端依赖
+        run: npm ci
+
+      - name: 构建 DMG
+        run: npm run tauri build -- --bundles dmg
+
+      - name: 整理产物
+        run: |
+          mkdir -p artifacts
+          cp src-tauri/target/release/bundle/dmg/*.dmg \
+            "artifacts/Synbackup-${{ steps.version.outputs.version }}-macos-arm64.dmg"
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v7
+        with:
+          name: Synbackup-${{ steps.version.outputs.version }}-macos-arm64
+          path: artifacts/*
+          if-no-files-found: error
