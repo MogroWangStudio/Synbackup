@@ -44,6 +44,10 @@ jobs:
       - name: 安装前端依赖
         run: npm ci
 
+      # 先做类型检查：编译错误在 ~1 分钟内暴露，不必等 release 全量编译（LTO）跑完
+      - name: Rust 类型检查（快速失败）
+        run: cargo check --all-targets --manifest-path src-tauri/Cargo.toml
+
       - name: 构建便携版（跳过安装包）
         run: npm run tauri build -- --no-bundle
 
