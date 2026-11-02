@@ -336,6 +336,9 @@ pub fn run() {
                 "quit" => app.exit(0),
                 _ => {}
             },
+            // Reopen 仅 macOS 存在（Tauri 中该变体带 cfg(target_os = "macos")），
+            // 不加条件编译会导致 Windows 构建 E0599。
+            #[cfg(target_os = "macos")]
             RunEvent::Reopen { .. } => {
                 // macOS 点击 Dock 图标
                 show_main_window(app);
