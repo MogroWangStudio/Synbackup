@@ -18,6 +18,8 @@ export interface AppSettings {
   uiScale: number;
   /** 启动入场动画 */
   launchAnimation: boolean;
+  /** 更新渠道：stable = 正式版（Release），beta = 预发布（Pre-Release） */
+  updateChannel: string;
 }
 
 export interface SyncPair {

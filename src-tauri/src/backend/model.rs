@@ -41,6 +41,8 @@ pub struct AppSettings {
     pub ui_scale: f32,
     /// 启动入场动画
     pub launch_animation: bool,
+    /// 更新渠道：stable = 正式版（Release），beta = 预发布（Pre-Release）
+    pub update_channel: String,
 }
 
 impl Default for AppSettings {
@@ -57,6 +59,7 @@ impl Default for AppSettings {
             font_scale: 1.0,
             ui_scale: 1.0,
             launch_animation: true,
+            update_channel: "stable".into(),
         }
     }
 }

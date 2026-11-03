@@ -72,6 +72,20 @@ function onLanguage(ev: Event) {
           @update:model-value="(v) => update({ launchAtLogin: v })"
         />
       </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.update_channel") }}</span>
+          <span class="row-hint">{{ t("settings.update_channel_hint") }}</span>
+        </div>
+        <select
+          class="input"
+          :value="store.settings.updateChannel"
+          @change="update({ updateChannel: ($event.target as HTMLSelectElement).value })"
+        >
+          <option value="stable">{{ t("channel.stable") }}</option>
+          <option value="beta">{{ t("channel.beta") }}</option>
+        </select>
+      </div>
     </section>
 
     <section class="card group">

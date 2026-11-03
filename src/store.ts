@@ -42,6 +42,7 @@ export const store = reactive({
     fontScale: 1,
     uiScale: 1,
     launchAnimation: true,
+    updateChannel: "stable",
     // 外观偏好从 localStorage 同步读取，保证首帧（后端数据未返回前）无闪变
     ...loadUiPrefs(),
   } as AppSettings,
