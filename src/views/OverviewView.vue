@@ -24,7 +24,6 @@ function goPairs() {
     <div class="page-head">
       <div>
         <h1 class="page-title">{{ t("overview.title") }}</h1>
-        <p class="page-desc">{{ t("overview.desc") }}</p>
       </div>
     </div>
 

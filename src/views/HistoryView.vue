@@ -29,7 +29,6 @@ function onClear() {
     <div class="page-head">
       <div>
         <h1 class="page-title">{{ t("history.title") }}</h1>
-        <p class="page-desc">{{ t("history.desc") }}</p>
       </div>
       <button
         v-if="store.history.length"

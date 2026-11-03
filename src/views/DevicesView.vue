@@ -26,7 +26,6 @@ function usagePct(v: VolumeInfo): number {
     <div class="page-head">
       <div>
         <h1 class="page-title">{{ t("devices.title") }}</h1>
-        <p class="page-desc">{{ t("devices.desc") }}</p>
       </div>
     </div>
 

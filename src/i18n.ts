@@ -18,7 +18,6 @@ const zh: Dict = {
   "status.no_devices": "未连接设备",
 
   "overview.title": "总览",
-  "overview.desc": "把常用文件夹与移动设备配成一对，插入设备即可同步。",
   "overview.pending_banner": "{n} 个任务存在差异，等待你处理",
   "overview.pending_cta": "去处理",
   "overview.stat_pairs": "同步任务",
@@ -31,7 +30,6 @@ const zh: Dict = {
   "overview.recent": "最近同步",
 
   "pairs.title": "同步任务",
-  "pairs.desc": "每个任务把一个本地文件夹与一台设备上的文件夹配对。",
   "pairs.add": "新建同步任务",
   "pairs.check": "立即检查",
   "pairs.review": "处理差异",
@@ -69,13 +67,12 @@ const zh: Dict = {
   "editor.remote_root": "设备根目录",
 
   "devices.title": "设备",
-  "devices.desc": "后台会自动监控新插入的移动存储设备，并标记与任务关联的设备。",
   "devices.none": "未检测到移动存储设备",
+  "devices.desc": "后台会自动监控新插入的移动存储设备，并标记与任务关联的设备。",
   "devices.matched_pairs": "关联任务",
   "devices.no_pairs": "未关联任务",
 
   "history.title": "历史",
-  "history.desc": "同步执行记录，按时间倒序。每条记录可展开查看逐项明细。",
   "history.clear": "清空历史",
   "history.clear_confirm": "确认清空？",
   "history.none": "暂无同步记录",
@@ -199,7 +196,6 @@ const en: Dict = {
   "status.no_devices": "No device connected",
 
   "overview.title": "Overview",
-  "overview.desc": "Pair a local folder with a removable drive — plug in and sync.",
   "overview.pending_banner": "{n} pair(s) have differences waiting for you",
   "overview.pending_cta": "Review",
   "overview.stat_pairs": "Sync pairs",
@@ -212,7 +208,6 @@ const en: Dict = {
   "overview.recent": "Recent syncs",
 
   "pairs.title": "Sync Pairs",
-  "pairs.desc": "Each pair links one local folder with one folder on a device.",
   "pairs.add": "New Sync Pair",
   "pairs.check": "Check Now",
   "pairs.review": "Review",
@@ -250,13 +245,12 @@ const en: Dict = {
   "editor.remote_root": "Drive root",
 
   "devices.title": "Devices",
-  "devices.desc": "Removable drives are monitored in the background and matched to your pairs.",
   "devices.none": "No removable drive detected",
   "devices.matched_pairs": "Pairs",
+  "devices.desc": "Removable drives are monitored in the background and matched to your pairs.",
   "devices.no_pairs": "No pairs linked",
 
   "history.title": "History",
-  "history.desc": "Sync runs, newest first. Expand a record to see what was processed.",
   "history.clear": "Clear History",
   "history.clear_confirm": "Clear for sure?",
   "history.none": "No sync history yet",

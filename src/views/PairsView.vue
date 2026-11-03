@@ -10,7 +10,6 @@ import PairCard from "../components/PairCard.vue";
     <div class="page-head">
       <div>
         <h1 class="page-title">{{ t("pairs.title") }}</h1>
-        <p class="page-desc">{{ t("pairs.desc") }}</p>
       </div>
       <button class="btn btn-primary" @click="store.editor = { pair: null }">
         <Icon name="plus" :size="14" />
