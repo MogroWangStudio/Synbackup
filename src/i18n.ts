@@ -193,6 +193,10 @@ const zh: Dict = {
   "settings.data_hint": "配置、同步清单与历史记录的存放位置。",
   "settings.developer": "开发者",
   "settings.studio_hint": "点击前往 MogroWang Studio 官方网站",
+  "close.title": "关闭同备",
+  "close.desc": "关闭窗口后，同备将继续在系统托盘中运行，设备插入时照常检查与同步。",
+  "close.window": "仅退出窗口",
+  "close.quit": "完全退出",
   "settings.tray_hint": "已保存。托盘菜单语言将在重启后生效。",
 
   "toast.saved": "已保存",
@@ -398,6 +402,10 @@ const en: Dict = {
   "settings.data_hint": "Where config, manifests and history are stored.",
   "settings.developer": "Developer",
   "settings.studio_hint": "Visit the MogroWang Studio website",
+  "close.title": "Close Synbackup",
+  "close.desc": "After closing the window, Synbackup keeps running in the system tray and still checks and syncs on device insert.",
+  "close.window": "Close window",
+  "close.quit": "Quit entirely",
   "settings.tray_hint": "Saved. Tray menu language applies after restart.",
 
   "toast.saved": "Saved",

@@ -30,4 +30,6 @@ export const api = {
   checkAllDevices: () => invoke<number>("check_all_devices"),
   getAppInfo: () => invoke<AppInfo>("get_app_info"),
   openExternal: (url: string) => invoke<void>("open_external", { url }),
+  markUiReady: () => invoke<void>("mark_ui_ready"),
+  exitApp: () => invoke<void>("exit_app"),
 };

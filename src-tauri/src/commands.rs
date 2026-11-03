@@ -239,3 +239,17 @@ pub fn open_external(app: AppHandle, url: String) -> CmdResult<()> {
     }
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
+
+/// 前端初始化完成：此后关闭窗口改为询问退出方式
+#[tauri::command]
+pub fn mark_ui_ready(core: State<'_, backend::Core>) -> CmdResult<()> {
+    core.set_ui_ready();
+    Ok(())
+}
+
+/// 完全退出（含后台托盘进程）
+#[tauri::command]
+pub fn exit_app(app: AppHandle) -> CmdResult<()> {
+    app.exit(0);
+    Ok(())
+}

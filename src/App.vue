@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { listen } from "@tauri-apps/api/event";
+import { api } from "./api";
 import { refreshAll, refreshConfig, refreshHistory, refreshPending, store, toast } from "./store";
 import { t } from "./i18n";
 import type { PendingReview, VolumeInfo } from "./types";
@@ -12,6 +13,7 @@ import HistoryView from "./views/HistoryView.vue";
 import SettingsView from "./views/SettingsView.vue";
 import PairEditor from "./components/PairEditor.vue";
 import DiffDialog from "./components/DiffDialog.vue";
+import CloseConfirm from "./components/CloseConfirm.vue";
 import ToastHost from "./components/ToastHost.vue";
 import TitleBar from "./components/TitleBar.vue";
 
@@ -23,6 +25,8 @@ onMounted(async () => {
   try {
     await refreshAll();
     applyLang();
+    // 前端就绪：此后后端收到关闭请求会询问退出方式
+    await api.markUiReady();
   } catch (e) {
     toast("error", String(e));
   }
@@ -38,6 +42,10 @@ async function registerListeners() {
   });
   await listen("sync-finished", async () => {
     await Promise.all([refreshPending(), refreshHistory(), refreshConfig()]);
+  });
+  // 关闭窗口：后端拦截并转交前端询问退出方式
+  await listen("close-requested", () => {
+    store.closeConfirm = true;
   });
 }
 
@@ -65,6 +73,7 @@ function applyLang() {
 
     <PairEditor v-if="store.editor" />
     <DiffDialog v-if="store.diffDialog" />
+    <CloseConfirm v-if="store.closeConfirm" />
     <ToastHost />
   </div>
 </template>

@@ -12,6 +12,7 @@ pub mod model;
 pub mod scan;
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, RwLock};
 
 use model::{
@@ -35,6 +36,8 @@ pub struct Core {
     pending: Mutex<Vec<PendingReview>>,
     /// 全局同步互斥锁：同一时刻只执行一个同步任务
     pub sync_lock: tokio::sync::Mutex<()>,
+    /// 前端是否已完成初始化（未就绪时关闭窗口直接销毁，不弹确认框）
+    ui_ready: AtomicBool,
 }
 
 impl Core {
@@ -48,7 +51,17 @@ impl Core {
             inner: RwLock::new(Inner { settings: cfg.settings, pairs: cfg.pairs }),
             pending: Mutex::new(Vec::new()),
             sync_lock: tokio::sync::Mutex::new(()),
+            ui_ready: AtomicBool::new(false),
         }
+    }
+
+    /// 前端初始化完成后标记；此后关闭窗口改为询问退出方式
+    pub fn set_ui_ready(&self) {
+        self.ui_ready.store(true, Ordering::SeqCst);
+    }
+
+    pub fn ui_ready(&self) -> bool {
+        self.ui_ready.load(Ordering::SeqCst)
     }
 
     pub fn config_snapshot(&self) -> Config {

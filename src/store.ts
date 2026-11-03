@@ -60,6 +60,8 @@ export const store = reactive({
   diffDialog: null as DiffDialogState | null,
   editor: null as null | { pair: SyncPair | null },
   syncingPairIds: [] as string[],
+  /** 关闭窗口确认：true 时显示"仅退出窗口 / 完全退出"选择框 */
+  closeConfirm: false,
 });
 
 let toastSeq = 1;

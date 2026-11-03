@@ -6,7 +6,7 @@ mod commands;
 mod monitor;
 mod notify;
 
-use tauri::{AppHandle, Manager, RunEvent, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, WebviewWindowBuilder};
 
 /// 后端文案（托盘菜单与系统通知；随设置语言，重启托盘后生效）
 pub(crate) fn text(lang: &str, key: &str) -> &'static str {
@@ -145,6 +145,8 @@ pub fn run() {
             commands::check_all_devices,
             commands::get_app_info,
             commands::open_external,
+            commands::mark_ui_ready,
+            commands::exit_app,
         ])
         .setup(|app| {
             app.manage(backend::Core::new());
@@ -157,10 +159,16 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // 关闭窗口 = 彻底销毁 WebView；后端进程保留在托盘继续运行
+            // 关闭窗口：前端就绪时交给前端询问退出方式（仅退窗 / 完全退出）；
+            // 前端尚未就绪（如启动瞬间）则直接销毁窗口，后端保留在托盘
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
-                let _ = window.destroy();
+                let core = window.app_handle().state::<backend::Core>();
+                if !core.ui_ready() {
+                    let _ = window.destroy();
+                    return;
+                }
+                let _ = window.app_handle().emit("close-requested", ());
             }
         })
         .build(tauri::generate_context!())
