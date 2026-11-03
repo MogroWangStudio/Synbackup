@@ -91,7 +91,7 @@ pub enum DiffStatus {
     TypeConflict,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum SyncAction {
     /// 复制本地 → 设备
@@ -104,6 +104,29 @@ pub enum SyncAction {
     DeleteLocal,
     /// 本次不处理
     Skip,
+}
+
+/// 本次同步由谁触发：历史记录据此区分自动与手动。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Trigger {
+    /// 用户在差异对话框里确认后执行
+    #[default]
+    Manual,
+    /// 插入设备后按"无冲突自动同步"规则自动执行
+    Auto,
+}
+
+/// 单个文件的执行结果：历史明细与结果展示都从这里来。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplyOutcome {
+    pub path: String,
+    pub action: SyncAction,
+    /// 是否按计划完成（跳过视为完成，失败与"文件已消失"为 false）
+    pub ok: bool,
+    /// 未完成的原因
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -157,6 +180,8 @@ pub struct ApplyResult {
     pub deleted_local: u32,
     pub skipped: u32,
     pub errors: Vec<ApplyError>,
+    /// 逐项执行明细，顺序与决策顺序一致
+    pub items: Vec<ApplyOutcome>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -172,10 +197,16 @@ pub struct VolumeInfo {
     pub matched_pair_ids: Vec<String>,
 }
 
+/// 同步历史条目。
+///
+/// 加了 `default`：0.1.0 写入的旧记录（无 trigger / items 字段）依然能读出，
+/// 缺失字段回落到默认值而不是整行被丢弃。
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct HistoryEntry {
+    /// 同步完成时间
     pub ts: i64,
+    pub trigger: Trigger,
     pub pair_id: String,
     pub pair_name: String,
     pub device_label: String,
@@ -185,4 +216,28 @@ pub struct HistoryEntry {
     pub deleted_local: u32,
     pub skipped: u32,
     pub errors: Vec<ApplyError>,
+    /// 逐项执行明细（条数上限见 backend::HISTORY_ITEM_LIMIT）
+    pub items: Vec<ApplyOutcome>,
+    /// 超出上限未记录的明细条数
+    pub items_truncated: u32,
+}
+
+impl Default for HistoryEntry {
+    fn default() -> Self {
+        Self {
+            ts: 0,
+            trigger: Trigger::Manual,
+            pair_id: String::new(),
+            pair_name: String::new(),
+            device_label: String::new(),
+            copied_to_remote: 0,
+            copied_to_local: 0,
+            deleted_remote: 0,
+            deleted_local: 0,
+            skipped: 0,
+            errors: Vec::new(),
+            items: Vec::new(),
+            items_truncated: 0,
+        }
+    }
 }

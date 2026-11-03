@@ -84,18 +84,12 @@ pub async fn set_pair_enabled(
 #[tauri::command]
 pub async fn list_volumes(core: State<'_, backend::Core>) -> CmdResult<Vec<VolumeInfo>> {
     let pairs = core.pairs();
-    let mut vols = blocking(backend::devices::list_volumes).await?;
-    for v in vols.iter_mut() {
-        v.matched_pair_ids = pairs
-            .iter()
-            .filter(|p| {
-                p.enabled
-                    && backend::devices::resolve_remote_root(std::slice::from_ref(v), p).is_some()
-            })
-            .map(|p| p.id.clone())
-            .collect();
-    }
-    Ok(vols)
+    Ok(blocking(move || {
+        let mut vols = backend::devices::list_volumes();
+        backend::devices::attach_pairs(&mut vols, &pairs);
+        vols
+    })
+    .await?)
 }
 
 /// 手动扫描单个任务，返回差异报告（同时存入待处理列表）
@@ -181,10 +175,13 @@ pub async fn apply_decisions(
     };
 
     backend::manifest::save(&dir, &pair.id, &updated_manifest).map_err(|e| e.to_string())?;
-    core.record_history(&pair, &result);
+    core.record_history(&pair, &result, Trigger::Manual);
     core.touch_last_sync(&pair_id)?;
     core.remove_pending(&pair_id);
-    let _ = app.emit("sync-finished", serde_json::json!({ "pairId": pair_id, "result": result }));
+    let _ = app.emit(
+        "sync-finished",
+        serde_json::json!({ "pairId": pair_id, "result": result, "trigger": Trigger::Manual }),
+    );
     Ok(result)
 }
 

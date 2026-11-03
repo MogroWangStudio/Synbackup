@@ -74,6 +74,18 @@ export interface ApplyError {
   message: string;
 }
 
+/** 本次同步由谁触发：manual = 差异对话框确认，auto = 插入设备后自动执行 */
+export type Trigger = "manual" | "auto";
+
+/** 单个文件的执行结果 */
+export interface ApplyOutcome {
+  path: string;
+  action: SyncAction;
+  /** 是否按计划完成（跳过算完成，失败与"文件已消失"为 false） */
+  ok: boolean;
+  error: string | null;
+}
+
 export interface ApplyResult {
   copiedToRemote: number;
   copiedToLocal: number;
@@ -81,6 +93,7 @@ export interface ApplyResult {
   deletedLocal: number;
   skipped: number;
   errors: ApplyError[];
+  items: ApplyOutcome[];
 }
 
 export interface VolumeInfo {
@@ -94,6 +107,7 @@ export interface VolumeInfo {
 
 export interface HistoryEntry {
   ts: number;
+  trigger: Trigger;
   pairId: string;
   pairName: string;
   deviceLabel: string;
@@ -103,6 +117,10 @@ export interface HistoryEntry {
   deletedLocal: number;
   skipped: number;
   errors: ApplyError[];
+  /** 逐项明细（最多 200 条，见后端 HISTORY_ITEM_LIMIT） */
+  items: ApplyOutcome[];
+  /** 超出上限、未记录进历史的明细条数 */
+  itemsTruncated: number;
 }
 
 export interface AppInfo {

@@ -16,14 +16,19 @@ import ToastHost from "./components/ToastHost.vue";
 import TitleBar from "./components/TitleBar.vue";
 
 onMounted(async () => {
+  // 先挂监听再拉数据：首次拉取失败时也要保持实时更新能力，
+  // 否则设备插入、扫描完成这些事件从此再也收不到。
+  await registerListeners();
+
   try {
     await refreshAll();
+    applyLang();
   } catch (e) {
     toast("error", String(e));
-    return;
   }
-  applyLang();
+});
 
+async function registerListeners() {
   await listen<VolumeInfo[]>("devices-changed", (e) => {
     store.volumes = e.payload;
   });
@@ -34,7 +39,7 @@ onMounted(async () => {
   await listen("sync-finished", async () => {
     await Promise.all([refreshPending(), refreshHistory(), refreshConfig()]);
   });
-});
+}
 
 function applyLang() {
   document.documentElement.lang = store.settings.language === "en-US" ? "en" : "zh-CN";

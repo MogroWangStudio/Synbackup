@@ -14,7 +14,11 @@ pub mod scan;
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock};
 
-use model::{AppSettings, ApplyResult, Config, HistoryEntry, PendingReview, SyncPair, now_ms};
+use model::{AppSettings, ApplyResult, Config, HistoryEntry, PendingReview, SyncPair, Trigger, now_ms};
+
+/// 单条历史最多保留的明细条数：自动同步一次可能涉及上千个文件，
+/// 全部写进 JSONL 会让历史文件无限膨胀，界面也读不动。
+pub const HISTORY_ITEM_LIMIT: usize = 200;
 
 #[derive(Default)]
 struct Inner {
@@ -138,9 +142,10 @@ impl Core {
         self.save()
     }
 
-    pub fn record_history(&self, pair: &SyncPair, result: &ApplyResult) {
+    pub fn record_history(&self, pair: &SyncPair, result: &ApplyResult, trigger: Trigger) {
         let entry = HistoryEntry {
             ts: now_ms(),
+            trigger,
             pair_id: pair.id.clone(),
             pair_name: pair.name.clone(),
             device_label: pair.device_label.clone(),
@@ -150,6 +155,8 @@ impl Core {
             deleted_local: result.deleted_local,
             skipped: result.skipped,
             errors: result.errors.clone(),
+            items: result.items.iter().take(HISTORY_ITEM_LIMIT).cloned().collect(),
+            items_truncated: result.items.len().saturating_sub(HISTORY_ITEM_LIMIT) as u32,
         };
         history::append(&self.dir, &entry);
     }

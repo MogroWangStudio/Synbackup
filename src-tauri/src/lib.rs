@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WebviewWindowBuilder};
 use tauri_plugin_notification::NotificationExt;
 
-use backend::model::{Decision, DiffStatus, PendingReview, SyncPair, VolumeInfo, now_ms};
+use backend::model::{Decision, DiffStatus, PendingReview, SyncPair, Trigger, VolumeInfo, now_ms};
 
 /// 后端文案（托盘菜单与系统通知；随设置语言，重启托盘后生效）
 fn text(lang: &str, key: &str) -> &'static str {
@@ -31,11 +31,6 @@ fn text_fmt(lang: &str, key: &str, name: &str, n: usize) -> String {
         } else {
             format!("{n} difference(s) found in \"{name}\". Open Synbackup to review.")
         },
-        "autosync_body" => if zh {
-            format!("任务「{name}」已自动同步 {n} 个文件。")
-        } else {
-            format!("\"{name}\" synced automatically — {n} file(s) processed.")
-        },
         "uptodate_body" => if zh {
             format!("任务「{name}」两侧一致，无需同步。")
         } else {
@@ -50,8 +45,23 @@ fn text_fmt(lang: &str, key: &str, name: &str, n: usize) -> String {
     }
 }
 
+/// 自动同步完成通知：报告同步了多少、失败多少，而不只是"已同步"。
+fn autosync_body(lang: &str, name: &str, copied: usize, failed: usize) -> String {
+    let zh = lang.starts_with("zh");
+    match (zh, failed) {
+        (true, 0) => format!("任务「{name}」已自动同步 {copied} 个文件。"),
+        (true, _) => format!("任务「{name}」已自动同步 {copied} 个文件，{failed} 个失败。"),
+        (false, 0) => format!("\"{name}\" synced {copied} file(s) automatically."),
+        (false, _) => format!("\"{name}\" synced {copied} file(s) automatically — {failed} failed."),
+    }
+}
+
 fn notify(app: &AppHandle, title: &str, body: &str) {
-    let _ = app.notification().builder().title(title).body(body).show();
+    // 发送失败不能静默：macOS 未打包运行、或系统里关掉了本应用的通知时，
+    // 只有日志能说明"为什么没有弹出通知"。
+    if let Err(e) = app.notification().builder().title(title).body(body).show() {
+        eprintln!("[synbackup] 发送系统通知失败: {e}");
+    }
 }
 
 async fn run_blocking<T, F>(f: F) -> Result<T, String>
@@ -74,19 +84,47 @@ pub fn show_main_window(app: &AppHandle) {
     }
 }
 
+/// 当前设备快照（含"匹配到哪些任务"）。
+///
+/// 命令与后台推送共用同一套补全逻辑：只取裸卷列表会让前端拿到
+/// `matchedPairIds: []`，于是刚插入的设备在界面上仍显示"设备未连接"。
+async fn volumes_snapshot(app: &AppHandle) -> Option<Vec<VolumeInfo>> {
+    let pairs = app.state::<backend::Core>().pairs();
+    run_blocking(move || {
+        let mut vols = backend::devices::list_volumes();
+        backend::devices::attach_pairs(&mut vols, &pairs);
+        vols
+    })
+    .await
+    .ok()
+}
+
+/// 推送设备变化；内容未变则不推，避免每轮轮询都打一次 IPC。
+fn emit_devices(app: &AppHandle, volumes: &[VolumeInfo], last: &mut String) {
+    let payload = serde_json::to_string(volumes).unwrap_or_default();
+    if payload != *last {
+        let _ = app.emit("devices-changed", volumes);
+        *last = payload;
+    }
+}
+
 /// 扫描所有已连接且匹配的任务（托盘「立即扫描」与手动命令共用）
 pub async fn check_all_devices(app: &AppHandle) {
-    let volumes = match run_blocking(backend::devices::list_volumes).await {
-        Ok(v) => v,
-        Err(e) => {
-            eprintln!("[synbackup] 枚举设备失败: {e}");
-            return;
-        }
+    let Some(volumes) = volumes_snapshot(app).await else {
+        eprintln!("[synbackup] 枚举设备失败");
+        return;
     };
+    let _ = app.emit("devices-changed", &volumes);
+
     for vol in &volumes {
         if let Err(e) = handle_volume_inserted(app, vol, true).await {
             eprintln!("[synbackup] 处理设备 {} 失败: {e}", vol.label);
         }
+    }
+
+    // 处理过程可能写入配对标记、改变关联关系
+    if let Some(after) = volumes_snapshot(app).await {
+        let _ = app.emit("devices-changed", &after);
     }
 }
 
@@ -107,7 +145,9 @@ async fn handle_volume_inserted(
         else {
             continue;
         };
-        if !settings.auto_scan_on_insert && !force_scan {
+        // 自动同步也得先扫描：只开了"无冲突自动同步"而关了"插入时自动检查"时，
+        // 以前会直接 continue，自动同步（以及它的通知）永远不会发生。
+        if !settings.auto_scan_on_insert && !settings.auto_sync_no_conflict && !force_scan {
             continue;
         }
         let local_root = PathBuf::from(&pair.local_path);
@@ -171,18 +211,20 @@ async fn handle_volume_inserted(
                 .await?
             };
             backend::manifest::save(&dir, &pair.id, &updated_manifest).map_err(|e| e.to_string())?;
-            core.record_history(&pair, &result);
+            core.record_history(&pair, &result, Trigger::Auto);
             core.touch_last_sync(&pair.id)?;
+            // 自动同步已经处理完这批差异，之前若留下待审条目就是过期状态
+            core.remove_pending(&pair.id);
             let _ = app.emit(
                 "sync-finished",
-                serde_json::json!({ "pairId": pair.id, "result": result }),
+                serde_json::json!({ "pairId": pair.id, "result": result, "trigger": Trigger::Auto }),
             );
             if settings.notify_on_insert {
-                let n = (result.copied_to_remote + result.copied_to_local) as usize;
+                let copied = (result.copied_to_remote + result.copied_to_local) as usize;
                 notify(
                     app,
                     text(&settings.language, "app_title"),
-                    &text_fmt(&settings.language, "autosync_body", &pair.name, n),
+                    &autosync_body(&settings.language, &pair.name, copied, result.errors.len()),
                 );
             }
         } else {
@@ -212,6 +254,7 @@ async fn handle_volume_inserted(
 /// 前端 WebView 是否存活与本循环完全无关。
 async fn monitor_loop(app: AppHandle) {
     let mut prev_mounts: HashSet<String> = HashSet::new();
+    let mut last_payload = String::new();
     loop {
         let interval = {
             let core = app.state::<backend::Core>();
@@ -219,21 +262,29 @@ async fn monitor_loop(app: AppHandle) {
         };
         tokio::time::sleep(std::time::Duration::from_secs(interval)).await;
 
-        let volumes = match run_blocking(backend::devices::list_volumes).await {
-            Ok(v) => v,
-            Err(_) => continue,
+        let Some(volumes) = volumes_snapshot(&app).await else {
+            continue;
         };
-        let _ = app.emit("devices-changed", &volumes);
+        // 先推一次：设备一插上界面就能变，不必等扫描与同步跑完
+        emit_devices(&app, &volumes, &mut last_payload);
 
         let mounts: HashSet<String> = volumes.iter().map(|v| v.mount.clone()).collect();
         let fresh: Vec<VolumeInfo> =
             volumes.iter().filter(|v| !prev_mounts.contains(&v.mount)).cloned().collect();
+        prev_mounts = mounts;
+
+        if fresh.is_empty() {
+            continue;
+        }
         for vol in fresh {
             if let Err(e) = handle_volume_inserted(&app, &vol, false).await {
                 eprintln!("[synbackup] 处理设备 {} 失败: {e}", vol.label);
             }
         }
-        prev_mounts = mounts;
+        // 处理过程会写入配对标记、可能改变关联关系 → 再补一次快照
+        if let Some(after) = volumes_snapshot(&app).await {
+            emit_devices(&app, &after, &mut last_payload);
+        }
     }
 }
 

@@ -6,7 +6,7 @@ use filetime::{FileTime, set_file_mtime};
 
 use super::devices;
 use super::manifest::Manifest;
-use super::model::{ApplyError, ApplyResult, Decision, DiffItem, FileStat, SyncAction};
+use super::model::{ApplyError, ApplyOutcome, ApplyResult, Decision, DiffItem, FileStat, SyncAction};
 
 pub fn apply(
     local_root: &Path,
@@ -23,6 +23,11 @@ pub fn apply(
         let Some(_item) = items.iter().find(|i| i.path == d.path) else {
             // 该文件在重新扫描后已消失，按跳过处理
             result.skipped += 1;
+            result.items.push(ApplyOutcome::failed(
+                &d.path,
+                SyncAction::Skip,
+                "重新扫描后该文件已消失",
+            ));
             continue;
         };
         let lp = devices::remote_root(&local_root.to_string_lossy(), &d.path);
@@ -33,34 +38,51 @@ pub fn apply(
                 Ok(()) => {
                     result.copied_to_remote += 1;
                     refresh_entry(manifest, &d.path, &lp, &rp);
+                    result.items.push(ApplyOutcome::done(&d.path, d.action));
                 }
-                Err(e) => result.errors.push(ApplyError::new(&d.path, &e)),
+                Err(e) => {
+                    result.errors.push(ApplyError::new(&d.path, &e));
+                    result.items.push(ApplyOutcome::failed(&d.path, d.action, &e));
+                }
             },
             SyncAction::RemoteToLocal => match copy_over(&rp, &lp) {
                 Ok(()) => {
                     result.copied_to_local += 1;
                     refresh_entry(manifest, &d.path, &lp, &rp);
+                    result.items.push(ApplyOutcome::done(&d.path, d.action));
                 }
-                Err(e) => result.errors.push(ApplyError::new(&d.path, &e)),
+                Err(e) => {
+                    result.errors.push(ApplyError::new(&d.path, &e));
+                    result.items.push(ApplyOutcome::failed(&d.path, d.action, &e));
+                }
             },
             SyncAction::DeleteRemote => match remove_path(remote_root, &d.path) {
                 Ok(()) => {
                     result.deleted_remote += 1;
                     refresh_entry(manifest, &d.path, &lp, &rp);
+                    result.items.push(ApplyOutcome::done(&d.path, d.action));
                 }
-                Err(e) => result.errors.push(ApplyError::new(&d.path, &e)),
+                Err(e) => {
+                    result.errors.push(ApplyError::new(&d.path, &e));
+                    result.items.push(ApplyOutcome::failed(&d.path, d.action, &e));
+                }
             },
             SyncAction::DeleteLocal => match remove_path(local_root, &d.path) {
                 Ok(()) => {
                     result.deleted_local += 1;
                     refresh_entry(manifest, &d.path, &lp, &rp);
+                    result.items.push(ApplyOutcome::done(&d.path, d.action));
                 }
-                Err(e) => result.errors.push(ApplyError::new(&d.path, &e)),
+                Err(e) => {
+                    result.errors.push(ApplyError::new(&d.path, &e));
+                    result.items.push(ApplyOutcome::failed(&d.path, d.action, &e));
+                }
             },
             SyncAction::Skip => {
                 result.skipped += 1;
                 // 跳过：保留当前实际状态，下次扫描仍会提示
                 refresh_entry(manifest, &d.path, &lp, &rp);
+                result.items.push(ApplyOutcome::done(&d.path, d.action));
             }
         }
     }
@@ -71,6 +93,16 @@ pub fn apply(
 impl ApplyError {
     fn new(path: &str, message: &str) -> Self {
         Self { path: path.to_string(), message: message.to_string() }
+    }
+}
+
+impl ApplyOutcome {
+    fn done(path: &str, action: SyncAction) -> Self {
+        Self { path: path.to_string(), action, ok: true, error: None }
+    }
+
+    fn failed(path: &str, action: SyncAction, error: &str) -> Self {
+        Self { path: path.to_string(), action, ok: false, error: Some(error.to_string()) }
     }
 }
 

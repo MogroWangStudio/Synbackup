@@ -44,6 +44,9 @@ function onClear() {
       <div v-for="(h, i) in store.history" :key="i" class="history-row">
         <span class="history-time">{{ fmtDateTime(h.ts) }}</span>
         <span class="history-name">{{ h.pairName }}</span>
+        <span class="chip" :class="h.trigger === 'auto' ? 'chip-blue' : 'chip-gray'">
+          {{ h.trigger === "auto" ? t("history.trigger_auto") : t("history.trigger_manual") }}
+        </span>
         <span class="history-device">{{ h.deviceLabel }}</span>
         <span class="history-chips">
           <span v-if="h.copiedToRemote" class="chip chip-blue">
@@ -62,11 +65,26 @@ function onClear() {
             {{ t("diff.summary_failed", { n: h.errors.length }) }}
           </span>
         </span>
-        <details v-if="h.errors.length" class="history-errors">
+
+        <!-- 逐项明细：做了什么、结果如何。失败项直接标红，不必再单独开一处错误列表 -->
+        <details v-if="h.items.length" class="history-detail">
+          <summary>{{ t("history.detail") }} · {{ h.items.length }}</summary>
+          <div v-for="(it, k) in h.items" :key="k" class="history-item">
+            <span class="history-item-act" :class="{ failed: !it.ok }">{{ t("act." + it.action) }}</span>
+            <span class="history-item-path">{{ it.path }}</span>
+            <span v-if="!it.ok && it.error" class="history-item-err">{{ it.error }}</span>
+          </div>
+          <p v-if="h.itemsTruncated" class="history-more">
+            {{ t("history.items_more", { n: h.itemsTruncated }) }}
+          </p>
+        </details>
+
+        <!-- 明细被截断时，错误清单仍完整保留，避免关键失败被挤掉 -->
+        <details v-if="h.errors.length && h.itemsTruncated" class="history-detail errors">
           <summary>{{ t("history.errors", { n: h.errors.length }) }}</summary>
-          <div v-for="e in h.errors" :key="e.path" class="history-error">
-            <span class="history-error-path">{{ e.path }}</span>
-            <span class="history-error-msg">{{ e.message }}</span>
+          <div v-for="e in h.errors" :key="e.path" class="history-item">
+            <span class="history-item-act failed">{{ e.path }}</span>
+            <span class="history-item-err">{{ e.message }}</span>
           </div>
         </details>
       </div>
@@ -116,32 +134,56 @@ function onClear() {
   flex-wrap: wrap;
   margin-left: auto;
 }
-.history-errors {
+.history-detail {
   width: 100%;
   font-size: 11.5px;
+  color: var(--text-2);
 }
-.history-errors summary {
+.history-detail summary {
   cursor: pointer;
-  color: var(--red-text);
   width: fit-content;
+  color: var(--text-2);
+  padding: 2px 0;
 }
-.history-error {
+.history-detail summary:hover {
+  color: var(--text);
+}
+.history-detail.errors summary {
+  color: var(--red-text);
+}
+.history-item {
   display: flex;
+  align-items: baseline;
   gap: 10px;
-  padding: 3px 0 0;
+  padding: 3px 0 0 12px;
+  min-width: 0;
 }
-.history-error-path {
+.history-item-act {
+  flex: none;
+  width: 78px;
+  color: var(--text-3);
+}
+.history-item-act.failed {
+  color: var(--red-text);
+}
+.history-item-path {
   font-family: var(--mono);
-  max-width: 45%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
-.history-error-msg {
+.history-item-err {
   color: var(--red-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: none;
+  max-width: 45%;
+}
+.history-more {
+  padding: 4px 0 0 12px;
+  color: var(--text-3);
 }
 .empty {
   padding: 40px 20px;

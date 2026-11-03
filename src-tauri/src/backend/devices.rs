@@ -123,6 +123,23 @@ pub fn resolve_remote_root(volumes: &[VolumeInfo], pair: &SyncPair) -> Option<Pa
     None
 }
 
+/// 为卷列表补上匹配到的同步任务 id。
+///
+/// 前端据此判断"某个任务对应的设备是否在线"，所以命令返回与后台推送
+/// 必须走同一套补全逻辑，否则推送出去的负载会缺 `matchedPairIds`。
+pub fn attach_pairs(volumes: &mut [VolumeInfo], pairs: &[SyncPair]) {
+    for v in volumes.iter_mut() {
+        // 先复制一份只读快照，避免同时持有可变与不可变借用
+        let probe = v.clone();
+        let ids: Vec<String> = pairs
+            .iter()
+            .filter(|p| p.enabled && resolve_remote_root(std::slice::from_ref(&probe), p).is_some())
+            .map(|p| p.id.clone())
+            .collect();
+        v.matched_pair_ids = ids;
+    }
+}
+
 pub fn read_marker(root: &Path) -> Option<String> {
     std::fs::read_to_string(root.join(MARKER_FILE))
         .ok()
