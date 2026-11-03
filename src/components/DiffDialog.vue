@@ -328,23 +328,23 @@ async function close() {
   flex-wrap: wrap;
 }
 .diff-pair {
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale, 1));
   font-weight: 600;
 }
 .diff-device {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale, 1));
   color: var(--text-2);
 }
 .diff-time {
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--font-scale, 1));
   color: var(--text-3);
 }
 .diff-total {
   margin-left: auto;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale, 1));
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
@@ -375,7 +375,7 @@ async function close() {
   top: 0;
   z-index: 1;
   height: 32px;
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale, 1));
   font-weight: 600;
   color: var(--text-2);
   background: var(--bg-content);
@@ -386,7 +386,7 @@ async function close() {
   padding-top: 5px;
   padding-bottom: 5px;
   border-bottom: 1px solid var(--hairline);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--font-scale, 1));
 }
 .diff-row:last-child {
   border-bottom: none;
@@ -402,7 +402,7 @@ async function close() {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--font-scale, 1));
 }
 .cell-num {
   text-align: right;
@@ -417,7 +417,7 @@ async function close() {
 }
 .diff-action {
   height: 26px;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale, 1));
   width: 100%;
 }
 
@@ -439,13 +439,13 @@ async function close() {
 }
 .progress-text {
   margin-top: 12px;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--font-scale, 1));
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
 .progress-file {
   margin-top: 4px;
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--font-scale, 1));
   color: var(--text-3);
   font-family: var(--mono);
   overflow: hidden;
@@ -464,7 +464,7 @@ async function close() {
   color: var(--green);
 }
 .done-title {
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale, 1));
   font-weight: 600;
 }
 .done-chips {
@@ -486,7 +486,7 @@ async function close() {
 .done-error {
   display: flex;
   gap: 10px;
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--font-scale, 1));
   padding: 3px 0;
 }
 .done-error-path {
@@ -516,7 +516,7 @@ async function close() {
   margin-left: auto;
 }
 .syncing-hint {
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale, 1));
   color: var(--text-2);
 }
 </style>

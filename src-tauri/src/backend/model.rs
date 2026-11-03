@@ -29,6 +29,18 @@ pub struct AppSettings {
     /// 无冲突时按建议方向自动同步（冲突与删除永远需要确认）
     pub auto_sync_no_conflict: bool,
     pub notify_on_insert: bool,
+    /// 外观：follow = 跟随系统，light / dark 为强制指定
+    pub appearance: String,
+    /// 强调色预设 key（brand / blue / green / orange / pink）
+    pub accent: String,
+    /// 界面字体预设 key（system / serif / rounded）
+    pub font_family: String,
+    /// 字体缩放（0.9–1.15），作用于全部文本
+    pub font_scale: f32,
+    /// 界面缩放（0.85–1.25），作用于侧栏与内容区
+    pub ui_scale: f32,
+    /// 启动入场动画
+    pub launch_animation: bool,
 }
 
 impl Default for AppSettings {
@@ -39,6 +51,12 @@ impl Default for AppSettings {
             auto_scan_on_insert: true,
             auto_sync_no_conflict: false,
             notify_on_insert: true,
+            appearance: "follow".into(),
+            accent: "brand".into(),
+            font_family: "system".into(),
+            font_scale: 1.0,
+            ui_scale: 1.0,
+            launch_animation: true,
         }
     }
 }

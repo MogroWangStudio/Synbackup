@@ -52,11 +52,11 @@ import PairCard from "../components/PairCard.vue";
   color: var(--text-3);
 }
 .empty-title {
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale, 1));
   font-weight: 600;
 }
 .empty-desc {
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--font-scale, 1));
   color: var(--text-2);
   max-width: 340px;
 }

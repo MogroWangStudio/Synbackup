@@ -22,12 +22,14 @@
 
   /* 品牌配色：主题色 #9B62CF 用于"实"（填充、文字、图标、焦点环），
      辅助色 #BE93E3 用于"虚"（浅底、悬停描边、次级强调）。
-     --accent-text 供深色模式下提亮文字用。 */
+     --accent-text 供深色模式下提亮文字用。
+     下方强调色预设只定义"实/虚"三个值，--accent-soft / --accent-text
+     统一由它们派生（color-mix），预设不需要为深浅各写一套。 */
   --accent: #9b62cf;
   --accent-hover: #8a4fc0;
   --accent-2: #be93e3;
-  --accent-soft: rgba(190, 147, 227, 0.18);
-  --accent-text: #9b62cf;
+  --accent-soft: color-mix(in srgb, var(--accent-2) 18%, transparent);
+  --accent-text: var(--accent);
 
   --green: #34c759;
   --green-text: #1d7a35;
@@ -62,10 +64,84 @@
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro SC", "PingFang SC",
     "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei UI", "Segoe UI", sans-serif;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Consolas, monospace;
+
+  /* 字体缩放：base.css 与组件样式里的字号统一乘以该系数（Stepper 调节） */
+  --font-scale: 1;
+  /* 界面缩放：作用于侧栏与内容区（.app-shell 的 zoom），标题栏不缩放，
+     保证与系统红绿灯的对位关系不受影响 */
+  --ui-scale: 1;
+
+  /* 界面字体预设：html[data-font] 切换 */
+  --font-serif: Georgia, "Times New Roman", "Songti SC", "STSong", SimSun, serif;
+  --font-rounded:
+    ui-rounded, "Hiragino Maru Gothic ProN", "Yuanti SC", "YouYuan",
+    "Microsoft YaHei UI", "PingFang SC", sans-serif;
+}
+
+/* ---- 强调色预设：每档三个值（实色 / 悬停实色 / 虚色），见上方派生规则 ---- */
+:root[data-accent="blue"] {
+  --accent: #4a7dd8;
+  --accent-hover: #3a6ac2;
+  --accent-2: #8fb2e8;
+}
+:root[data-accent="green"] {
+  --accent: #3e9b6f;
+  --accent-hover: #33855c;
+  --accent-2: #86cfa8;
+}
+:root[data-accent="orange"] {
+  --accent: #d97b3e;
+  --accent-hover: #c2692e;
+  --accent-2: #eab08a;
+}
+:root[data-accent="pink"] {
+  --accent: #d05b8c;
+  --accent-hover: #b94a78;
+  --accent-2: #e8a0be;
+}
+
+/* ---- 界面字体预设 ---- */
+:root[data-font="serif"] {
+  --font: var(--font-serif);
+}
+:root[data-font="rounded"] {
+  --font: var(--font-rounded);
+}
+
+/* ---- 外观：深色 token。设置选"深色"与系统深色（且未强制浅色）两条路
+   都要走到，以下两段内容保持一致 ---- */
+:root[data-appearance="dark"] {
+  color-scheme: dark;
+  --bg: #1c1c1e;
+  --bg-content: #28282a;
+  --bg-sidebar: rgba(36, 36, 39, 0.82);
+  --bg-overlay: rgba(0, 0, 0, 0.45);
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --bg-active: rgba(255, 255, 255, 0.11);
+  --fill-soft: rgba(120, 120, 128, 0.22);
+  --fill-softer: rgba(120, 120, 128, 0.14);
+
+  --hairline: rgba(255, 255, 255, 0.1);
+  --hairline-strong: rgba(255, 255, 255, 0.18);
+
+  --text: #f5f5f7;
+  --text-2: #a1a1a6;
+  --text-3: #6b6b70;
+
+  --accent-soft: color-mix(in srgb, var(--accent-2) 26%, transparent);
+  --accent-text: var(--accent-2);
+
+  --green-text: #4cd471;
+  --orange-text: #ffb340;
+  --red-text: #ff6961;
+
+  --shadow-modal: 0 24px 70px rgba(0, 0, 0, 0.55), 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-appearance="light"]) {
+    color-scheme: dark;
     --bg: #1c1c1e;
     --bg-content: #28282a;
     --bg-sidebar: rgba(36, 36, 39, 0.82);
@@ -82,8 +158,8 @@
     --text-2: #a1a1a6;
     --text-3: #6b6b70;
 
-    --accent-soft: rgba(190, 147, 227, 0.26);
-    --accent-text: #be93e3;
+    --accent-soft: color-mix(in srgb, var(--accent-2) 26%, transparent);
+    --accent-text: var(--accent-2);
 
     --green-text: #4cd471;
     --orange-text: #ffb340;
@@ -98,8 +174,11 @@
   :root {
     --bg-sidebar: #f0f0f2;
   }
+  :root[data-appearance="dark"] {
+    --bg-sidebar: #242427;
+  }
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-appearance="light"]) {
       --bg-sidebar: #242427;
     }
   }

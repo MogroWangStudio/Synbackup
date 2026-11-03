@@ -101,7 +101,7 @@ function goPairs() {
 }
 .banner-cta {
   font-weight: 600;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--font-scale, 1));
 }
 
 .stats {
@@ -117,14 +117,14 @@ function goPairs() {
   padding: 14px 16px;
 }
 .stat-num {
-  font-size: 26px;
+  font-size: calc(26px * var(--font-scale, 1));
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
 .stat-label {
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale, 1));
   color: var(--text-2);
 }
 
@@ -140,11 +140,11 @@ function goPairs() {
   color: var(--text-3);
 }
 .empty-title {
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale, 1));
   font-weight: 600;
 }
 .empty-desc {
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--font-scale, 1));
   color: var(--text-2);
   max-width: 340px;
 }
@@ -153,7 +153,7 @@ function goPairs() {
 }
 
 .section-title {
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale, 1));
   font-weight: 600;
   color: var(--text-2);
   margin-bottom: 8px;
@@ -170,7 +170,7 @@ function goPairs() {
   gap: 10px;
   height: 40px;
   border-bottom: 1px solid var(--hairline);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--font-scale, 1));
 }
 .recent-row:last-child {
   border-bottom: none;
@@ -188,7 +188,7 @@ function goPairs() {
   font-weight: 500;
 }
 .recent-chip {
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--font-scale, 1));
   font-variant-numeric: tabular-nums;
 }
 .chip-green-text {
@@ -198,7 +198,7 @@ function goPairs() {
   color: var(--red-text);
 }
 .recent-time {
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--font-scale, 1));
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }

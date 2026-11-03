@@ -84,11 +84,11 @@ function usagePct(v: VolumeInfo): number {
   min-width: 0;
 }
 .device-name {
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--font-scale, 1));
   font-weight: 600;
 }
 .device-mount {
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--font-scale, 1));
   color: var(--text-3);
   margin-top: 1px;
 }
@@ -106,7 +106,7 @@ function usagePct(v: VolumeInfo): number {
 }
 .device-cap {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale, 1));
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -119,11 +119,11 @@ function usagePct(v: VolumeInfo): number {
   max-width: 220px;
 }
 .device-pairs-label {
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale, 1));
   color: var(--text-3);
 }
 .device-nomatch {
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--font-scale, 1));
   color: var(--text-3);
 }
 .empty {
@@ -138,11 +138,11 @@ function usagePct(v: VolumeInfo): number {
   color: var(--text-3);
 }
 .empty-title {
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale, 1));
   font-weight: 600;
 }
 .empty-desc {
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--font-scale, 1));
   color: var(--text-2);
   max-width: 340px;
 }

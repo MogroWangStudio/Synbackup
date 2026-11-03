@@ -75,7 +75,7 @@ const items = computed(() => [
   border-radius: var(--radius-s);
   background: transparent;
   color: var(--text);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale, 1));
   font-weight: 500;
   text-align: left;
   cursor: pointer;
@@ -99,7 +99,7 @@ const items = computed(() => [
   align-items: center;
   justify-content: center;
   border-radius: 9px;
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--font-scale, 1));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   background: var(--orange-soft);
@@ -131,7 +131,7 @@ const items = computed(() => [
   background: var(--text-3);
 }
 .foot-text {
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--font-scale, 1));
   color: var(--text-2);
 }
 </style>

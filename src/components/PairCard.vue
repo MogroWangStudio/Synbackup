@@ -146,7 +146,7 @@ onBeforeUnmount(() => window.clearTimeout(confirmTimer));
   gap: 9px;
 }
 .pair-name {
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale, 1));
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -156,7 +156,7 @@ onBeforeUnmount(() => window.clearTimeout(confirmTimer));
   align-items: center;
   gap: 6px;
   margin-top: 5px;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale, 1));
   color: var(--text-2);
   min-width: 0;
 }
@@ -176,7 +176,7 @@ onBeforeUnmount(() => window.clearTimeout(confirmTimer));
 
 .pair-meta {
   margin-top: 5px;
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--font-scale, 1));
   color: var(--text-3);
 }
 

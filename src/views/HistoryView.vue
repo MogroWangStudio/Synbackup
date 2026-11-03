@@ -108,13 +108,13 @@ function onClear() {
   min-height: 44px;
   padding: 7px 0;
   border-bottom: 1px solid var(--hairline);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--font-scale, 1));
 }
 .history-row:last-child {
   border-bottom: none;
 }
 .history-time {
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--font-scale, 1));
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
   flex: none;
@@ -126,7 +126,7 @@ function onClear() {
 }
 .history-device {
   color: var(--text-2);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale, 1));
 }
 .history-chips {
   display: flex;
@@ -136,7 +136,7 @@ function onClear() {
 }
 .history-detail {
   width: 100%;
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--font-scale, 1));
   color: var(--text-2);
 }
 .history-detail summary {
@@ -190,7 +190,7 @@ function onClear() {
   text-align: center;
 }
 .empty-title {
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale, 1));
   color: var(--text-2);
 }
 </style>

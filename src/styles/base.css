@@ -15,7 +15,7 @@ body,
 
 body {
   font-family: var(--font);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale, 1));
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);
@@ -64,7 +64,7 @@ button {
   padding: 0 12px;
   border-radius: var(--radius-s);
   border: none;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale, 1));
   font-weight: 500;
   color: var(--text);
   background: var(--fill-soft);
@@ -105,7 +105,7 @@ button {
 .btn-sm {
   height: 26px;
   padding: 0 9px;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale, 1));
 }
 
 .icon-btn {
@@ -145,7 +145,7 @@ button {
   border: 1px solid var(--hairline-strong);
   background: var(--bg-content);
   color: var(--text);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale, 1));
   font-family: inherit;
   outline: none;
   transition:
@@ -184,7 +184,7 @@ select.input {
   height: 20px;
   padding: 0 8px;
   border-radius: 10px;
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale, 1));
   font-weight: 600;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -219,7 +219,7 @@ select.input {
 }
 
 .page-title {
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale, 1));
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.2;
@@ -227,7 +227,7 @@ select.input {
 
 .page-desc {
   margin-top: 4px;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--font-scale, 1));
   color: var(--text-2);
 }
 
@@ -332,7 +332,7 @@ select.input {
   padding: 14px 18px 12px;
 }
 .modal-head h2 {
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale, 1));
   font-weight: 600;
   letter-spacing: -0.01em;
 }

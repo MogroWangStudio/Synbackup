@@ -79,6 +79,26 @@ function applyLang() {
   display: flex;
   flex: 1;
   min-height: 0;
+  /* 界面缩放只作用于侧栏与内容区；标题栏保持系统 chrome 尺寸，
+     与系统红绿灯的对位关系不受缩放影响 */
+  zoom: var(--ui-scale, 1);
+}
+
+/* 启动入场：一次性的淡入 + 轻微上浮，由 html[data-boot-anim] 开关
+   （theme.ts 写入；首帧前已就位）。reduced-motion 下不播。 */
+html[data-boot-anim="on"] .window {
+  animation: boot-in 340ms var(--ease) both;
+}
+@keyframes boot-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-boot-anim="on"] .window {
+    animation: none;
+  }
 }
 .content {
   flex: 1;

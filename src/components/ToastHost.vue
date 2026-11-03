@@ -42,7 +42,7 @@ const iconFor = (kind: string) => (kind === "success" ? "check" : kind === "erro
   background: rgba(28, 28, 30, 0.92);
   backdrop-filter: blur(16px);
   color: #f5f5f7;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--font-scale, 1));
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
 }
 .toast.success :deep(svg) {

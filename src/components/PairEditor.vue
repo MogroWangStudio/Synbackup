@@ -139,7 +139,7 @@ function close() {
   gap: 6px;
 }
 .field-label {
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--font-scale, 1));
   font-weight: 600;
   color: var(--text-2);
 }
@@ -152,7 +152,7 @@ function close() {
   min-width: 0;
 }
 .field-hint {
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--font-scale, 1));
   color: var(--text-3);
 }
 .field-hint.warn {
@@ -160,7 +160,7 @@ function close() {
 }
 .form-error {
   margin-top: 12px;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--font-scale, 1));
   color: var(--red-text);
 }
 .foot-actions {

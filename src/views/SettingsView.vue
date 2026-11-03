@@ -1,15 +1,32 @@
 <script setup lang="ts">
 import { api } from "../api";
 import { store, toast } from "../store";
+import { applyUiPrefs, persistUiPrefs } from "../theme";
 import { t } from "../i18n";
 import type { AppSettings } from "../types";
 import Icon from "../components/Icon.vue";
 import Logo from "../components/Logo.vue";
 import Toggle from "../components/Toggle.vue";
+import Stepper from "../components/Stepper.vue";
+
+/** 强调色预设：key 与 tokens.css 的 data-accent 对应，color 用于色块展示 */
+const accents = [
+  { key: "brand", color: "#9b62cf" },
+  { key: "blue", color: "#4a7dd8" },
+  { key: "green", color: "#3e9b6f" },
+  { key: "orange", color: "#d97b3e" },
+  { key: "pink", color: "#d05b8c" },
+] as const;
+
+const appearances = ["follow", "light", "dark"] as const;
+const fonts = ["system", "serif", "rounded"] as const;
 
 async function update(patch: Partial<AppSettings>) {
   const next = { ...store.settings, ...patch };
   store.settings = next;
+  // 外观 / 字体 / 缩放先落 DOM 再存后端，切换即时可见
+  applyUiPrefs(next);
+  persistUiPrefs(next);
   try {
     await api.saveSettings(next);
   } catch (e) {
@@ -53,6 +70,94 @@ function onLanguage(ev: Event) {
         <Toggle
           :model-value="store.settings.launchAtLogin"
           @update:model-value="(v) => update({ launchAtLogin: v })"
+        />
+      </div>
+    </section>
+
+    <section class="card group">
+      <h3 class="group-title">{{ t("settings.personalize") }}</h3>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.accent") }}</span>
+        </div>
+        <div class="swatches" role="radiogroup" :aria-label="t('settings.accent')">
+          <button
+            v-for="sw in accents"
+            :key="sw.key"
+            type="button"
+            class="swatch"
+            :class="{ active: store.settings.accent === sw.key }"
+            :style="{ '--swatch': sw.color }"
+            :aria-checked="store.settings.accent === sw.key"
+            role="radio"
+            :title="t(`accent.${sw.key}`)"
+            :aria-label="t(`accent.${sw.key}`)"
+            @click="update({ accent: sw.key })"
+          />
+        </div>
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.appearance") }}</span>
+        </div>
+        <select
+          class="input"
+          :value="store.settings.appearance"
+          @change="update({ appearance: ($event.target as HTMLSelectElement).value })"
+        >
+          <option v-for="a in appearances" :key="a" :value="a">{{ t(`appearance.${a}`) }}</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.font") }}</span>
+        </div>
+        <select
+          class="input"
+          :value="store.settings.fontFamily"
+          @change="update({ fontFamily: ($event.target as HTMLSelectElement).value })"
+        >
+          <option v-for="f in fonts" :key="f" :value="f">{{ t(`font.${f}`) }}</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.font_size") }}</span>
+        </div>
+        <Stepper
+          :model-value="store.settings.fontScale"
+          :step="0.05"
+          :min="0.9"
+          :max="1.15"
+          :format="(v) => `${Math.round(v * 100)}%`"
+          :decrease-label="t('settings.size_decrease')"
+          :increase-label="t('settings.size_increase')"
+          @update:model-value="(v) => update({ fontScale: v })"
+        />
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.ui_size") }}</span>
+        </div>
+        <Stepper
+          :model-value="store.settings.uiScale"
+          :step="0.05"
+          :min="0.85"
+          :max="1.25"
+          :format="(v) => `${Math.round(v * 100)}%`"
+          :decrease-label="t('settings.size_decrease')"
+          :increase-label="t('settings.size_increase')"
+          @update:model-value="(v) => update({ uiScale: v })"
+        />
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.launch_anim") }}</span>
+          <span class="row-hint">{{ t("settings.launch_anim_hint") }}</span>
+        </div>
+        <Toggle
+          :model-value="store.settings.launchAnimation"
+          @update:model-value="(v) => update({ launchAnimation: v })"
         />
       </div>
     </section>
@@ -117,12 +222,47 @@ function onLanguage(ev: Event) {
 </template>
 
 <style scoped>
+/* 强调色色块：单色圆点，选中态用同色外环标记 */
+.swatches {
+  display: flex;
+  gap: 8px;
+}
+.swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--swatch);
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+  transition:
+    transform 120ms var(--ease),
+    box-shadow 120ms var(--ease);
+}
+.swatch:hover {
+  transform: scale(1.1);
+}
+.swatch:active {
+  transform: scale(0.96);
+}
+.swatch.active {
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 0 0 2px var(--bg-content),
+    0 0 0 4px var(--swatch);
+}
+.swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .group {
   padding: 4px 16px;
   margin-bottom: 14px;
 }
 .group-title {
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale, 1));
   font-weight: 600;
   color: var(--text-2);
   padding: 10px 0 4px;
@@ -152,15 +292,15 @@ function onLanguage(ev: Event) {
   min-width: 0;
 }
 .row-name {
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale, 1));
   font-weight: 500;
 }
 .row-hint {
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--font-scale, 1));
   color: var(--text-3);
 }
 .row-value {
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--font-scale, 1));
   color: var(--text-2);
   display: inline-flex;
   align-items: center;
@@ -172,7 +312,7 @@ function onLanguage(ev: Event) {
 }
 .row-value.mono {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale, 1));
 }
 .num {
   width: 76px;

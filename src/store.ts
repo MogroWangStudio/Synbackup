@@ -1,5 +1,6 @@
 import { reactive } from "vue";
 import { api } from "./api";
+import { applyUiPrefs, loadUiPrefs, persistUiPrefs } from "./theme";
 import type {
   AppSettings,
   DiffItem,
@@ -35,6 +36,14 @@ export const store = reactive({
     autoScanOnInsert: true,
     autoSyncNoConflict: false,
     notifyOnInsert: true,
+    appearance: "follow",
+    accent: "brand",
+    fontFamily: "system",
+    fontScale: 1,
+    uiScale: 1,
+    launchAnimation: true,
+    // 外观偏好从 localStorage 同步读取，保证首帧（后端数据未返回前）无闪变
+    ...loadUiPrefs(),
   } as AppSettings,
   pairs: [] as SyncPair[],
   volumes: [] as VolumeInfo[],
@@ -74,6 +83,9 @@ export async function refreshAll() {
   store.pending = pending;
   store.history = history;
   store.appInfo = appInfo;
+  // 权威配置到位后以它为准，重新应用外观并把增量落回 localStorage
+  applyUiPrefs(store.settings);
+  persistUiPrefs(store.settings);
   store.booted = true;
 }
 
