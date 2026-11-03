@@ -20,6 +20,14 @@ function usagePct(v: VolumeInfo): number {
   return Math.min(100, Math.round(((v.total - v.available) / v.total) * 100));
 }
 
+/** 存储用量等级：默认紫，80% 起橙黄，90% 起红 */
+function usageLevel(v: VolumeInfo): "ok" | "warn" | "high" {
+  const pct = usagePct(v);
+  if (pct >= 90) return "high";
+  if (pct >= 80) return "warn";
+  return "ok";
+}
+
 /** 断线但存在于同步任务中的设备（按卷标去重），无挂载点信息 */
 const offlineDevices = computed(() => {
   const online = new Set(store.volumes.map((v) => v.label));
@@ -49,7 +57,7 @@ const offlineDevices = computed(() => {
           <div class="device-name">{{ v.label || v.mount }}</div>
           <div class="device-mount">{{ v.mount }} · {{ v.fs }}</div>
           <div class="usage">
-            <div class="usage-fill" :style="{ width: usagePct(v) + '%' }" />
+            <div class="usage-fill" :class="usageLevel(v)" :style="{ width: usagePct(v) + '%' }" />
           </div>
           <div class="device-cap">
             {{ fmtSize(v.total - v.available) }} / {{ fmtSize(v.total) }}
@@ -131,7 +139,15 @@ const offlineDevices = computed(() => {
 .usage-fill {
   height: 100%;
   border-radius: 2px;
-  background: var(--text-3);
+  /* 按用量比例变色：默认主题紫，80% 起橙黄，90% 起红 */
+  background: var(--accent);
+  transition: background-color 200ms var(--ease);
+}
+.usage-fill.warn {
+  background: var(--orange);
+}
+.usage-fill.high {
+  background: var(--red);
 }
 .device-cap {
   margin-top: 4px;
