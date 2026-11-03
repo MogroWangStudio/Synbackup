@@ -21,6 +21,10 @@ const accents = [
 const appearances = ["follow", "light", "dark"] as const;
 const fonts = ["system", "serif", "rounded"] as const;
 
+function openStudioSite() {
+  void api.openExternal("https://www.mogrowangstudio.top").catch((e) => toast("error", String(e)));
+}
+
 async function update(patch: Partial<AppSettings>) {
   const next = { ...store.settings, ...patch };
   store.settings = next;
@@ -273,6 +277,18 @@ function onLanguage(ev: Event) {
           {{ store.appInfo?.dataDir }}
         </span>
       </div>
+      <div class="dev-section">
+        <h3 class="group-title">{{ t("settings.developer") }}</h3>
+        <a
+          href="https://www.mogrowangstudio.top"
+          class="studio-link"
+          @click.prevent="openStudioSite"
+        >
+          <img src="/studio-logo.svg" alt="MogroWang Studio" class="studio-logo" draggable="false" />
+          <span class="studio-hint">{{ t("settings.studio_hint") }}</span>
+        </a>
+        <p class="dev-copyright">© 2026 MogroWang Studio</p>
+      </div>
     </section>
   </div>
 </template>
@@ -374,5 +390,63 @@ function onLanguage(ev: Event) {
   width: 76px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* ---- 开发者 ---- */
+.dev-section {
+  padding: 8px 0 2px;
+}
+/* 悬停时字标模糊变淡、浮现引导文字；点击经系统浏览器打开工作室网站 */
+.studio-link {
+  position: relative;
+  display: block;
+  width: fit-content;
+  margin: 14px auto 0;
+  cursor: pointer;
+}
+.studio-logo {
+  display: block;
+  height: 24px;
+  max-width: 70vw;
+  user-select: none;
+  transition:
+    filter 200ms var(--ease),
+    opacity 200ms var(--ease);
+}
+.studio-link:hover .studio-logo,
+.studio-link:focus-visible .studio-logo {
+  opacity: 0.7;
+  filter: blur(3px);
+}
+.studio-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(12px * var(--font-scale, 1));
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 200ms var(--ease);
+  pointer-events: none;
+}
+.studio-link:hover .studio-hint,
+.studio-link:focus-visible .studio-hint {
+  opacity: 1;
+}
+.studio-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.dev-copyright {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+  text-align: center;
+  font-size: calc(12px * var(--font-scale, 1));
+  color: var(--text-3);
 }
 </style>

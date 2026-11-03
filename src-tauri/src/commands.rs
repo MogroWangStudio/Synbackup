@@ -227,3 +227,13 @@ pub async fn get_app_info(app: AppHandle, core: State<'_, backend::Core>) -> Cmd
         version: app.package_info().version.to_string(),
     })
 }
+
+/// 用系统默认浏览器打开外部链接（仅 http/https，防任意协议唤起）
+#[tauri::command]
+pub fn open_external(app: AppHandle, url: String) -> CmdResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+    if !url.starts_with("https://") && !url.starts_with("http://") {
+        return Err("仅支持 http/https 链接".into());
+    }
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}

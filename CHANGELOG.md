@@ -32,6 +32,7 @@
 - 侧栏状态区扩展并支持自定义：在原有设备状态之外，新增"已开启任务"（x / y 个任务已开启）、"同步次数"（累计，取自历史总条数）与版本号三项；设置 → 个性化中可逐项开关，全部关闭时状态区整体隐藏。后端新增 `get_sync_count` 命令，逐行流式统计 `history.jsonl` 总条数（不整读文件），同步完成后与历史一并刷新。
 - 便携化数据存储：软件数据默认保存在可执行程序同级的 `data/` 目录（`config.json`、`manifests/`、`history.jsonl`），不再读写系统的 AppData / Application Support；exe 目录不可写时（如 macOS 的 .app 安装在 /Applications）回退到用户数据目录。旧版本写在系统目录的数据在首次启动时自动整体搬迁到便携目录，此后不再触碰系统目录。
 - 包名变更为 `com.mws.synbackup`（原 `com.mogrowang.synbackup`）。注意：macOS 通知授权按包名记录，升级后需在系统设置中重新允许"同备"发送通知；Windows NSIS 安装版的 AUMID 注册表键随之更新。
+- 设置 → 关于底部新增"开发者"模块（效果与功能自 Plainstruct 的关于页移植）：MogroWang Studio 署名字标，悬停时字标模糊变淡并浮现引导文字，点击经系统默认浏览器打开工作室官网（https://www.mogrowangstudio.top），下方为版权行。后端新增 `open_external` 命令（`tauri-plugin-opener`，仅放行 http/https），`public/studio-logo.svg` 署名字标取自 Plainstruct 设计资产。
 
 ### 修复
 

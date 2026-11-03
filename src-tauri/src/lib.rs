@@ -127,6 +127,7 @@ pub fn run() {
             None,
         ))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             commands::get_config,
             commands::save_settings,
@@ -143,6 +144,7 @@ pub fn run() {
             commands::clear_history,
             commands::check_all_devices,
             commands::get_app_info,
+            commands::open_external,
         ])
         .setup(|app| {
             app.manage(backend::Core::new());

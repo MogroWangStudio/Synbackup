@@ -29,4 +29,5 @@ export const api = {
   getSyncCount: () => invoke<number>("get_sync_count"),
   checkAllDevices: () => invoke<number>("check_all_devices"),
   getAppInfo: () => invoke<AppInfo>("get_app_info"),
+  openExternal: (url: string) => invoke<void>("open_external", { url }),
 };

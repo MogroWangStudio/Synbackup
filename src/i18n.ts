@@ -178,6 +178,8 @@ const zh: Dict = {
   "settings.version": "版本",
   "settings.data": "数据目录",
   "settings.data_hint": "配置、同步清单与历史记录的存放位置。",
+  "settings.developer": "开发者",
+  "settings.studio_hint": "点击前往 MogroWang Studio 官方网站",
   "settings.tray_hint": "已保存。托盘菜单语言将在重启后生效。",
 
   "toast.saved": "已保存",
@@ -368,6 +370,8 @@ const en: Dict = {
   "settings.version": "Version",
   "settings.data": "Data folder",
   "settings.data_hint": "Where config, manifests and history are stored.",
+  "settings.developer": "Developer",
+  "settings.studio_hint": "Visit the MogroWang Studio website",
   "settings.tray_hint": "Saved. Tray menu language applies after restart.",
 
   "toast.saved": "Saved",
