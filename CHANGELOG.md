@@ -15,9 +15,19 @@
 
 ## [0.3.0] - 2026-11-04
 
+### 修复
+
+- 自动同步开始 / 完成时没有系统通知的问题（macOS 与 Windows 全部适配）：
+  - macOS：通知从已废弃的 `NSUserNotification` 路径（底层从不请求授权，授权未决时被系统静默丢弃）迁移到现代 `UNUserNotificationCenter`（`objc2-user-notifications`）。应用启动时主动请求一次通知授权；并设置前台 delegate，窗口开着时也弹出横幅——此前应用在前台时通知只静默进入通知中心。
+  - Windows：不再把 AUMID 硬设为未注册的应用标识（便携版 exe 因此被系统静默丢弃 toast，这是 Windows 无通知的根因）。NSIS 安装版检测到注册表已登记 AUMID 时用应用自身身份发送（显示应用名与图标）；便携版 / 开发环境自动落到系统 PowerShell 的 AUMID，保证 toast 始终能弹出。
+  - 新增自动同步"开始"通知（此前只有完成通知）；完成通知保持逐任务报告同步了多少、失败多少。
+  - 通知统一由 Rust 后端发送，与窗口生命周期完全解耦：窗口关闭、仅托盘常驻时，后台监控发现设备插入照样发起扫描与自动同步并推送通知。
+  - 移除 `tauri-plugin-notification` 依赖（前端从未调用其 JS API），macOS 侧新增 `objc2` / `objc2-user-notifications`，Windows / Linux 侧新增 `notify-rust`。
+
 ### 变更
 
 - 标题栏左上角标识由方形标换为横向长方形文字 logo（`Logo` 组件 `wordmark` 变体，16px 高、按 1144:206 原始比例推算宽度），继续以内联 SVG 矢量渲染，不经 `<img>`、不用位图；与"设置 → 关于"页顶部 32px 文字标为同一组件、同一设计稿（`Synbackup Logo with text.svg`），两处品牌展示完全一致。
+- 设置页"系统通知"提示文案更新：说明开始与完成均通知、窗口关闭后同样生效。
 
 ## [0.2.0] - 2026-11-03
 

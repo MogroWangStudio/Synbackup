@@ -2,12 +2,12 @@
 
 mod backend;
 mod commands;
+mod notify;
 
 use std::collections::HashSet;
 use std::path::PathBuf;
 
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WebviewWindowBuilder};
-use tauri_plugin_notification::NotificationExt;
 
 use backend::model::{Decision, DiffStatus, PendingReview, SyncPair, Trigger, VolumeInfo, now_ms};
 
@@ -41,6 +41,11 @@ fn text_fmt(lang: &str, key: &str, name: &str, n: usize) -> String {
         } else {
             format!("Local folder for \"{name}\" does not exist.")
         },
+        "sync_started_body" => if zh {
+            format!("任务「{name}」开始自动同步，共 {n} 个文件。")
+        } else {
+            format!("Auto-sync started for \"{name}\" — {n} file(s).")
+        },
         _ => String::new(),
     }
 }
@@ -57,11 +62,7 @@ fn autosync_body(lang: &str, name: &str, copied: usize, failed: usize) -> String
 }
 
 fn notify(app: &AppHandle, title: &str, body: &str) {
-    // 发送失败不能静默：macOS 未打包运行、或系统里关掉了本应用的通知时，
-    // 只有日志能说明"为什么没有弹出通知"。
-    if let Err(e) = app.notification().builder().title(title).body(body).show() {
-        eprintln!("[synbackup] 发送系统通知失败: {e}");
-    }
+    notify::notify(app, title, body);
 }
 
 async fn run_blocking<T, F>(f: F) -> Result<T, String>
@@ -195,6 +196,18 @@ async fn handle_volume_inserted(
 
         if safe && settings.auto_sync_no_conflict {
             // 无冲突：按建议方向自动执行
+            if settings.notify_on_insert {
+                notify(
+                    app,
+                    text(&settings.language, "app_title"),
+                    &text_fmt(
+                        &settings.language,
+                        "sync_started_body",
+                        &pair.name,
+                        items.len(),
+                    ),
+                );
+            }
             let decisions: Vec<Decision> =
                 items.iter().map(|i| Decision { path: i.path.clone(), action: i.suggested }).collect();
             let (result, updated_manifest) = {
@@ -345,7 +358,6 @@ pub fn run() {
             None,
         ))
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             commands::get_config,
             commands::save_settings,
@@ -365,6 +377,8 @@ pub fn run() {
         .setup(|app| {
             app.manage(backend::Core::new());
             let handle = app.handle().clone();
+            // 通知层先行：macOS 上要尽早请求授权（系统只弹一次授权对话框）
+            notify::init(&handle);
             build_tray(&handle)?;
             tauri::async_runtime::spawn(monitor_loop(handle));
             Ok(())

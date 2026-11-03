@@ -134,7 +134,7 @@ const zh: Dict = {
   "settings.auto_sync": "无冲突时自动同步",
   "settings.auto_sync_hint": "仅新增与单侧修改会自动执行；冲突与删除始终需要你确认。",
   "settings.notify": "系统通知",
-  "settings.notify_hint": "发现差异或自动同步完成时发送系统通知。",
+  "settings.notify_hint": "发现差异、自动同步开始与完成时发送系统通知；窗口关闭后同样生效。",
   "settings.about": "关于",
   "settings.version": "版本",
   "settings.data": "数据目录",
@@ -285,7 +285,7 @@ const en: Dict = {
   "settings.auto_sync_hint":
     "Only copies and one-side changes run automatically; conflicts and deletions always ask first.",
   "settings.notify": "System notifications",
-  "settings.notify_hint": "Notify when differences are found or auto-sync finishes.",
+  "settings.notify_hint": "Notify when differences are found or auto-sync starts and finishes; works even with the window closed.",
   "settings.about": "About",
   "settings.version": "Version",
   "settings.data": "Data folder",
