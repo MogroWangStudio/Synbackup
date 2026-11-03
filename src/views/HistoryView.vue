@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { api } from "../api";
 import { refreshHistory, store, toast } from "../store";
 import { fmtDateTime, fmtSize, t } from "../i18n";
@@ -7,6 +7,38 @@ import type { DiffStatus, HistoryEntry } from "../types";
 
 const confirmingClear = ref(false);
 let confirmTimer = 0;
+
+// ---- 筛选与查找 ----
+const kindFilter = ref<"all" | "sync" | "scan">("all");
+const pairFilter = ref("");
+const query = ref("");
+
+/** 任务下拉选项：从历史记录提取（覆盖已删除的任务），按最近出现排序 */
+const pairOptions = computed(() => {
+  const seen = new Map<string, string>();
+  for (const h of store.history) {
+    if (!seen.has(h.pairId)) seen.set(h.pairId, h.pairName);
+  }
+  return [...seen].map(([id, name]) => ({ id, name }));
+});
+
+const filtered = computed(() => {
+  const q = query.value.trim().toLowerCase();
+  return store.history.filter((h) => {
+    const kind = h.kind ?? "sync"; // 旧记录缺省为同步
+    if (kindFilter.value !== "all" && kind !== kindFilter.value) return false;
+    if (pairFilter.value && h.pairId !== pairFilter.value) return false;
+    if (q) {
+      const hit =
+        h.pairName.toLowerCase().includes(q) ||
+        h.deviceLabel.toLowerCase().includes(q) ||
+        h.items.some((it) => it.path.toLowerCase().includes(q)) ||
+        (h.scanDiffs ?? []).some((d) => d.path.toLowerCase().includes(q));
+      if (!hit) return false;
+    }
+    return true;
+  });
+});
 
 /** 该条记录的数据量（后端累计；旧记录无此字段时为 0，不显示） */
 function totalBytes(h: HistoryEntry): number {
@@ -67,8 +99,38 @@ function onClear() {
       </button>
     </div>
 
-    <div v-if="store.history.length" class="card history-list">
-      <div v-for="(h, i) in store.history" :key="i" class="history-row">
+    <!-- 筛选与查找 -->
+    <div v-if="store.history.length" class="card filter-bar">
+      <div class="seg" role="group" :aria-label="t('history.filter_kind')">
+        <button
+          v-for="k in ['all', 'sync', 'scan'] as const"
+          :key="k"
+          type="button"
+          class="seg-btn"
+          :class="{ active: kindFilter === k }"
+          @click="kindFilter = k"
+        >
+          {{ t("history.filter_" + k) }}
+        </button>
+      </div>
+      <select v-model="pairFilter" class="input filter-pair" :aria-label="t('history.filter_pair')">
+        <option value="">{{ t("history.pair_all") }}</option>
+        <option v-for="p in pairOptions" :key="p.id" :value="p.id">{{ p.name }}</option>
+      </select>
+      <input
+        v-model="query"
+        class="input filter-search"
+        :placeholder="t('history.search_placeholder')"
+        spellcheck="false"
+      />
+    </div>
+
+    <div v-if="store.history.length" class="history-meta">
+      {{ t("history.matched_count", { n: filtered.length }) }}
+    </div>
+
+    <div v-if="store.history.length && filtered.length" class="card history-list">
+      <div v-for="(h, i) in filtered" :key="i" class="history-row">
         <span class="history-time">{{ fmtDateTime(h.ts) }}</span>
         <span class="history-name">{{ h.pairName }}</span>
         <span class="chip" :class="h.trigger === 'auto' ? 'chip-accent' : 'chip-gray'">
@@ -153,6 +215,11 @@ function onClear() {
       </div>
     </div>
 
+    <!-- 有历史但筛选无结果 -->
+    <div v-else-if="store.history.length" class="card empty">
+      <p class="empty-title">{{ t("history.no_match") }}</p>
+    </div>
+
     <div v-else class="card empty">
       <p class="empty-title">{{ t("history.none") }}</p>
     </div>
@@ -160,6 +227,61 @@ function onClear() {
 </template>
 
 <style scoped>
+/* ---- 筛选条 ---- */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-s);
+  background: var(--fill-softer);
+}
+.seg-btn {
+  padding: 4px 12px;
+  border: none;
+  border-radius: calc(var(--radius-s) - 2px);
+  background: transparent;
+  color: var(--text-2);
+  font-size: calc(12px * var(--font-scale, 1));
+  cursor: pointer;
+  transition:
+    background-color 110ms ease,
+    color 110ms ease;
+}
+.seg-btn:hover {
+  color: var(--text);
+}
+.seg-btn.active {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 500;
+}
+.seg-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.filter-pair {
+  width: 150px;
+  flex: none;
+}
+.filter-search {
+  flex: 1;
+  min-width: 140px;
+}
+.history-meta {
+  font-size: calc(11.5px * var(--font-scale, 1));
+  color: var(--text-3);
+  margin: 0 2px 8px;
+  font-variant-numeric: tabular-nums;
+}
+
 .history-list {
   padding: 2px 16px;
 }
