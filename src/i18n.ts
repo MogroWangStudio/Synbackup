@@ -73,6 +73,7 @@ const zh: Dict = {
   "devices.desc": "后台会自动监控新插入的移动存储设备，并标记与任务关联的设备。",
   "devices.matched_pairs": "关联任务",
   "devices.no_pairs": "未关联任务",
+  "devices.offline": "未连接",
 
   "history.title": "历史",
   "history.clear": "清空历史",
@@ -265,6 +266,7 @@ const en: Dict = {
   "devices.matched_pairs": "Pairs",
   "devices.desc": "Removable drives are monitored in the background and matched to your pairs.",
   "devices.no_pairs": "No pairs linked",
+  "devices.offline": "Not connected",
 
   "history.title": "History",
   "history.clear": "Clear History",
