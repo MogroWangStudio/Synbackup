@@ -44,6 +44,18 @@ export function persistUiPrefs(s: AppSettings) {
   }
 }
 
+/** 按强调色亮度决定其上的文字颜色：高亮度配深字，其余配白字 */
+function onAccentColor(accent: string): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(accent.trim());
+  if (!m) return "#ffffff";
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  // YIQ 感知亮度
+  return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#1d1a22" : "#ffffff";
+}
+
 /** 把外观 / 字体 / 缩放 / 启动动画同步到根元素 */
 export function applyUiPrefs(s: AppSettings) {
   const root = document.documentElement;
@@ -62,6 +74,10 @@ export function applyUiPrefs(s: AppSettings) {
 
   root.style.setProperty("--font-scale", String(s.fontScale));
   root.style.setProperty("--ui-scale", String(s.uiScale));
+
+  // 强调色就位后再读实际值，计算其上的自适应文字色
+  const accent = getComputedStyle(root).getPropertyValue("--accent");
+  root.style.setProperty("--on-accent", onAccentColor(accent));
 
   if (s.launchAnimation) root.dataset.bootAnim = "on";
   else delete root.dataset.bootAnim;

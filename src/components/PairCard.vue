@@ -114,7 +114,7 @@ onBeforeUnmount(() => window.clearTimeout(confirmTimer));
       <button v-if="pendingCount > 0" class="btn btn-sm btn-primary" @click="onReview">
         {{ t("pairs.review") }}
       </button>
-      <button class="btn btn-sm" :disabled="syncing" @click="onCheck">
+      <button class="btn btn-sm btn-primary" :disabled="syncing" @click="onCheck">
         {{ t("pairs.check") }}
       </button>
       <button class="btn btn-sm" @click="onToggleEnabled">

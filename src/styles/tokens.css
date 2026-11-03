@@ -18,7 +18,8 @@
   --text: #1d1d1f;
   --text-2: #6e6e73;
   --text-3: #aeaeb2;
-  --text-on-accent: #ffffff;
+  /* 强调色上的文字：按强调色亮度自适应（theme.ts 计算 YIQ 写入 --on-accent） */
+  --text-on-accent: var(--on-accent, #ffffff);
 
   /* 品牌配色：主题色 #9B62CF 用于"实"（填充、文字、图标、焦点环），
      辅助色 #BE93E3 用于"虚"（浅底、悬停描边、次级强调）。
