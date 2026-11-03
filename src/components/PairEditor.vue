@@ -175,7 +175,8 @@ function handleClose() {
 
       <div class="field">
         <span class="field-label">{{ t("editor.device") }}</span>
-        <select v-model="form.deviceLabel" class="input grow">
+        <!-- 不加 .grow：.field 是纵向 flex，flex-basis 会压掉 .input 的固定高度 -->
+        <select v-model="form.deviceLabel" class="input">
           <option value="" disabled>{{ t("editor.device_hint") }}</option>
           <option v-for="v in store.volumes" :key="v.mount" :value="v.label">
             {{ v.label }}（{{ v.mount }}）
