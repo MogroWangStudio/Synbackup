@@ -127,6 +127,9 @@ async function startSync() {
   const list: Decision[] = [...decisions.entries()].map(([path, action]) => ({ path, action }));
   try {
     result.value = await api.applyDecisions(info.pairId, list);
+    // 命令返回是"处理完成"的权威信号：这里主动刷新总览数据，
+    // 不依赖 sync-finished 事件投递（窗口不可见时 eval 可能延迟或丢失）。
+    await Promise.all([refreshPending(), refreshHistory(), refreshConfig()]);
     phase.value = "done";
   } catch (e) {
     toast("error", String(e));
@@ -148,6 +151,9 @@ async function close() {
     }
   }
   store.diffDialog = null;
+  // 无论入口来源，关闭时兜底刷新一次（未处理就关闭 = 后端 dismiss 已移除，
+  // 已处理 = startSync 已刷新；再刷一次保证总览 / 任务卡片的计数一致）
+  void refreshPending();
   void refreshConfig();
   void refreshHistory();
 }

@@ -17,6 +17,7 @@
 
 ### 修复
 
+- 差异处理完成后总览页仍提示"存在差异"的问题：手动处理路径此前完全依赖 `sync-finished` 事件刷新待审列表，事件经 `webview.eval` 投递在窗口不可见（macOS AppNap、WebView2 节流）等场景下可能延迟或丢失。现在以 `apply_decisions` 命令的返回为权威信号——处理成功后立即刷新待审差异、历史与任务状态，事件通道保留（自动同步无 IPC 响应，仍走事件）；关闭差异对话框时也兜底刷新一次，总览横幅与任务卡片的待处理计数保持一致。
 - 自动同步开始 / 完成时没有系统通知的问题（macOS 与 Windows 全部适配）：
   - macOS：通知从已废弃的 `NSUserNotification` 路径（底层从不请求授权，授权未决时被系统静默丢弃）迁移到现代 `UNUserNotificationCenter`（`objc2-user-notifications`）。应用启动时主动请求一次通知授权；并设置前台 delegate，窗口开着时也弹出横幅——此前应用在前台时通知只静默进入通知中心。
   - Windows：不再把 AUMID 硬设为未注册的应用标识（便携版 exe 因此被系统静默丢弃 toast，这是 Windows 无通知的根因）。NSIS 安装版检测到注册表已登记 AUMID 时用应用自身身份发送（显示应用名与图标）；便携版 / 开发环境自动落到系统 PowerShell 的 AUMID，保证 toast 始终能弹出。
