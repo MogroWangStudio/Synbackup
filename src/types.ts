@@ -6,7 +6,6 @@ export interface AppSettings {
   autoScanOnInsert: boolean;
   autoSyncNoConflict: boolean;
   notifyOnInsert: boolean;
-  pollIntervalSecs: number;
 }
 
 export interface SyncPair {

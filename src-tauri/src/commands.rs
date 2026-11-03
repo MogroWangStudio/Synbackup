@@ -209,7 +209,7 @@ pub async fn clear_history(core: State<'_, backend::Core>) -> CmdResult<()> {
 
 #[tauri::command]
 pub async fn check_all_devices(app: AppHandle) -> CmdResult<usize> {
-    crate::check_all_devices(&app).await;
+    crate::monitor::check_all_devices(&app).await;
     let core = app.state::<backend::Core>();
     Ok(core.pending_snapshot().len())
 }

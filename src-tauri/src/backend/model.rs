@@ -29,7 +29,6 @@ pub struct AppSettings {
     /// 无冲突时按建议方向自动同步（冲突与删除永远需要确认）
     pub auto_sync_no_conflict: bool,
     pub notify_on_insert: bool,
-    pub poll_interval_secs: u64,
 }
 
 impl Default for AppSettings {
@@ -40,7 +39,6 @@ impl Default for AppSettings {
             auto_scan_on_insert: true,
             auto_sync_no_conflict: false,
             notify_on_insert: true,
-            poll_interval_secs: 3,
         }
     }
 }

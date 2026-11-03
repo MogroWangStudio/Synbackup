@@ -35,7 +35,6 @@ export const store = reactive({
     autoScanOnInsert: true,
     autoSyncNoConflict: false,
     notifyOnInsert: true,
-    pollIntervalSecs: 3,
   } as AppSettings,
   pairs: [] as SyncPair[],
   volumes: [] as VolumeInfo[],

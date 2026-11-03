@@ -25,13 +25,6 @@ async function update(patch: Partial<AppSettings>) {
 function onLanguage(ev: Event) {
   void update({ language: (ev.target as HTMLSelectElement).value });
 }
-
-function onPollInterval(ev: Event) {
-  const raw = Number((ev.target as HTMLInputElement).value);
-  const clamped = Number.isFinite(raw) ? Math.max(1, Math.min(3600, Math.round(raw))) : 3;
-  (ev.target as HTMLInputElement).value = String(clamped);
-  void update({ pollIntervalSecs: clamped });
-}
 </script>
 
 <template>
@@ -60,20 +53,6 @@ function onPollInterval(ev: Event) {
         <Toggle
           :model-value="store.settings.launchAtLogin"
           @update:model-value="(v) => update({ launchAtLogin: v })"
-        />
-      </div>
-      <div class="row">
-        <div class="row-label">
-          <span class="row-name">{{ t("settings.poll") }}</span>
-          <span class="row-hint">{{ t("settings.poll_hint") }}</span>
-        </div>
-        <input
-          type="number"
-          class="input num"
-          min="1"
-          max="3600"
-          :value="store.settings.pollIntervalSecs"
-          @change="onPollInterval"
         />
       </div>
     </section>

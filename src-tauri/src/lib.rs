@@ -1,18 +1,15 @@
-//! Tauri 集成层：应用组装、托盘、窗口生命周期、设备监控与通知。
+//! Tauri 集成层：应用组装、托盘、窗口生命周期与后端文案。
+//! 设备监控（事件驱动 + 兜底轮询）见 `monitor`，系统通知见 `notify`。
 
 mod backend;
 mod commands;
+mod monitor;
 mod notify;
 
-use std::collections::HashSet;
-use std::path::PathBuf;
-
-use tauri::{AppHandle, Emitter, Manager, RunEvent, WebviewWindowBuilder};
-
-use backend::model::{Decision, DiffStatus, PendingReview, SyncPair, Trigger, VolumeInfo, now_ms};
+use tauri::{AppHandle, Manager, RunEvent, WebviewWindowBuilder};
 
 /// 后端文案（托盘菜单与系统通知；随设置语言，重启托盘后生效）
-fn text(lang: &str, key: &str) -> &'static str {
+pub(crate) fn text(lang: &str, key: &str) -> &'static str {
     let zh = lang.starts_with("zh");
     match key {
         "app_title" => if zh { "同备" } else { "Synbackup" },
@@ -23,7 +20,7 @@ fn text(lang: &str, key: &str) -> &'static str {
     }
 }
 
-fn text_fmt(lang: &str, key: &str, name: &str, n: usize) -> String {
+pub(crate) fn text_fmt(lang: &str, key: &str, name: &str, n: usize) -> String {
     let zh = lang.starts_with("zh");
     match key {
         "diff_body" => if zh {
@@ -51,7 +48,7 @@ fn text_fmt(lang: &str, key: &str, name: &str, n: usize) -> String {
 }
 
 /// 自动同步完成通知：报告同步了多少、失败多少，而不只是"已同步"。
-fn autosync_body(lang: &str, name: &str, copied: usize, failed: usize) -> String {
+pub(crate) fn autosync_body(lang: &str, name: &str, copied: usize, failed: usize) -> String {
     let zh = lang.starts_with("zh");
     match (zh, failed) {
         (true, 0) => format!("任务「{name}」已自动同步 {copied} 个文件。"),
@@ -59,18 +56,6 @@ fn autosync_body(lang: &str, name: &str, copied: usize, failed: usize) -> String
         (false, 0) => format!("\"{name}\" synced {copied} file(s) automatically."),
         (false, _) => format!("\"{name}\" synced {copied} file(s) automatically — {failed} failed."),
     }
-}
-
-fn notify(app: &AppHandle, title: &str, body: &str) {
-    notify::notify(app, title, body);
-}
-
-async fn run_blocking<T, F>(f: F) -> Result<T, String>
-where
-    F: FnOnce() -> T + Send + 'static,
-    T: Send + 'static,
-{
-    tauri::async_runtime::spawn_blocking(f).await.map_err(|e| e.to_string())
 }
 
 pub fn show_main_window(app: &AppHandle) {
@@ -81,222 +66,6 @@ pub fn show_main_window(app: &AppHandle) {
     } else if let Some(cfg) = app.config().app.windows.iter().find(|w| w.label == "main").cloned() {
         if let Ok(builder) = WebviewWindowBuilder::from_config(app, &cfg) {
             let _ = builder.build();
-        }
-    }
-}
-
-/// 当前设备快照（含"匹配到哪些任务"）。
-///
-/// 命令与后台推送共用同一套补全逻辑：只取裸卷列表会让前端拿到
-/// `matchedPairIds: []`，于是刚插入的设备在界面上仍显示"设备未连接"。
-async fn volumes_snapshot(app: &AppHandle) -> Option<Vec<VolumeInfo>> {
-    let pairs = app.state::<backend::Core>().pairs();
-    run_blocking(move || {
-        let mut vols = backend::devices::list_volumes();
-        backend::devices::attach_pairs(&mut vols, &pairs);
-        vols
-    })
-    .await
-    .ok()
-}
-
-/// 推送设备变化；内容未变则不推，避免每轮轮询都打一次 IPC。
-fn emit_devices(app: &AppHandle, volumes: &[VolumeInfo], last: &mut String) {
-    let payload = serde_json::to_string(volumes).unwrap_or_default();
-    if payload != *last {
-        let _ = app.emit("devices-changed", volumes);
-        *last = payload;
-    }
-}
-
-/// 扫描所有已连接且匹配的任务（托盘「立即扫描」与手动命令共用）
-pub async fn check_all_devices(app: &AppHandle) {
-    let Some(volumes) = volumes_snapshot(app).await else {
-        eprintln!("[synbackup] 枚举设备失败");
-        return;
-    };
-    let _ = app.emit("devices-changed", &volumes);
-
-    for vol in &volumes {
-        if let Err(e) = handle_volume_inserted(app, vol, true).await {
-            eprintln!("[synbackup] 处理设备 {} 失败: {e}", vol.label);
-        }
-    }
-
-    // 处理过程可能写入配对标记、改变关联关系
-    if let Some(after) = volumes_snapshot(app).await {
-        let _ = app.emit("devices-changed", &after);
-    }
-}
-
-/// 设备插入（或应用启动时已插入）后的处理：确保标记 → 差异扫描 → 通知/自动同步
-async fn handle_volume_inserted(
-    app: &AppHandle,
-    vol: &VolumeInfo,
-    force_scan: bool,
-) -> Result<(), String> {
-    let (dir, settings, pairs) = {
-        let core = app.state::<backend::Core>();
-        let pairs: Vec<SyncPair> = core.pairs().into_iter().filter(|p| p.enabled).collect();
-        (core.dir.clone(), core.settings(), pairs)
-    };
-
-    for pair in pairs {
-        let Some(remote_root) = backend::devices::resolve_remote_root(std::slice::from_ref(vol), &pair)
-        else {
-            continue;
-        };
-        // 自动同步也得先扫描：只开了"无冲突自动同步"而关了"插入时自动检查"时，
-        // 以前会直接 continue，自动同步（以及它的通知）永远不会发生。
-        if !settings.auto_scan_on_insert && !settings.auto_sync_no_conflict && !force_scan {
-            continue;
-        }
-        let local_root = PathBuf::from(&pair.local_path);
-        if !local_root.is_dir() {
-            if settings.notify_on_insert {
-                notify(
-                    app,
-                    text(&settings.language, "app_title"),
-                    &text_fmt(&settings.language, "local_missing", &pair.name, 0),
-                );
-            }
-            continue;
-        }
-
-        // 确保设备侧目录与标记文件存在
-        let root = remote_root.clone();
-        let marker_pair = pair.clone();
-        run_blocking(move || backend::devices::ensure_marker(&root, &marker_pair))
-            .await
-            .and_then(|r| r.map_err(|e| e.to_string()))?;
-
-        let manifest = backend::manifest::load(&dir, &pair.id);
-        let items = {
-            let lr = local_root.clone();
-            let rr = remote_root.clone();
-            let mf = manifest.clone();
-            run_blocking(move || backend::scan::compute_diff(&lr, &rr, &mf)).await?
-        };
-
-        let core = app.state::<backend::Core>();
-        if items.is_empty() {
-            core.touch_last_sync(&pair.id)?;
-            continue;
-        }
-
-        let safe = items.iter().all(|i| {
-            matches!(
-                i.status,
-                DiffStatus::NewLocal
-                    | DiffStatus::NewRemote
-                    | DiffStatus::ChangedLocal
-                    | DiffStatus::ChangedRemote
-            )
-        });
-
-        if safe && settings.auto_sync_no_conflict {
-            // 无冲突：按建议方向自动执行
-            if settings.notify_on_insert {
-                notify(
-                    app,
-                    text(&settings.language, "app_title"),
-                    &text_fmt(
-                        &settings.language,
-                        "sync_started_body",
-                        &pair.name,
-                        items.len(),
-                    ),
-                );
-            }
-            let decisions: Vec<Decision> =
-                items.iter().map(|i| Decision { path: i.path.clone(), action: i.suggested }).collect();
-            let (result, updated_manifest) = {
-                let lr = local_root.clone();
-                let rr = remote_root.clone();
-                let items = items.clone();
-                let mut manifest = manifest;
-                run_blocking(move || {
-                    let res = backend::execute::apply(
-                        &lr, &rr, &items, &decisions, &mut manifest, &|_, _, _| {},
-                    );
-                    (res, manifest)
-                })
-                .await?
-            };
-            backend::manifest::save(&dir, &pair.id, &updated_manifest).map_err(|e| e.to_string())?;
-            core.record_history(&pair, &result, Trigger::Auto);
-            core.touch_last_sync(&pair.id)?;
-            // 自动同步已经处理完这批差异，之前若留下待审条目就是过期状态
-            core.remove_pending(&pair.id);
-            let _ = app.emit(
-                "sync-finished",
-                serde_json::json!({ "pairId": pair.id, "result": result, "trigger": Trigger::Auto }),
-            );
-            if settings.notify_on_insert {
-                let copied = (result.copied_to_remote + result.copied_to_local) as usize;
-                notify(
-                    app,
-                    text(&settings.language, "app_title"),
-                    &autosync_body(&settings.language, &pair.name, copied, result.errors.len()),
-                );
-            }
-        } else {
-            let review = PendingReview {
-                pair_id: pair.id.clone(),
-                pair_name: pair.name.clone(),
-                device_label: pair.device_label.clone(),
-                scanned_at: now_ms(),
-                items,
-            };
-            let n = review.items.len();
-            core.put_pending(review.clone());
-            let _ = app.emit("review-available", &review);
-            if settings.notify_on_insert {
-                notify(
-                    app,
-                    text(&settings.language, "app_title"),
-                    &text_fmt(&settings.language, "diff_body", &pair.name, n),
-                );
-            }
-        }
-    }
-    Ok(())
-}
-
-/// 后台设备监控循环：轮询挂载点，检测新插入的设备。
-/// 前端 WebView 是否存活与本循环完全无关。
-async fn monitor_loop(app: AppHandle) {
-    let mut prev_mounts: HashSet<String> = HashSet::new();
-    let mut last_payload = String::new();
-    loop {
-        let interval = {
-            let core = app.state::<backend::Core>();
-            core.settings().poll_interval_secs.max(1)
-        };
-        tokio::time::sleep(std::time::Duration::from_secs(interval)).await;
-
-        let Some(volumes) = volumes_snapshot(&app).await else {
-            continue;
-        };
-        // 先推一次：设备一插上界面就能变，不必等扫描与同步跑完
-        emit_devices(&app, &volumes, &mut last_payload);
-
-        let mounts: HashSet<String> = volumes.iter().map(|v| v.mount.clone()).collect();
-        let fresh: Vec<VolumeInfo> =
-            volumes.iter().filter(|v| !prev_mounts.contains(&v.mount)).cloned().collect();
-        prev_mounts = mounts;
-
-        if fresh.is_empty() {
-            continue;
-        }
-        for vol in fresh {
-            if let Err(e) = handle_volume_inserted(&app, &vol, false).await {
-                eprintln!("[synbackup] 处理设备 {} 失败: {e}", vol.label);
-            }
-        }
-        // 处理过程会写入配对标记、可能改变关联关系 → 再补一次快照
-        if let Some(after) = volumes_snapshot(&app).await {
-            emit_devices(&app, &after, &mut last_payload);
         }
     }
 }
@@ -380,7 +149,8 @@ pub fn run() {
             // 通知层先行：macOS 上要尽早请求授权（系统只弹一次授权对话框）
             notify::init(&handle);
             build_tray(&handle)?;
-            tauri::async_runtime::spawn(monitor_loop(handle));
+            // 设备监控：系统事件驱动，主循环里做去抖与快照对比
+            monitor::spawn(handle);
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -404,7 +174,7 @@ pub fn run() {
                 "scan_now" => {
                     let handle = app.clone();
                     tauri::async_runtime::spawn(async move {
-                        check_all_devices(&handle).await;
+                        monitor::check_all_devices(&handle).await;
                     });
                 }
                 "quit" => app.exit(0),
