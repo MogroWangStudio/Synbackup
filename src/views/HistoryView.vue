@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { api } from "../api";
 import { refreshHistory, store, toast } from "../store";
 import { fmtDateTime, fmtSize, t } from "../i18n";
-import type { HistoryEntry } from "../types";
+import type { DiffStatus, HistoryEntry } from "../types";
 
 const confirmingClear = ref(false);
 let confirmTimer = 0;
@@ -11,6 +11,28 @@ let confirmTimer = 0;
 /** 该条记录的数据量（后端累计；旧记录无此字段时为 0，不显示） */
 function totalBytes(h: HistoryEntry): number {
   return (h as HistoryEntry & { totalBytes?: number }).totalBytes ?? 0;
+}
+
+/** 差异状态配色（与差异处理对话框一致） */
+function statusClass(status: DiffStatus): string {
+  switch (status) {
+    case "both_changed":
+    case "type_conflict":
+      return "chip-red";
+    case "changed_local":
+    case "changed_remote":
+      return "chip-orange";
+    case "new_local":
+    case "new_remote":
+      return "chip-green";
+    default:
+      return "chip-gray";
+  }
+}
+
+/** scan 记录中的冲突数（both_changed / type_conflict） */
+function conflictCount(h: HistoryEntry): number {
+  return (h.scanDiffs ?? []).filter((d) => d.status === "both_changed" || d.status === "type_conflict").length;
 }
 
 function onClear() {
@@ -54,38 +76,70 @@ function onClear() {
         </span>
         <span class="history-device">{{ h.deviceLabel }}</span>
         <span class="history-chips">
-          <span v-if="h.copiedToRemote" class="chip chip-accent">
-            {{ t("history.to_remote", { n: h.copiedToRemote }) }}
-          </span>
-          <span v-if="h.copiedToLocal" class="chip chip-accent">
-            {{ t("history.to_local", { n: h.copiedToLocal }) }}
-          </span>
-          <span v-if="h.deletedRemote + h.deletedLocal" class="chip chip-gray">
-            {{ t("history.deleted", { n: h.deletedRemote + h.deletedLocal }) }}
-          </span>
-          <span v-if="h.skipped" class="chip chip-gray">
-            {{ t("diff.summary_skipped", { n: h.skipped }) }}
-          </span>
-          <span v-if="totalBytes(h)" class="chip chip-gray" :title="t('history.total_bytes')">
-            {{ fmtSize(totalBytes(h)) }}
-          </span>
-          <span v-if="h.errors.length" class="chip chip-red">
-            {{ t("diff.summary_failed", { n: h.errors.length }) }}
-          </span>
+          <template v-if="h.kind === 'scan'">
+            <span class="chip chip-orange">{{ t("history.scan_found") }}</span>
+            <span v-if="conflictCount(h)" class="chip chip-red">
+              {{ t("diff.conflict_hint", { n: conflictCount(h) }) }}
+            </span>
+            <span v-if="totalBytes(h)" class="chip chip-gray" :title="t('history.total_bytes')">
+              {{ fmtSize(totalBytes(h)) }}
+            </span>
+          </template>
+          <template v-else>
+            <span v-if="h.copiedToRemote" class="chip chip-accent">
+              {{ t("history.to_remote", { n: h.copiedToRemote }) }}
+            </span>
+            <span v-if="h.copiedToLocal" class="chip chip-accent">
+              {{ t("history.to_local", { n: h.copiedToLocal }) }}
+            </span>
+            <span v-if="h.deletedRemote + h.deletedLocal" class="chip chip-gray">
+              {{ t("history.deleted", { n: h.deletedRemote + h.deletedLocal }) }}
+            </span>
+            <span v-if="h.skipped" class="chip chip-gray">
+              {{ t("diff.summary_skipped", { n: h.skipped }) }}
+            </span>
+            <span v-if="totalBytes(h)" class="chip chip-gray" :title="t('history.total_bytes')">
+              {{ fmtSize(totalBytes(h)) }}
+            </span>
+            <span v-if="h.errors.length" class="chip chip-red">
+              {{ t("diff.summary_failed", { n: h.errors.length }) }}
+            </span>
+          </template>
         </span>
 
-        <!-- 逐项明细：做了什么、结果如何。失败项直接标红，不必再单独开一处错误列表 -->
-        <details v-if="h.items.length" class="history-detail">
-          <summary>{{ t("history.detail") }} · {{ h.items.length }}</summary>
-          <div v-for="(it, k) in h.items" :key="k" class="history-item">
-            <span class="history-item-act" :class="{ failed: !it.ok }">{{ t("act." + it.action) }}</span>
-            <span class="history-item-path">{{ it.path }}</span>
-            <span v-if="it.size" class="history-item-size">{{ fmtSize(it.size) }}</span>
-            <span v-if="!it.ok && it.error" class="history-item-err">{{ it.error }}</span>
-          </div>
-          <p v-if="h.itemsTruncated" class="history-more">
-            {{ t("history.items_more", { n: h.itemsTruncated }) }}
-          </p>
+        <!-- 逐项明细：同步记录显示做了什么，检查记录显示发现的差异。失败项直接标红 -->
+        <details
+          v-if="h.kind === 'scan' ? (h.scanDiffs?.length ?? 0) > 0 : h.items.length > 0"
+          class="history-detail"
+        >
+          <summary v-if="h.kind === 'scan'">
+            {{ t("history.scan_detail") }} · {{ h.scanDiffs?.length }}
+          </summary>
+          <summary v-else>{{ t("history.detail") }} · {{ h.items.length }}</summary>
+
+          <template v-if="h.kind === 'scan'">
+            <div v-for="(d, k) in h.scanDiffs" :key="k" class="history-item">
+              <span class="history-item-act">
+                <span class="chip" :class="statusClass(d.status)">{{ t("st." + d.status) }}</span>
+              </span>
+              <span class="history-item-path">{{ d.path }}</span>
+              <span v-if="d.size" class="history-item-size">{{ fmtSize(d.size) }}</span>
+            </div>
+            <p v-if="h.scanTotal > (h.scanDiffs?.length ?? 0)" class="history-more">
+              {{ t("history.items_more", { n: h.scanTotal - (h.scanDiffs?.length ?? 0) }) }}
+            </p>
+          </template>
+          <template v-else>
+            <div v-for="(it, k) in h.items" :key="k" class="history-item">
+              <span class="history-item-act" :class="{ failed: !it.ok }">{{ t("act." + it.action) }}</span>
+              <span class="history-item-path">{{ it.path }}</span>
+              <span v-if="it.size" class="history-item-size">{{ fmtSize(it.size) }}</span>
+              <span v-if="!it.ok && it.error" class="history-item-err">{{ it.error }}</span>
+            </div>
+            <p v-if="h.itemsTruncated" class="history-more">
+              {{ t("history.items_more", { n: h.itemsTruncated }) }}
+            </p>
+          </template>
         </details>
 
         <!-- 明细被截断时，错误清单仍完整保留，避免关键失败被挤掉 -->

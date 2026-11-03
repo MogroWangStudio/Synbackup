@@ -14,7 +14,9 @@ pub mod scan;
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock};
 
-use model::{AppSettings, ApplyResult, Config, HistoryEntry, PendingReview, SyncPair, Trigger, now_ms};
+use model::{
+    AppSettings, ApplyResult, Config, DiffItem, HistoryEntry, PendingReview, ScanDiff, SyncPair, Trigger, now_ms,
+};
 
 /// 单条历史最多保留的明细条数：自动同步一次可能涉及上千个文件，
 /// 全部写进 JSONL 会让历史文件无限膨胀，界面也读不动。
@@ -146,6 +148,7 @@ impl Core {
 
     pub fn record_history(&self, pair: &SyncPair, result: &ApplyResult, trigger: Trigger) {
         let entry = HistoryEntry {
+            kind: "sync".into(),
             ts: now_ms(),
             trigger,
             pair_id: pair.id.clone(),
@@ -160,6 +163,46 @@ impl Core {
             errors: result.errors.clone(),
             items: result.items.iter().take(HISTORY_ITEM_LIMIT).cloned().collect(),
             items_truncated: result.items.len().saturating_sub(HISTORY_ITEM_LIMIT) as u32,
+            scan_diffs: None,
+            scan_total: 0,
+        };
+        history::append(&self.dir, &entry);
+    }
+
+    /// 检查到差异的历史记录：登记发现差异这件事本身（冲突待审、手动扫描等
+    /// 未立即执行同步的场景），逐项取两侧较大文件作为涉及数据量。
+    pub fn record_scan_history(&self, pair: &SyncPair, items: &[DiffItem], trigger: Trigger) {
+        let diffs: Vec<ScanDiff> = items
+            .iter()
+            .take(HISTORY_ITEM_LIMIT)
+            .map(|i| ScanDiff {
+                path: i.path.clone(),
+                status: i.status,
+                size: match (&i.local, &i.remote) {
+                    (Some(l), Some(r)) => Some(l.size.max(r.size)),
+                    (Some(s), None) | (None, Some(s)) => Some(s.size),
+                    (None, None) => None,
+                },
+            })
+            .collect();
+        let entry = HistoryEntry {
+            kind: "scan".into(),
+            ts: now_ms(),
+            trigger,
+            pair_id: pair.id.clone(),
+            pair_name: pair.name.clone(),
+            device_label: pair.device_label.clone(),
+            copied_to_remote: 0,
+            copied_to_local: 0,
+            deleted_remote: 0,
+            deleted_local: 0,
+            skipped: 0,
+            total_bytes: diffs.iter().filter_map(|d| d.size).sum(),
+            errors: Vec::new(),
+            items: Vec::new(),
+            items_truncated: 0,
+            scan_diffs: Some(diffs),
+            scan_total: items.len() as u32,
         };
         history::append(&self.dir, &entry);
     }

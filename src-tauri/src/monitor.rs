@@ -254,6 +254,12 @@ async fn handle_volume_inserted(
             };
             let n = review.items.len();
             core.put_pending(review.clone());
+            // 检查到差异但未执行同步：写入"检查到差异"历史记录
+            core.record_scan_history(
+                &pair,
+                &review.items,
+                if force_scan { Trigger::Manual } else { Trigger::Auto },
+            );
             let _ = app.emit("review-available", &review);
             if settings.notify_on_insert {
                 notify::notify(

@@ -251,6 +251,9 @@ pub struct VolumeInfo {
 pub struct HistoryEntry {
     /// 同步完成时间
     pub ts: i64,
+    /// 记录类型：sync = 同步执行（旧记录缺省），scan = 检查到差异
+    #[serde(default = "default_history_kind")]
+    pub kind: String,
     pub trigger: Trigger,
     pub pair_id: String,
     pub pair_name: String,
@@ -267,6 +270,24 @@ pub struct HistoryEntry {
     pub items: Vec<ApplyOutcome>,
     /// 超出上限未记录的明细条数
     pub items_truncated: u32,
+    /// kind = scan 时的差异清单（与 items 同受上限约束）
+    pub scan_diffs: Option<Vec<ScanDiff>>,
+    /// kind = scan 时的差异总数（明细截断也不失真）
+    pub scan_total: u32,
+}
+
+/// 检查到差异的单文件记录
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScanDiff {
+    pub path: String,
+    pub status: DiffStatus,
+    /// 涉及文件大小（取两侧较大者；目录为 null）
+    pub size: Option<u64>,
+}
+
+fn default_history_kind() -> String {
+    "sync".into()
 }
 
 impl Default for HistoryEntry {
@@ -286,6 +307,9 @@ impl Default for HistoryEntry {
             errors: Vec::new(),
             items: Vec::new(),
             items_truncated: 0,
+            kind: "sync".into(),
+            scan_diffs: None,
+            scan_total: 0,
         }
     }
 }

@@ -134,8 +134,18 @@ export interface VolumeInfo {
   matchedPairIds: string[];
 }
 
+/** 检查到差异的单文件记录 */
+export interface ScanDiff {
+  path: string;
+  status: DiffStatus;
+  /** 涉及文件大小（取两侧较大者；目录为 null） */
+  size: number | null;
+}
+
 export interface HistoryEntry {
   ts: number;
+  /** 记录类型：sync = 同步执行（旧记录缺省），scan = 检查到差异 */
+  kind: "sync" | "scan";
   trigger: Trigger;
   pairId: string;
   pairName: string;
@@ -152,6 +162,10 @@ export interface HistoryEntry {
   items: ApplyOutcome[];
   /** 超出上限、未记录进历史的明细条数 */
   itemsTruncated: number;
+  /** kind = scan 时的差异清单 */
+  scanDiffs: ScanDiff[] | null;
+  /** kind = scan 时的差异总数 */
+  scanTotal: number;
 }
 
 export interface AppInfo {

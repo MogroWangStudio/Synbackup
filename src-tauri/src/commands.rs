@@ -130,6 +130,8 @@ pub async fn scan_pair(
         items,
     };
     core.put_pending(review.clone());
+    // 手动扫描到差异：写入"检查到差异"历史记录
+    core.record_scan_history(&pair, &review.items, Trigger::Manual);
     Ok(review)
 }
 
