@@ -59,6 +59,9 @@
   --win-close-active: #b0261a;
 
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* 弹窗专用：iOS sheet 家族曲线——打开柔和减速、关闭加速离场 */
+  --ease-modal: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-modal-out: cubic-bezier(0.55, 0, 0.85, 0.36);
 
   --font:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro SC", "PingFang SC",

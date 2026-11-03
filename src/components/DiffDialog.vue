@@ -9,6 +9,7 @@ import Icon from "./Icon.vue";
 import Modal from "./Modal.vue";
 
 const info = store.diffDialog!;
+const modalRef = ref<InstanceType<typeof Modal>>();
 
 /** 每种差异状态允许的处理方式 */
 const actionsByStatus: Record<DiffStatus, SyncAction[]> = {
@@ -140,15 +141,16 @@ async function startSync() {
   }
 }
 
-async function close() {
+/** 页脚按钮与程序化关闭的入口：先播离场动画 */
+function close() {
   if (phase.value === "syncing") return;
+  modalRef.value?.requestClose();
+}
+
+/** Modal 离场动画结束后的卸载回调：清理数据并刷新计数 */
+function handleClose() {
   if (info.source === "pending") {
-    try {
-      await api.dismissPendingReview(info.pairId);
-      await refreshPending();
-    } catch {
-      /* 忽略 */
-    }
+    void api.dismissPendingReview(info.pairId).catch(() => {});
   }
   store.diffDialog = null;
   // 无论入口来源，关闭时兜底刷新一次（未处理就关闭 = 后端 dismiss 已移除，
@@ -161,10 +163,11 @@ async function close() {
 
 <template>
   <Modal
+    ref="modalRef"
     :title="t('diff.title')"
     wide
     :busy="phase === 'syncing'"
-    @close="close"
+    @close="handleClose"
   >
     <div class="diff-meta">
       <span class="diff-pair">{{ info.pairName }}</span>

@@ -8,6 +8,8 @@ import type { SyncDirection, SyncPair } from "../types";
 import Icon from "./Icon.vue";
 import Modal from "./Modal.vue";
 
+const modalRef = ref<InstanceType<typeof Modal>>();
+
 const editing = store.editor?.pair ?? null;
 
 const form = reactive({
@@ -82,21 +84,31 @@ async function save() {
     await api.upsertPair(pair);
     await Promise.all([refreshConfig(), refreshVolumes()]);
     toast("success", t("toast.pair_saved"));
-    store.editor = null;
+    saving.value = false; // 先解除 busy，Modal 才接受关闭
+    // 走 Modal 的关闭流程：先播离场动画，结束后由 @close 卸载
+    modalRef.value?.requestClose();
   } catch (e) {
     error.value = String(e);
-  } finally {
     saving.value = false;
   }
 }
 
 function close() {
+  modalRef.value?.requestClose();
+}
+
+function handleClose() {
   store.editor = null;
 }
 </script>
 
 <template>
-  <Modal :title="editing ? t('editor.edit') : t('editor.new')" :busy="saving" @close="close">
+  <Modal
+    ref="modalRef"
+    :title="editing ? t('editor.edit') : t('editor.new')"
+    :busy="saving"
+    @close="handleClose"
+  >
     <div class="form">
       <label class="field">
         <span class="field-label">{{ t("editor.name") }}</span>

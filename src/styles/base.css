@@ -272,31 +272,55 @@ select.input {
 
 /* ---- 弹窗 ---- */
 
-.modal-enter-active,
+/* 打开：遮罩淡入 + 背景虚化收拢（材质就位），面板自下方 14px、scale 0.96
+   上浮就位；关闭反向、更快。曲线取 iOS sheet 家族的标准减速曲线——
+   快起缓收、无过冲（窗口出现不是手势，不做回弹）；CSS 过渡天然可中断，
+   快速开/关时从当前值续走，不会跳变。 */
+.modal-enter-active {
+  transition:
+    opacity 300ms var(--ease-modal),
+    backdrop-filter 300ms var(--ease-modal);
+}
 .modal-leave-active {
-  transition: opacity 180ms var(--ease);
-}
-.modal-enter-active .modal-panel {
   transition:
-    transform 220ms var(--ease),
-    opacity 200ms var(--ease);
-}
-.modal-leave-active .modal-panel {
-  transition:
-    transform 160ms var(--ease),
-    opacity 140ms var(--ease);
+    opacity 220ms var(--ease-modal-out),
+    backdrop-filter 220ms var(--ease-modal-out);
 }
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
+  backdrop-filter: blur(0px) saturate(1);
+}
+.modal-enter-active .modal-panel {
+  transition:
+    transform 360ms var(--ease-modal),
+    opacity 280ms var(--ease-modal);
+}
+.modal-leave-active .modal-panel {
+  transition:
+    transform 220ms var(--ease-modal-out),
+    opacity 200ms var(--ease-modal-out);
 }
 .modal-enter-from .modal-panel {
-  transform: scale(0.96) translateY(6px);
+  transform: translateY(14px) scale(0.96);
   opacity: 0;
 }
 .modal-leave-to .modal-panel {
-  transform: scale(0.98) translateY(3px);
+  transform: translateY(8px) scale(0.97);
   opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal-enter-active,
+  .modal-leave-active,
+  .modal-enter-active .modal-panel,
+  .modal-leave-active .modal-panel {
+    transition-duration: 150ms;
+    transition-property: opacity;
+  }
+  .modal-enter-from .modal-panel,
+  .modal-leave-to .modal-panel {
+    transform: none;
+  }
 }
 
 .modal-overlay {
@@ -307,6 +331,13 @@ select.input {
   align-items: center;
   justify-content: center;
   background: var(--bg-overlay);
+  /* 遮罩作为材质：内容在其下轻微虚化；入场动画从 blur(0) 过渡到这里的值 */
+  backdrop-filter: blur(18px) saturate(1.4);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .modal-overlay {
+    backdrop-filter: none;
+  }
 }
 
 .modal-panel {
