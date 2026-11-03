@@ -26,10 +26,6 @@ function goPairs() {
         <h1 class="page-title">{{ t("overview.title") }}</h1>
         <p class="page-desc">{{ t("overview.desc") }}</p>
       </div>
-      <button class="btn" @click="store.view = 'devices'">
-        <Icon name="drive" :size="15" />
-        {{ t("nav.devices") }}
-      </button>
     </div>
 
     <!-- 待处理差异横幅 -->
