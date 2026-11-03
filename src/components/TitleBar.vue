@@ -50,7 +50,8 @@ onUnmounted(() => {
 <template>
   <header class="titlebar" data-tauri-drag-region>
     <div class="identity" data-tauri-drag-region>
-      <span class="mark" data-tauri-drag-region><Logo variant="mark" :size="18" /></span>
+      <!-- 横向文字标：16px 高、按 1144:206 原始比例推算宽度，与 40px 标题栏同用一套结构层材质 -->
+      <span class="mark" data-tauri-drag-region><Logo variant="wordmark" :size="16" /></span>
     </div>
 
     <div v-if="!isMac" class="controls">

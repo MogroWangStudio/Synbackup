@@ -121,7 +121,7 @@ function onPollInterval(ev: Event) {
         <div class="row-label">
           <span class="row-name">{{ t("settings.version") }}</span>
         </div>
-        <span class="row-value">{{ store.appInfo?.version ?? "0.2.0" }}</span>
+        <span class="row-value">{{ store.appInfo?.version ?? "0.3.0" }}</span>
       </div>
       <div class="row">
         <div class="row-label">
