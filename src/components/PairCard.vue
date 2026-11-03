@@ -97,7 +97,11 @@ onBeforeUnmount(() => window.clearTimeout(confirmTimer));
       <div class="pair-route" :title="pair.localPath">
         <Icon name="folder" :size="14" class="route-icon" />
         <span class="route-text">{{ pair.localPath }}</span>
-        <Icon name="arrow_r" :size="12" class="route-arrow" />
+        <Icon
+          :name="pair.direction === 'pull' ? 'arrow_l' : 'arrow_r'"
+          :size="12"
+          class="route-arrow"
+        />
         <Icon name="drive" :size="14" class="route-icon" />
         <span class="route-text">{{ remoteLabel }}</span>
       </div>

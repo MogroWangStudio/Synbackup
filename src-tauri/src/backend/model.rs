@@ -64,6 +64,11 @@ impl Default for AppSettings {
     }
 }
 
+/// SyncPair.direction 的默认值：本机为发送端（本地 → 设备）
+fn default_direction() -> String {
+    "push".into()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct SyncPair {
@@ -77,6 +82,10 @@ pub struct SyncPair {
     pub device_marker: Option<String>,
     /// 设备上的相对文件夹路径（空串表示设备根目录）
     pub remote_path: String,
+    /// 主传输方向：push = 本机发送（本地 → 设备），pull = 本机接收（设备 → 本地）。
+    /// 仅标识任务语义与界面展示，两侧内容仍按差异双向同步。
+    #[serde(default = "default_direction")]
+    pub direction: String,
     pub enabled: bool,
     pub created_at: i64,
     pub last_sync_at: Option<i64>,

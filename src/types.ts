@@ -22,6 +22,9 @@ export interface AppSettings {
   updateChannel: string;
 }
 
+/** 任务的主传输方向:push = 本机发送(本地 → 设备),pull = 本机接收(设备 → 本地) */
+export type SyncDirection = "push" | "pull";
+
 export interface SyncPair {
   id: string;
   name: string;
@@ -29,6 +32,7 @@ export interface SyncPair {
   deviceLabel: string;
   deviceMarker: string | null;
   remotePath: string;
+  direction: SyncDirection;
   enabled: boolean;
   createdAt: number;
   lastSyncAt: number | null;
