@@ -20,14 +20,6 @@ const items = computed(() => [
 
 <template>
   <aside class="sidebar">
-    <div class="brand">
-      <img src="../assets/app-icon.png" alt="" class="brand-icon" draggable="false" />
-      <div class="brand-text">
-        <div class="brand-name">同备</div>
-        <div class="brand-sub">Synbackup</div>
-      </div>
-    </div>
-
     <nav class="nav">
       <button
         v-for="item in items"
@@ -61,33 +53,11 @@ const items = computed(() => [
   flex-direction: column;
   width: 212px;
   flex: none;
-  padding: 16px 10px 14px;
+  /* 品牌标识已上移至标题栏，侧栏只承载导航与设备状态 */
+  padding: 10px 10px 14px;
   background: var(--bg-sidebar);
   backdrop-filter: blur(24px) saturate(1.6);
   border-right: 1px solid var(--hairline);
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 2px 8px 14px;
-}
-.brand-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-}
-.brand-name {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-}
-.brand-sub {
-  font-size: 11px;
-  color: var(--text-2);
-  letter-spacing: 0.02em;
 }
 
 .nav {

@@ -27,6 +27,12 @@ const icons: Record<string, string> = {
     '<path d="m14.5 5.5 4 4"/><path d="M4 20l1.2-4.8L16.4 4a2.1 2.1 0 0 1 3 0l.6.6a2.1 2.1 0 0 1 0 3L8.8 18.8 4 20z"/>',
   arrow_r: '<path d="M4.5 12h15"/><path d="m13 5.5 6.5 6.5-6.5 6.5"/>',
   arrow_l: '<path d="M19.5 12h-15"/><path d="m11 5.5-6.5 6.5 6.5 6.5"/>',
+  // 窗口按钮：细线、小尺寸，视觉重量低于内容图标
+  "win-min": '<path d="M6.5 12h11"/>',
+  "win-max": '<rect x="6" y="6" width="12" height="12" rx="1.6"/>',
+  "win-restore":
+    '<rect x="5.8" y="9" width="9.2" height="9.2" rx="1.5"/><path d="M9 9V6.6A1.6 1.6 0 0 1 10.6 5h6.8A1.6 1.6 0 0 1 19 6.6v6.8a1.6 1.6 0 0 1-1.6 1.6H15"/>',
+  "win-close": '<path d="m7 7 10 10"/><path d="M17 7 7 17"/>',
 };
 
 const markup = () => icons[props.name] ?? icons.info;

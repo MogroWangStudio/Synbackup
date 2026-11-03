@@ -43,6 +43,14 @@
   --radius-m: 10px;
   --radius-l: 14px;
 
+  /* 自定义标题栏：高度与左侧留白（macOS 留给红绿灯），见文件末尾的 html[data-os] */
+  --titlebar-h: 40px;
+  --titlebar-inset: 14px;
+
+  /* 窗口按钮：关闭键悬停沿用 Windows 的语义红，与 --red 区分开 */
+  --win-close: #c42b1c;
+  --win-close-active: #b0261a;
+
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   --font:
@@ -90,4 +98,10 @@
       --bg-sidebar: #242427;
     }
   }
+}
+
+/* 平台差异只影响窗口装饰：macOS 保留系统红绿灯，标题栏内容需避开其占位
+   （红绿灯 x=18 起、三颗共 52px 宽，留 12px 间距 → 82px）。 */
+html[data-os="mac"] {
+  --titlebar-inset: 82px;
 }

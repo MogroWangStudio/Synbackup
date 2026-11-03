@@ -9,6 +9,11 @@ const zh: Dict = {
   "nav.history": "历史",
   "nav.settings": "设置",
 
+  "win.minimize": "最小化",
+  "win.maximize": "最大化",
+  "win.restore": "还原",
+  "win.close": "关闭窗口",
+
   "status.devices_connected": "{n} 台设备已连接",
   "status.no_devices": "未连接设备",
 
@@ -149,6 +154,11 @@ const en: Dict = {
   "nav.devices": "Devices",
   "nav.history": "History",
   "nav.settings": "Settings",
+
+  "win.minimize": "Minimize",
+  "win.maximize": "Maximize",
+  "win.restore": "Restore",
+  "win.close": "Close window",
 
   "status.devices_connected": "{n} device(s) connected",
   "status.no_devices": "No device connected",

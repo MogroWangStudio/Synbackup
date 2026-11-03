@@ -13,6 +13,7 @@ import SettingsView from "./views/SettingsView.vue";
 import PairEditor from "./components/PairEditor.vue";
 import DiffDialog from "./components/DiffDialog.vue";
 import ToastHost from "./components/ToastHost.vue";
+import TitleBar from "./components/TitleBar.vue";
 
 onMounted(async () => {
   try {
@@ -41,17 +42,21 @@ function applyLang() {
 </script>
 
 <template>
-  <div class="app-shell">
-    <Sidebar />
-    <main class="content">
-      <Transition name="view-fade" mode="out-in">
-        <OverviewView v-if="store.view === 'overview'" />
-        <PairsView v-else-if="store.view === 'pairs'" />
-        <DevicesView v-else-if="store.view === 'devices'" />
-        <HistoryView v-else-if="store.view === 'history'" />
-        <SettingsView v-else />
-      </Transition>
-    </main>
+  <div class="window">
+    <TitleBar />
+
+    <div class="app-shell">
+      <Sidebar />
+      <main class="content">
+        <Transition name="view-fade" mode="out-in">
+          <OverviewView v-if="store.view === 'overview'" />
+          <PairsView v-else-if="store.view === 'pairs'" />
+          <DevicesView v-else-if="store.view === 'devices'" />
+          <HistoryView v-else-if="store.view === 'history'" />
+          <SettingsView v-else />
+        </Transition>
+      </main>
+    </div>
 
     <PairEditor v-if="store.editor" />
     <DiffDialog v-if="store.diffDialog" />
@@ -60,9 +65,15 @@ function applyLang() {
 </template>
 
 <style scoped>
+.window {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 .app-shell {
   display: flex;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 .content {
   flex: 1;

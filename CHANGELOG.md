@@ -7,16 +7,29 @@
 
 ## [Unreleased]
 
-### 新增
-
-- GitHub Actions CI：每次推送自动构建 Windows x64 便携版 exe 与 macOS arm64 DMG，产物按 `Synbackup-<版本>-<平台>` 命名。
-
 ### 计划
 
-- 正式视觉设计、logo 与应用图标（当前为占位设计）
+- 正式 logo 与应用图标（当前为占位设计）
 - 空目录同步与符号链接策略
 - 计划任务与定时备份
 - 冲突"保留两份"策略
+
+## [0.2.0] - 2026-11-03
+
+### 新增
+
+- 自绘标题栏：窗口顶部 40px 由前端绘制，承载应用标识与窗口按钮；整条为拖拽区，双击可最大化 / 还原。
+- 平台适配的窗口装饰：macOS 改用透明叠加标题栏并隐藏标题文本，保留系统红绿灯并在左侧让出占位；Windows / Linux 关闭系统边框，改由前端绘制最小化、最大化、关闭按钮（关闭键悬停按 Windows 语义变红）。
+- 窗口按钮状态与窗口同步：进入最大化后图标切换为"还原"，窗口尺寸变化时实时更新。
+- 窗口控件的中英文案（最小化 / 最大化 / 还原 / 关闭窗口）。
+- GitHub Actions CI：每次推送自动构建 Windows x64 便携版 exe 与 macOS arm64 DMG，产物按 `Synbackup-<版本>-<平台>` 命名。
+
+### 变更
+
+- 应用标识（图标与名称）从侧栏移入标题栏，侧栏只保留导航与设备状态，去掉重复的品牌信息。
+- 界面规范收敛为三条规则：单一强调色、结构层共用同一材质、层级靠字号与留白建立。设计令牌新增标题栏高度、红绿灯留白与窗口按钮色。
+- 窗口关闭行为不变：仍彻底销毁 WebView 进程，后端继续在托盘运行。
+- 版本号统一升至 `0.2.0`（`package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`）。
 
 ## [0.1.0] - 2026-11-02
 
@@ -35,5 +48,6 @@
 - 中英双语界面，浅色 / 深色外观自适应。
 - 占位应用图标与生成脚本（`scripts/generate_icon.py`）。
 
-[Unreleased]: https://example.com/synbackup/compare/v0.1.0...HEAD
+[Unreleased]: https://example.com/synbackup/compare/v0.2.0...HEAD
+[0.2.0]: https://example.com/synbackup/releases/tag/v0.2.0
 [0.1.0]: https://example.com/synbackup/releases/tag/v0.1.0
