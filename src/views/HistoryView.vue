@@ -44,15 +44,15 @@ function onClear() {
       <div v-for="(h, i) in store.history" :key="i" class="history-row">
         <span class="history-time">{{ fmtDateTime(h.ts) }}</span>
         <span class="history-name">{{ h.pairName }}</span>
-        <span class="chip" :class="h.trigger === 'auto' ? 'chip-blue' : 'chip-gray'">
+        <span class="chip" :class="h.trigger === 'auto' ? 'chip-accent' : 'chip-gray'">
           {{ h.trigger === "auto" ? t("history.trigger_auto") : t("history.trigger_manual") }}
         </span>
         <span class="history-device">{{ h.deviceLabel }}</span>
         <span class="history-chips">
-          <span v-if="h.copiedToRemote" class="chip chip-blue">
+          <span v-if="h.copiedToRemote" class="chip chip-accent">
             {{ t("history.to_remote", { n: h.copiedToRemote }) }}
           </span>
-          <span v-if="h.copiedToLocal" class="chip chip-blue">
+          <span v-if="h.copiedToLocal" class="chip chip-accent">
             {{ t("history.to_local", { n: h.copiedToLocal }) }}
           </span>
           <span v-if="h.deletedRemote + h.deletedLocal" class="chip chip-gray">

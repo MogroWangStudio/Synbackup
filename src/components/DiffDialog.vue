@@ -247,10 +247,10 @@ async function close() {
         <Icon name="check" :size="28" class="done-icon" />
         <p class="done-title">{{ t("diff.done") }}</p>
         <div class="done-chips">
-          <span v-if="result?.copiedToRemote" class="chip chip-blue">
+          <span v-if="result?.copiedToRemote" class="chip chip-accent">
             {{ t("diff.summary_copied_r", { n: result.copiedToRemote }) }}
           </span>
-          <span v-if="result?.copiedToLocal" class="chip chip-blue">
+          <span v-if="result?.copiedToLocal" class="chip chip-accent">
             {{ t("diff.summary_copied_l", { n: result.copiedToLocal }) }}
           </span>
           <span v-if="result?.deletedRemote" class="chip chip-gray">

@@ -21,7 +21,8 @@
 界面按一套明确的规则收敛，而不是逐个页面调样式：
 
 - **窗口装饰自绘**：`src-tauri/tauri.conf.json` 关闭系统边框（`decorations: false`），`src-tauri/tauri.macos.conf.json` 单独把 macOS 覆写为「透明叠加标题栏 + 隐藏标题文本」（`titleBarStyle: Overlay`、`hiddenTitle: true`），因此三个红绿灯仍由系统绘制，其余部分全部由 `src/components/TitleBar.vue` 决定。
-- **单一强调色**：蓝色只用于"当前选中 / 主操作"，其余层级靠字号、字重与留白建立；中性灰阶与发丝线在 `src/styles/tokens.css` 里集中定义，改一层即可换肤。
+- **品牌配色**：主题色 `#9B62CF` 用于"实"（主按钮、选中态填充、强调文字与图标、焦点环、进度条），辅助色 `#BE93E3` 用于"虚"（浅底、悬停描边、次级图标）。选中/悬停浅底由辅助色派生，悬停实色取主题色深一档 `#8A4FC0`，保证白字对比度不下降。全部集中在 `src/styles/tokens.css`，改一层即可换肤。
+- **标识即矢量**：`src/components/Logo.vue` 内联 SVG（不经过 `<img>`、不使用位图或 data URI），标题栏用方形标，关于页用长方形文字标，宽度由高度按原始比例推算，任何缩放下都不失真、不模糊。
 - **材质分层**：标题栏与侧栏同为结构层，使用同一层半透明材质；内容区为实色。不在浅色材质上再叠浅色材质。
 - **交互即时**：窗口按钮悬停 / 按下均有即时反馈，`prefers-reduced-motion` 下退化为无位移的颜色变化；`prefers-reduced-transparency` 下侧栏与标题栏转为实色。
 - **平台惯例优先**：macOS 关闭按钮在左上、Windows 在右上且悬停变红；按钮顺序与图标状态（最大化 / 还原）跟随窗口真实状态同步。

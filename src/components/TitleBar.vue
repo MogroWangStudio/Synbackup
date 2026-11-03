@@ -6,6 +6,7 @@ import { onMounted, onUnmounted, ref } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { t } from "../i18n";
 import Icon from "./Icon.vue";
+import Logo from "./Logo.vue";
 
 const isMac = document.documentElement.dataset.os === "mac";
 const win = getCurrentWindow();
@@ -49,7 +50,7 @@ onUnmounted(() => {
 <template>
   <header class="titlebar" data-tauri-drag-region>
     <div class="identity" data-tauri-drag-region>
-      <img class="mark" src="../assets/app-icon.png" alt="" draggable="false" data-tauri-drag-region />
+      <span class="mark" data-tauri-drag-region><Logo variant="mark" :size="18" /></span>
       <span class="name" data-tauri-drag-region>同备</span>
       <span class="sub" data-tauri-drag-region>Synbackup</span>
     </div>
@@ -110,9 +111,7 @@ onUnmounted(() => {
   padding-right: 14px;
 }
 .mark {
-  width: 18px;
-  height: 18px;
-  border-radius: 4.5px;
+  display: flex;
   flex: none;
 }
 .name {

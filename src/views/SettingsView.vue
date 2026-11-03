@@ -4,6 +4,7 @@ import { store, toast } from "../store";
 import { t } from "../i18n";
 import type { AppSettings } from "../types";
 import Icon from "../components/Icon.vue";
+import Logo from "../components/Logo.vue";
 import Toggle from "../components/Toggle.vue";
 
 async function update(patch: Partial<AppSettings>) {
@@ -113,11 +114,11 @@ function onPollInterval(ev: Event) {
 
     <section class="card group">
       <h3 class="group-title">{{ t("settings.about") }}</h3>
-      <div class="row">
-        <div class="row-label">
-          <span class="row-name">{{ t("settings.version") }}</span>
-        </div>
-        <span class="row-value">Synbackup {{ store.appInfo?.version ?? "0.2.0" }}</span>
+      <div class="brand-lockup">
+        <Logo variant="wordmark" :size="28" />
+        <span class="brand-ver">
+          {{ t("settings.version") }} {{ store.appInfo?.version ?? "0.2.0" }}
+        </span>
       </div>
       <div class="row">
         <div class="row-label">
@@ -143,6 +144,20 @@ function onPollInterval(ev: Event) {
   font-weight: 600;
   color: var(--text-2);
   padding: 10px 0 4px;
+}
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+.brand-ver {
+  font-size: 12px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .row {
   display: flex;

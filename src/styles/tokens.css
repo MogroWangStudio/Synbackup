@@ -20,9 +20,14 @@
   --text-3: #aeaeb2;
   --text-on-accent: #ffffff;
 
-  --accent: #0a84ff;
-  --accent-hover: #0071e3;
-  --accent-soft: rgba(10, 132, 255, 0.12);
+  /* 品牌配色：主题色 #9B62CF 用于"实"（填充、文字、图标、焦点环），
+     辅助色 #BE93E3 用于"虚"（浅底、悬停描边、次级强调）。
+     --accent-text 供深色模式下提亮文字用。 */
+  --accent: #9b62cf;
+  --accent-hover: #8a4fc0;
+  --accent-2: #be93e3;
+  --accent-soft: rgba(190, 147, 227, 0.18);
+  --accent-text: #9b62cf;
 
   --green: #34c759;
   --green-text: #1d7a35;
@@ -77,8 +82,8 @@
     --text-2: #a1a1a6;
     --text-3: #6b6b70;
 
-    --accent-hover: #3395ff;
-    --accent-soft: rgba(10, 132, 255, 0.24);
+    --accent-soft: rgba(190, 147, 227, 0.26);
+    --accent-text: #be93e3;
 
     --green-text: #4cd471;
     --orange-text: #ffb340;

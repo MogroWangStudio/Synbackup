@@ -46,7 +46,7 @@ function usagePct(v: VolumeInfo): number {
         <div class="device-pairs">
           <template v-if="matchedNames(v).length">
             <span class="device-pairs-label">{{ t("devices.matched_pairs") }}</span>
-            <span v-for="name in matchedNames(v)" :key="name" class="chip chip-blue">
+            <span v-for="name in matchedNames(v)" :key="name" class="chip chip-accent">
               {{ name }}
             </span>
           </template>

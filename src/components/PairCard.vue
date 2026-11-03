@@ -26,7 +26,7 @@ const statusText = computed(() => {
   return connected.value ? t("pairs.device_online") : t("pairs.device_offline");
 });
 const statusClass = computed(() => {
-  if (syncing.value) return "chip-blue";
+  if (syncing.value) return "chip-accent";
   if (!props.pair.enabled) return "chip-gray";
   if (pendingCount.value > 0) return "chip-orange";
   return connected.value ? "chip-green" : "chip-gray";

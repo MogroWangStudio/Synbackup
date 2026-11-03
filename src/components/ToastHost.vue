@@ -52,7 +52,7 @@ const iconFor = (kind: string) => (kind === "success" ? "check" : kind === "erro
   color: #ff6961;
 }
 .toast.info :deep(svg) {
-  color: #6db2ff;
+  color: var(--accent-2);
 }
 .toast-text {
   flex: 1;
