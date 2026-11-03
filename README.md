@@ -96,10 +96,12 @@ macOS 菜单栏另用 `src-tauri/icons/tray-template.png`（纯黑剪影、透�
 
 ## 数据位置
 
-配置、同步清单与历史记录存放在用户数据目录（界面"设置 → 关于"中可查看）：
+便携模式：配置、同步清单与历史记录保存在**可执行程序同级的 `data/` 目录**（界面"设置 → 关于"中可查看实际路径），不读写系统的 AppData / Application Support。
 
-- macOS：`~/Library/Application Support/com.mogrowang.synbackup/`
-- Windows：`%APPDATA%\com.mogrowang.synbackup\`
+- Windows：`<exe 目录>\data\`
+- macOS：`<app 内可执行文件目录>/data/`（若 `.app` 安装在 /Applications 等不可写位置，则回退到 `~/Library/Application Support/com.mws.synbackup/`）
+
+旧版本写在系统目录（`%APPDATA%` / `~/Library/Application Support`，包名 `com.mogrowang.synbackup` 或 `com.mws.synbackup`）的数据会在首次启动时自动搬迁到便携目录，此后不再读写系统目录。
 
 配对时会在设备侧目录写入一个 `.synbackup-device` 标记文件（含随机 UUID），用于跨卷标识别设备；不需要时删除该文件即可。
 

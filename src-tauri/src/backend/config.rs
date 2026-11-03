@@ -1,4 +1,7 @@
 //! 应用数据持久化：config.json（设置 + 任务）、manifests/（同步清单）、history.jsonl（历史）。
+//!
+//! 便携模式：数据默认保存在可执行程序同级的 `data/` 目录，不读写系统的
+//! AppData / Application Support；旧版本遗留的数据做一次性搬迁。
 
 use std::fs;
 use std::io::Write;
@@ -10,23 +13,79 @@ pub const CONFIG_FILE: &str = "config.json";
 pub const MANIFESTS_DIR: &str = "manifests";
 pub const HISTORY_FILE: &str = "history.jsonl";
 
-/// 数据目录（不依赖 Tauri 运行时，便于独立测试）
+/// 当前包名（用于回退目录与旧数据定位）
+pub const APP_ID: &str = "com.mws.synbackup";
+
+/// 便携数据目录：可执行程序同级的 `data/`。exe 路径不可得或目录不可建时
+/// 退回用户数据目录（如 macOS 把 .app 装进 /Applications 后包内不可写），
+/// 避免数据散落到不可预期的当前工作目录。
 pub fn default_dir() -> PathBuf {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(base) = exe.parent() {
+            let portable = base.join("data");
+            if fs::create_dir_all(&portable).is_ok() {
+                return portable;
+            }
+        }
+    }
+    user_dir(APP_ID).unwrap_or_else(|| PathBuf::from("data"))
+}
+
+/// 平台用户数据目录（仅作便携目录不可写时的回退）
+fn user_dir(id: &str) -> Option<PathBuf> {
     #[cfg(target_os = "macos")]
     {
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
-        PathBuf::from(home).join("Library/Application Support/com.mogrowang.synbackup")
+        std::env::var("HOME")
+            .ok()
+            .map(|h| PathBuf::from(h).join("Library/Application Support").join(id))
     }
     #[cfg(target_os = "windows")]
     {
-        let base = std::env::var("APPDATA").unwrap_or_else(|_| ".".into());
-        PathBuf::from(base).join("com.mogrowang.synbackup")
+        std::env::var("APPDATA").ok().map(|b| PathBuf::from(b).join(id))
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
-        PathBuf::from(home).join(".synbackup")
+        std::env::var("HOME").ok().map(|h| PathBuf::from(h).join(".synbackup"))
     }
+}
+
+/// 旧版本使用过的系统数据目录（新包名与旧包名都查），供一次性搬迁。
+fn legacy_dirs() -> Vec<PathBuf> {
+    [APP_ID, "com.mogrowang.synbackup"]
+        .iter()
+        .filter_map(|id| user_dir(id))
+        .collect()
+}
+
+/// 一次性搬迁：便携目录还没有数据而旧目录存在时，把旧数据整体复制过来；
+/// 此后不再读写任何系统目录。
+pub fn migrate_from_legacy(portable: &Path) {
+    if portable.join(CONFIG_FILE).exists() {
+        return;
+    }
+    for legacy in legacy_dirs() {
+        if !legacy.join(CONFIG_FILE).exists() {
+            continue;
+        }
+        if copy_tree(&legacy, portable).is_ok() {
+            return; // 搬到一份即可
+        }
+    }
+}
+
+/// 递归复制目录（数据目录只有 config.json、history.jsonl 与 manifests/ 一层子目录）
+fn copy_tree(src: &Path, dst: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let target = dst.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_tree(&entry.path(), &target)?;
+        } else {
+            fs::copy(entry.path(), target)?;
+        }
+    }
+    Ok(())
 }
 
 pub fn load_config(dir: &Path) -> Config {
