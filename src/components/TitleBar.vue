@@ -51,8 +51,6 @@ onUnmounted(() => {
   <header class="titlebar" data-tauri-drag-region>
     <div class="identity" data-tauri-drag-region>
       <span class="mark" data-tauri-drag-region><Logo variant="mark" :size="18" /></span>
-      <span class="name" data-tauri-drag-region>同备</span>
-      <span class="sub" data-tauri-drag-region>Synbackup</span>
     </div>
 
     <div v-if="!isMac" class="controls">
@@ -106,25 +104,11 @@ onUnmounted(() => {
 .identity {
   display: flex;
   align-items: center;
-  gap: 8px;
   min-width: 0;
-  padding-right: 14px;
 }
 .mark {
   display: flex;
   flex: none;
-}
-.name {
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1;
-}
-.sub {
-  font-size: 11px;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  color: var(--text-3);
 }
 
 .controls {

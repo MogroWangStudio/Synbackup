@@ -114,11 +114,14 @@ function onPollInterval(ev: Event) {
 
     <section class="card group">
       <h3 class="group-title">{{ t("settings.about") }}</h3>
-      <div class="brand-lockup">
-        <Logo variant="wordmark" :size="28" />
-        <span class="brand-ver">
-          {{ t("settings.version") }} {{ store.appInfo?.version ?? "0.2.0" }}
-        </span>
+      <div class="brand-mark">
+        <Logo variant="wordmark" :size="32" />
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.version") }}</span>
+        </div>
+        <span class="row-value">{{ store.appInfo?.version ?? "0.2.0" }}</span>
       </div>
       <div class="row">
         <div class="row-label">
@@ -145,19 +148,11 @@ function onPollInterval(ev: Event) {
   color: var(--text-2);
   padding: 10px 0 4px;
 }
-.brand-lockup {
+.brand-mark {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 0 12px;
+  justify-content: center;
+  padding: 16px 0;
   border-bottom: 1px solid var(--hairline);
-}
-.brand-ver {
-  font-size: 12px;
-  color: var(--text-3);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 .row {
   display: flex;
