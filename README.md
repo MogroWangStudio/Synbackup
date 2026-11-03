@@ -87,7 +87,9 @@ cd src-tauri && cargo check
 
 窗口装饰按平台分文件配置：`tauri.conf.json` 面向 Windows（无边框 + 自绘按钮），`tauri.macos.conf.json` 覆写 macOS 窗口（透明叠加标题栏 + 原生红绿灯）。平台配置按 JSON Merge Patch 合并，**数组整体替换**，所以 macOS 里把整个窗口对象重写了一遍，新增窗口字段时两处都要改。
 
-占位图标由 `scripts/generate_icon.py` 生成（纯标准库 Python），`npx tauri icon` 产出全套尺寸。正式 logo 与视觉规范确定后，替换 `scripts/app-icon-source.png` 重新执行即可。
+应用图标取自设计稿 `Synbackup Logo.svg`，按 macOS 的图标网格绘制：1024×1024 画布、白色圆角方块（squircle，圆角约 22% 画布宽）铺满画布、标识居中占 60% 宽、边缘一道极淡描边。导出 1024 母版后执行 `npx tauri icon <母版.png>`，一次产出 `src-tauri/icons/` 下的 .icns / .ico / 全尺寸 PNG（含 iOS、Android 变体）。
+
+macOS 菜单栏另用 `src-tauri/icons/tray-template.png`（纯黑剪影、透明底），配合 `icon_as_template` 让系统按 alpha 取形并随明暗外观自动反色；Windows / Linux 托盘仍用彩色 `32x32.png`。
 
 ## 数据位置
 
@@ -121,13 +123,12 @@ cd src-tauri && cargo check
 │       │   └── ...
 │       ├── commands.rs     # IPC 命令（薄封装）
 │       └── lib.rs          # 托盘 / 窗口生命周期 / 监控循环
-└── scripts/                # 占位图标生成脚本
 ```
 
 ## 路线图
 
-- [x] 界面规范：自绘标题栏、单一强调色、材质分层
-- [ ] 正式 logo 与应用图标（当前仍为占位设计）
+- [x] 界面规范：自绘标题栏、主题色 / 辅助色、材质分层
+- [x] 品牌标识：矢量 logo（界面内联）+ 全平台应用图标
 - [ ] 空目录同步、符号链接策略
 - [ ] 计划任务与定时备份
 - [ ] 冲突"保留两份"策略

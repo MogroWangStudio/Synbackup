@@ -300,9 +300,14 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let quit = MenuItem::with_id(app, "quit", text(&lang, "tray_quit"), true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&open, &scan, &PredefinedMenuItem::separator(app)?, &quit])?;
 
+    // macOS 菜单栏用模板图：系统只取 alpha 轮廓，并随明暗外观自动反色；
+    // 其他平台用彩色应用图标。
+    #[cfg(target_os = "macos")]
+    let icon = Image::from_bytes(include_bytes!("../icons/tray-template.png"))?;
+    #[cfg(not(target_os = "macos"))]
     let icon = Image::from_bytes(include_bytes!("../icons/32x32.png"))?;
 
-    TrayIconBuilder::with_id("main-tray")
+    let builder = TrayIconBuilder::with_id("main-tray")
         .icon(icon)
         .tooltip("同备 Synbackup")
         .menu(&menu)
@@ -321,8 +326,12 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             {
                 let _ = (tray, event);
             }
-        })
-        .build(app)?;
+        });
+
+    #[cfg(target_os = "macos")]
+    let builder = builder.icon_as_template(true);
+
+    builder.build(app)?;
     Ok(())
 }
 
