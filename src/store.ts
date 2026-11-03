@@ -43,6 +43,10 @@ export const store = reactive({
     uiScale: 1,
     launchAnimation: true,
     updateChannel: "stable",
+    statusDevices: true,
+    statusPairs: true,
+    statusSyncCount: true,
+    statusVersion: false,
     // 外观偏好从 localStorage 同步读取，保证首帧（后端数据未返回前）无闪变
     ...loadUiPrefs(),
   } as AppSettings,
@@ -51,6 +55,7 @@ export const store = reactive({
   pending: [] as PendingReview[],
   history: [] as HistoryEntry[],
   appInfo: null as null | { dataDir: string; version: string },
+  syncCount: 0,
   toasts: [] as Toast[],
   diffDialog: null as DiffDialogState | null,
   editor: null as null | { pair: SyncPair | null },
@@ -71,11 +76,12 @@ export function dismissToast(id: number) {
 }
 
 export async function refreshAll() {
-  const [cfg, volumes, pending, history, appInfo] = await Promise.all([
+  const [cfg, volumes, pending, history, syncCount, appInfo] = await Promise.all([
     api.getConfig(),
     api.listVolumes(),
     api.getPendingReviews(),
     api.getHistory(200),
+    api.getSyncCount(),
     api.getAppInfo(),
   ]);
   store.settings = cfg.settings;
@@ -83,6 +89,7 @@ export async function refreshAll() {
   store.volumes = volumes;
   store.pending = pending;
   store.history = history;
+  store.syncCount = syncCount;
   store.appInfo = appInfo;
   // 权威配置到位后以它为准，重新应用外观并把增量落回 localStorage
   applyUiPrefs(store.settings);
@@ -105,5 +112,7 @@ export async function refreshPending() {
 }
 
 export async function refreshHistory() {
-  store.history = await api.getHistory(200);
+  const [history, syncCount] = await Promise.all([api.getHistory(200), api.getSyncCount()]);
+  store.history = history;
+  store.syncCount = syncCount;
 }

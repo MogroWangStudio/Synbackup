@@ -139,6 +139,7 @@ pub fn run() {
             commands::get_pending_reviews,
             commands::dismiss_pending_review,
             commands::get_history,
+            commands::get_sync_count,
             commands::clear_history,
             commands::check_all_devices,
             commands::get_app_info,

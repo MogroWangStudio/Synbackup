@@ -20,6 +20,14 @@ export interface AppSettings {
   launchAnimation: boolean;
   /** 更新渠道：stable = 正式版（Release），beta = 预发布（Pre-Release） */
   updateChannel: string;
+  /** 侧栏状态区：显示设备状态 */
+  statusDevices: boolean;
+  /** 侧栏状态区：显示已开启任务数 */
+  statusPairs: boolean;
+  /** 侧栏状态区：累计同步次数 */
+  statusSyncCount: boolean;
+  /** 侧栏状态区：版本号 */
+  statusVersion: boolean;
 }
 
 /** 任务的主传输方向:push = 本机发送(本地 → 设备),pull = 本机接收(设备 → 本地) */

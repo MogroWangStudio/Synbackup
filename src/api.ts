@@ -26,6 +26,7 @@ export const api = {
   dismissPendingReview: (pairId: string) => invoke<void>("dismiss_pending_review", { pairId }),
   getHistory: (limit = 200) => invoke<HistoryEntry[]>("get_history", { limit }),
   clearHistory: () => invoke<void>("clear_history"),
+  getSyncCount: () => invoke<number>("get_sync_count"),
   checkAllDevices: () => invoke<number>("check_all_devices"),
   getAppInfo: () => invoke<AppInfo>("get_app_info"),
 };

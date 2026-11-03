@@ -43,6 +43,14 @@ pub struct AppSettings {
     pub launch_animation: bool,
     /// 更新渠道：stable = 正式版（Release），beta = 预发布（Pre-Release）
     pub update_channel: String,
+    /// 侧栏状态区：显示设备状态
+    pub status_devices: bool,
+    /// 侧栏状态区：显示已开启任务数
+    pub status_pairs: bool,
+    /// 侧栏状态区：显示累计同步次数
+    pub status_sync_count: bool,
+    /// 侧栏状态区：显示版本号
+    pub status_version: bool,
 }
 
 impl Default for AppSettings {
@@ -60,6 +68,10 @@ impl Default for AppSettings {
             ui_scale: 1.0,
             launch_animation: true,
             update_channel: "stable".into(),
+            status_devices: true,
+            status_pairs: true,
+            status_sync_count: true,
+            status_version: false,
         }
     }
 }

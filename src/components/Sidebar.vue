@@ -16,6 +16,13 @@ const items = computed(() => [
   { key: "history", icon: "history", label: t("nav.history"), badge: 0 },
   { key: "settings", icon: "settings", label: t("nav.settings"), badge: 0 },
 ]);
+
+const enabledPairs = computed(() => store.pairs.filter((p) => p.enabled).length);
+// 状态区各项均可在设置中开关；全部关闭时整个状态区不渲染
+const s = computed(() => store.settings);
+const hasFoot = computed(
+  () => s.value.statusDevices || s.value.statusPairs || s.value.statusSyncCount || s.value.statusVersion,
+);
 </script>
 
 <template>
@@ -34,15 +41,28 @@ const items = computed(() => [
       </button>
     </nav>
 
-    <div class="sidebar-foot">
-      <span class="dot" :class="store.volumes.length ? 'ok' : 'idle'" />
-      <span class="foot-text">
-        {{
-          store.volumes.length
-            ? t("status.devices_connected", { n: store.volumes.length })
-            : t("status.no_devices")
-        }}
-      </span>
+    <div v-if="hasFoot" class="sidebar-foot">
+      <div v-if="s.statusDevices" class="foot-line">
+        <span class="dot" :class="store.volumes.length ? 'ok' : 'idle'" />
+        <span class="foot-text">
+          {{
+            store.volumes.length
+              ? t("status.devices_connected", { n: store.volumes.length })
+              : t("status.no_devices")
+          }}
+        </span>
+      </div>
+      <div v-if="s.statusPairs" class="foot-line">
+        <span class="foot-text">
+          {{ t("status.pairs_enabled", { on: enabledPairs, total: store.pairs.length }) }}
+        </span>
+      </div>
+      <div v-if="s.statusSyncCount" class="foot-line">
+        <span class="foot-text">{{ t("status.sync_count", { n: store.syncCount }) }}</span>
+      </div>
+      <div v-if="s.statusVersion" class="foot-line">
+        <span class="foot-text">v{{ store.appInfo?.version ?? "–" }}</span>
+      </div>
     </div>
   </aside>
 </template>
@@ -113,10 +133,16 @@ const items = computed(() => [
 .sidebar-foot {
   margin-top: auto;
   display: flex;
-  align-items: center;
-  gap: 7px;
+  flex-direction: column;
+  gap: 5px;
   padding: 10px 8px 2px;
   border-top: 1px solid var(--hairline);
+}
+.foot-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
 }
 .dot {
   width: 7px;

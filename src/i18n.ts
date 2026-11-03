@@ -15,6 +15,8 @@ const zh: Dict = {
   "win.close": "关闭窗口",
 
   "status.devices_connected": "{n} 台设备已连接",
+  "status.pairs_enabled": "{on} / {total} 个任务已开启",
+  "status.sync_count": "已同步 {n} 次",
   "status.no_devices": "未连接设备",
 
   "overview.title": "总览",
@@ -159,6 +161,12 @@ const zh: Dict = {
   "easter.2": "连点五下被发现了。要不要顺手跑一次同步？",
   "easter.3": "彩蛋！你来我往，才叫同步。",
   "settings.launch_anim_hint": "启动时界面淡入。",
+  "settings.status_bar": "状态栏信息",
+  "settings.status_bar_hint": "侧栏左下角显示的统计信息。",
+  "settings.status_devices": "设备状态",
+  "settings.status_pairs": "已开启任务",
+  "settings.status_sync": "同步次数",
+  "settings.status_version": "版本号",
   "settings.sync_section": "同步",
   "settings.auto_scan": "插入设备时自动检查",
   "settings.auto_scan_hint": "设备插入后立即扫描差异并提醒你处理。",
@@ -197,6 +205,8 @@ const en: Dict = {
 
   "status.devices_connected": "{n} device(s) connected",
   "status.no_devices": "No device connected",
+  "status.pairs_enabled": "{on} of {total} pairs enabled",
+  "status.sync_count": "{n} syncs completed",
 
   "overview.title": "Overview",
   "overview.pending_banner": "{n} pair(s) have differences waiting for you",
@@ -341,6 +351,12 @@ const en: Dict = {
   "easter.3": "Easter egg! It's called sync for a reason.",
   "settings.launch_anim_hint": "Fade the interface in on launch.",
   "settings.sync_section": "Sync",
+  "settings.status_bar": "Status bar",
+  "settings.status_bar_hint": "What to show in the sidebar status area.",
+  "settings.status_devices": "Device status",
+  "settings.status_pairs": "Enabled pairs",
+  "settings.status_sync": "Sync count",
+  "settings.status_version": "App version",
   "settings.auto_scan": "Auto-check on insert",
   "settings.auto_scan_hint": "Scan for differences as soon as a device is plugged in.",
   "settings.auto_sync": "Auto-sync when conflict-free",

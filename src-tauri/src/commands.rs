@@ -201,6 +201,12 @@ pub async fn get_history(core: State<'_, backend::Core>, limit: Option<u32>) -> 
     Ok(backend::history::read(&core.dir, limit.unwrap_or(100) as usize))
 }
 
+/// 累计同步次数（历史总条数，供侧栏状态区展示）
+#[tauri::command]
+pub async fn get_sync_count(core: State<'_, backend::Core>) -> CmdResult<u64> {
+    Ok(backend::history::count(&core.dir))
+}
+
 #[tauri::command]
 pub async fn clear_history(core: State<'_, backend::Core>) -> CmdResult<()> {
     backend::history::clear(&core.dir);

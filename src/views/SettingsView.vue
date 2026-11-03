@@ -174,6 +174,48 @@ function onLanguage(ev: Event) {
           @update:model-value="(v) => update({ launchAnimation: v })"
         />
       </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.status_bar") }}</span>
+          <span class="row-hint">{{ t("settings.status_bar_hint") }}</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.status_devices") }}</span>
+        </div>
+        <Toggle
+          :model-value="store.settings.statusDevices"
+          @update:model-value="(v) => update({ statusDevices: v })"
+        />
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.status_pairs") }}</span>
+        </div>
+        <Toggle
+          :model-value="store.settings.statusPairs"
+          @update:model-value="(v) => update({ statusPairs: v })"
+        />
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.status_sync") }}</span>
+        </div>
+        <Toggle
+          :model-value="store.settings.statusSyncCount"
+          @update:model-value="(v) => update({ statusSyncCount: v })"
+        />
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.status_version") }}</span>
+        </div>
+        <Toggle
+          :model-value="store.settings.statusVersion"
+          @update:model-value="(v) => update({ statusVersion: v })"
+        />
+      </div>
     </section>
 
     <section class="card group">
