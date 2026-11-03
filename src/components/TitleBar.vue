@@ -2,9 +2,11 @@
 // 自绘标题栏：整条即拖拽区，窗口按钮按平台分工。
 // macOS 保留系统红绿灯（透明叠加标题栏），只负责让出左侧空间；
 // Windows / Linux 无边框窗口，窗口按钮由这里绘制。
+// 左上角 logo 不在拖拽区内：单击有按压反馈，连按五下触发随机彩蛋。
 import { onMounted, onUnmounted, ref } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { t } from "../i18n";
+import { toast } from "../store";
 import Icon from "./Icon.vue";
 import Logo from "./Logo.vue";
 
@@ -13,6 +15,38 @@ const win = getCurrentWindow();
 const maximized = ref(false);
 let stopResize: (() => void) | undefined;
 let syncTimer: number | undefined;
+
+// ---- logo 彩蛋 ----
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const eggClass = ref("");
+let clickStreak = 0;
+let streakTimer: number | undefined;
+let eggTimer: number | undefined;
+
+function onLogoClick() {
+  clickStreak++;
+  window.clearTimeout(streakTimer);
+  streakTimer = window.setTimeout(() => (clickStreak = 0), 2000);
+  if (clickStreak < 5) return;
+  clickStreak = 0;
+  triggerEgg();
+}
+
+function triggerEgg() {
+  const roll = Math.floor(Math.random() * 4);
+  // 文案彩蛋 / 动效偏好下的降级：只弹一条俏皮 toast
+  if (roll === 3 || reducedMotion) {
+    toast("info", t(`easter.${1 + Math.floor(Math.random() * 3)}`));
+    return;
+  }
+  const cls = ["egg-bounce", "egg-rainbow", "egg-spin"][roll];
+  eggClass.value = ""; // 先清掉，保证同一彩蛋连续触发时动画能重播
+  requestAnimationFrame(() => {
+    eggClass.value = cls;
+    window.clearTimeout(eggTimer);
+    eggTimer = window.setTimeout(() => (eggClass.value = ""), 2000);
+  });
+}
 
 // 权限缺失或窗口已销毁时静默失败，不让标题栏抛错打断交互
 function fire(action: () => Promise<unknown>) {
@@ -43,6 +77,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.clearTimeout(syncTimer);
+  window.clearTimeout(streakTimer);
+  window.clearTimeout(eggTimer);
   stopResize?.();
 });
 </script>
@@ -50,8 +86,10 @@ onUnmounted(() => {
 <template>
   <header class="titlebar" data-tauri-drag-region>
     <div class="identity" data-tauri-drag-region>
-      <!-- 横向文字标：16px 高、按 1144:206 原始比例推算宽度，与 40px 标题栏同用一套结构层材质 -->
-      <span class="mark" data-tauri-drag-region><Logo variant="wordmark" :size="16" /></span>
+      <!-- 横向文字标：16px 高、按 1144:206 原始比例推算宽度；不带拖拽区，可点按 -->
+      <span class="mark" :class="eggClass" @click="onLogoClick">
+        <Logo variant="wordmark" :size="16" />
+      </span>
     </div>
 
     <div v-if="!isMac" class="controls">
@@ -110,6 +148,45 @@ onUnmounted(() => {
 .mark {
   display: flex;
   flex: none;
+  /* 单击反馈：按下即缩（反馈在 pointer-down，不等松手），松手弹回 */
+  transform-origin: 12% center;
+  transition: transform 130ms var(--ease);
+}
+.mark:active {
+  transform: scale(0.93);
+}
+
+/* ---- 连按彩蛋 ---- */
+.mark.egg-bounce {
+  animation: egg-bounce 900ms var(--ease) both;
+}
+@keyframes egg-bounce {
+  0% { transform: none; }
+  22% { transform: translateY(-7px) scaleY(1.05); }
+  46% { transform: translateY(0) scaleY(0.96); }
+  68% { transform: translateY(-4px); }
+  100% { transform: none; }
+}
+.mark.egg-rainbow {
+  animation: egg-rainbow 1.8s linear both;
+}
+@keyframes egg-rainbow {
+  0%, 100% { filter: hue-rotate(0deg); }
+  45% { filter: hue-rotate(210deg) saturate(1.35); }
+}
+.mark.egg-spin {
+  animation: egg-spin 700ms var(--ease) both;
+}
+@keyframes egg-spin {
+  from { transform: rotate(0deg) scale(1.05); }
+  to { transform: rotate(360deg) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mark.egg-bounce,
+  .mark.egg-rainbow,
+  .mark.egg-spin {
+    animation: none;
+  }
 }
 
 .controls {
