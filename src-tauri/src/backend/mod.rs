@@ -156,6 +156,7 @@ impl Core {
             deleted_remote: result.deleted_remote,
             deleted_local: result.deleted_local,
             skipped: result.skipped,
+            total_bytes: result.total_bytes,
             errors: result.errors.clone(),
             items: result.items.iter().take(HISTORY_ITEM_LIMIT).cloned().collect(),
             items_truncated: result.items.len().saturating_sub(HISTORY_ITEM_LIMIT) as u32,

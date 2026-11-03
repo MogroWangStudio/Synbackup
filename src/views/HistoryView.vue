@@ -2,10 +2,16 @@
 import { ref } from "vue";
 import { api } from "../api";
 import { refreshHistory, store, toast } from "../store";
-import { fmtDateTime, t } from "../i18n";
+import { fmtDateTime, fmtSize, t } from "../i18n";
+import type { HistoryEntry } from "../types";
 
 const confirmingClear = ref(false);
 let confirmTimer = 0;
+
+/** 该条记录的数据量（后端累计；旧记录无此字段时为 0，不显示） */
+function totalBytes(h: HistoryEntry): number {
+  return (h as HistoryEntry & { totalBytes?: number }).totalBytes ?? 0;
+}
 
 function onClear() {
   if (!confirmingClear.value) {
@@ -60,6 +66,9 @@ function onClear() {
           <span v-if="h.skipped" class="chip chip-gray">
             {{ t("diff.summary_skipped", { n: h.skipped }) }}
           </span>
+          <span v-if="totalBytes(h)" class="chip chip-gray" :title="t('history.total_bytes')">
+            {{ fmtSize(totalBytes(h)) }}
+          </span>
           <span v-if="h.errors.length" class="chip chip-red">
             {{ t("diff.summary_failed", { n: h.errors.length }) }}
           </span>
@@ -71,6 +80,7 @@ function onClear() {
           <div v-for="(it, k) in h.items" :key="k" class="history-item">
             <span class="history-item-act" :class="{ failed: !it.ok }">{{ t("act." + it.action) }}</span>
             <span class="history-item-path">{{ it.path }}</span>
+            <span v-if="it.size" class="history-item-size">{{ fmtSize(it.size) }}</span>
             <span v-if="!it.ok && it.error" class="history-item-err">{{ it.error }}</span>
           </div>
           <p v-if="h.itemsTruncated" class="history-more">
@@ -171,6 +181,13 @@ function onClear() {
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+}
+.history-item-size {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+  min-width: 52px;
+  text-align: right;
 }
 .history-item-err {
   color: var(--red-text);

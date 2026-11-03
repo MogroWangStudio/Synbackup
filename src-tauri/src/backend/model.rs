@@ -167,6 +167,9 @@ pub struct ApplyOutcome {
     pub ok: bool,
     /// 未完成的原因
     pub error: Option<String>,
+    /// 本次动作涉及的文件大小（复制 = 源文件，删除 = 被删文件；目录或未知为 null，
+    /// 旧记录无此字段时也为 null）
+    pub size: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -212,13 +215,15 @@ pub struct ApplyError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct ApplyResult {
     pub copied_to_remote: u32,
     pub copied_to_local: u32,
     pub deleted_remote: u32,
     pub deleted_local: u32,
     pub skipped: u32,
+    /// 本次成功动作涉及的字节总量（复制 + 删除；旧记录无此字段时为 0）
+    pub total_bytes: u64,
     pub errors: Vec<ApplyError>,
     /// 逐项执行明细，顺序与决策顺序一致
     pub items: Vec<ApplyOutcome>,
@@ -255,6 +260,8 @@ pub struct HistoryEntry {
     pub deleted_remote: u32,
     pub deleted_local: u32,
     pub skipped: u32,
+    /// 本次成功动作涉及的字节总量（旧记录无此字段时为 0）
+    pub total_bytes: u64,
     pub errors: Vec<ApplyError>,
     /// 逐项执行明细（条数上限见 backend::HISTORY_ITEM_LIMIT）
     pub items: Vec<ApplyOutcome>,
@@ -275,6 +282,7 @@ impl Default for HistoryEntry {
             deleted_remote: 0,
             deleted_local: 0,
             skipped: 0,
+            total_bytes: 0,
             errors: Vec::new(),
             items: Vec::new(),
             items_truncated: 0,

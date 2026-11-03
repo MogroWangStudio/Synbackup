@@ -109,6 +109,8 @@ export interface ApplyOutcome {
   /** 是否按计划完成（跳过算完成，失败与"文件已消失"为 false） */
   ok: boolean;
   error: string | null;
+  /** 文件大小（复制 = 源文件，删除 = 被删文件；目录或旧记录为 null） */
+  size: number | null;
 }
 
 export interface ApplyResult {
@@ -117,6 +119,8 @@ export interface ApplyResult {
   deletedRemote: number;
   deletedLocal: number;
   skipped: number;
+  /** 本次成功动作涉及的字节总量（旧记录为 0） */
+  totalBytes: number;
   errors: ApplyError[];
   items: ApplyOutcome[];
 }
@@ -141,6 +145,8 @@ export interface HistoryEntry {
   deletedRemote: number;
   deletedLocal: number;
   skipped: number;
+  /** 本次同步涉及的字节总量（旧记录为 0） */
+  totalBytes: number;
   errors: ApplyError[];
   /** 逐项明细（最多 200 条，见后端 HISTORY_ITEM_LIMIT） */
   items: ApplyOutcome[];

@@ -36,9 +36,11 @@ pub fn apply(
         match d.action {
             SyncAction::LocalToRemote => match copy_over(&lp, &rp) {
                 Ok(()) => {
+                    let size = file_size(&lp);
                     result.copied_to_remote += 1;
+                    result.total_bytes += size.unwrap_or(0);
                     refresh_entry(manifest, &d.path, &lp, &rp);
-                    result.items.push(ApplyOutcome::done(&d.path, d.action));
+                    result.items.push(ApplyOutcome::done(&d.path, d.action, size));
                 }
                 Err(e) => {
                     result.errors.push(ApplyError::new(&d.path, &e));
@@ -47,9 +49,11 @@ pub fn apply(
             },
             SyncAction::RemoteToLocal => match copy_over(&rp, &lp) {
                 Ok(()) => {
+                    let size = file_size(&rp);
                     result.copied_to_local += 1;
+                    result.total_bytes += size.unwrap_or(0);
                     refresh_entry(manifest, &d.path, &lp, &rp);
-                    result.items.push(ApplyOutcome::done(&d.path, d.action));
+                    result.items.push(ApplyOutcome::done(&d.path, d.action, size));
                 }
                 Err(e) => {
                     result.errors.push(ApplyError::new(&d.path, &e));
@@ -58,9 +62,11 @@ pub fn apply(
             },
             SyncAction::DeleteRemote => match remove_path(remote_root, &d.path) {
                 Ok(()) => {
+                    let size = file_size(&rp);
                     result.deleted_remote += 1;
+                    result.total_bytes += size.unwrap_or(0);
                     refresh_entry(manifest, &d.path, &lp, &rp);
-                    result.items.push(ApplyOutcome::done(&d.path, d.action));
+                    result.items.push(ApplyOutcome::done(&d.path, d.action, size));
                 }
                 Err(e) => {
                     result.errors.push(ApplyError::new(&d.path, &e));
@@ -69,9 +75,11 @@ pub fn apply(
             },
             SyncAction::DeleteLocal => match remove_path(local_root, &d.path) {
                 Ok(()) => {
+                    let size = file_size(&lp);
                     result.deleted_local += 1;
+                    result.total_bytes += size.unwrap_or(0);
                     refresh_entry(manifest, &d.path, &lp, &rp);
-                    result.items.push(ApplyOutcome::done(&d.path, d.action));
+                    result.items.push(ApplyOutcome::done(&d.path, d.action, size));
                 }
                 Err(e) => {
                     result.errors.push(ApplyError::new(&d.path, &e));
@@ -82,7 +90,7 @@ pub fn apply(
                 result.skipped += 1;
                 // 跳过：保留当前实际状态，下次扫描仍会提示
                 refresh_entry(manifest, &d.path, &lp, &rp);
-                result.items.push(ApplyOutcome::done(&d.path, d.action));
+                result.items.push(ApplyOutcome::done(&d.path, d.action, None));
             }
         }
     }
@@ -97,13 +105,18 @@ impl ApplyError {
 }
 
 impl ApplyOutcome {
-    fn done(path: &str, action: SyncAction) -> Self {
-        Self { path: path.to_string(), action, ok: true, error: None }
+    fn done(path: &str, action: SyncAction, size: Option<u64>) -> Self {
+        Self { path: path.to_string(), action, ok: true, error: None, size }
     }
 
     fn failed(path: &str, action: SyncAction, error: &str) -> Self {
-        Self { path: path.to_string(), action, ok: false, error: Some(error.to_string()) }
+        Self { path: path.to_string(), action, ok: false, error: Some(error.to_string()), size: None }
     }
+}
+
+/// 文件大小（目录或不存在返回 None；目录的递归体量不在此统计）
+fn file_size(p: &Path) -> Option<u64> {
+    std::fs::metadata(p).ok().filter(|m| m.is_file()).map(|m| m.len())
 }
 
 fn stat_file(p: &Path) -> Option<FileStat> {

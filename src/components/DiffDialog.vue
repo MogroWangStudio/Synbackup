@@ -259,6 +259,9 @@ function handleClose() {
           <span v-if="result?.copiedToRemote" class="chip chip-accent">
             {{ t("diff.summary_copied_r", { n: result.copiedToRemote }) }}
           </span>
+          <span v-if="result?.totalBytes" class="chip chip-gray" :title="t('history.total_bytes')">
+            {{ fmtSize(result.totalBytes) }}
+          </span>
           <span v-if="result?.copiedToLocal" class="chip chip-accent">
             {{ t("diff.summary_copied_l", { n: result.copiedToLocal }) }}
           </span>
