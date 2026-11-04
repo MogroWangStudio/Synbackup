@@ -43,6 +43,12 @@ pub struct AppSettings {
     pub ui_scale: f32,
     /// 启动入场动画
     pub launch_animation: bool,
+    /// 启动动画预设（fade / rise / zoom / slide）
+    pub launch_anim_preset: String,
+    /// 启动动画时长（毫秒，200–1200）
+    pub launch_anim_ms: u32,
+    /// 启动动画曲线（smooth / spring / linear / swift）
+    pub launch_anim_curve: String,
     /// 更新渠道：stable = 正式版（Release），beta = 预发布（Pre-Release）
     pub update_channel: String,
     /// 侧栏状态区：显示设备状态
@@ -70,6 +76,9 @@ impl Default for AppSettings {
             font_scale: 1.0,
             ui_scale: 1.0,
             launch_animation: true,
+            launch_anim_preset: "rise".into(),
+            launch_anim_ms: 340,
+            launch_anim_curve: "smooth".into(),
             update_channel: "stable".into(),
             status_devices: true,
             status_pairs: true,

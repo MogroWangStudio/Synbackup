@@ -20,6 +20,12 @@ export interface AppSettings {
   uiScale: number;
   /** 启动入场动画 */
   launchAnimation: boolean;
+  /** 启动动画预设（fade / rise / zoom / slide） */
+  launchAnimPreset: string;
+  /** 启动动画时长（毫秒，200–1200） */
+  launchAnimMs: number;
+  /** 启动动画曲线（smooth / spring / linear / swift） */
+  launchAnimCurve: string;
   /** 更新渠道：stable = 正式版（Release），beta = 预发布（Pre-Release） */
   updateChannel: string;
   /** 侧栏状态区：显示设备状态 */

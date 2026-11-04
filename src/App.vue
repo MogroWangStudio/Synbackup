@@ -93,19 +93,46 @@ function applyLang() {
   zoom: var(--ui-scale, 1);
 }
 
-/* 启动入场：一次性的淡入 + 轻微上浮，由 html[data-boot-anim] 开关
-   （theme.ts 写入；首帧前已就位）。reduced-motion 下不播。 */
-html[data-boot-anim="on"] .window {
-  animation: boot-in 340ms var(--ease) both;
+/* 启动入场：预设 / 时长 / 曲线均可设置（theme.ts 写入 data-boot-anim 与
+   --boot-ms / --boot-ease，首帧前已就位）。reduced-motion 下不播。 */
+html[data-boot-anim="fade"] .window {
+  animation: boot-fade var(--boot-ms, 340ms) var(--boot-ease, var(--ease)) both;
 }
-@keyframes boot-in {
+html[data-boot-anim="rise"] .window {
+  animation: boot-rise var(--boot-ms, 340ms) var(--boot-ease, var(--ease)) both;
+}
+html[data-boot-anim="zoom"] .window {
+  animation: boot-zoom var(--boot-ms, 340ms) var(--boot-ease, var(--ease)) both;
+}
+html[data-boot-anim="slide"] .window {
+  animation: boot-slide var(--boot-ms, 340ms) var(--boot-ease, var(--ease)) both;
+}
+@keyframes boot-fade {
+  from { opacity: 0; }
+}
+@keyframes boot-rise {
   from {
     opacity: 0;
-    transform: translateY(6px) scale(0.985);
+    transform: translateY(10px) scale(0.99);
+  }
+}
+@keyframes boot-zoom {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+@keyframes boot-slide {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  html[data-boot-anim="on"] .window {
+  html[data-boot-anim="fade"] .window,
+  html[data-boot-anim="rise"] .window,
+  html[data-boot-anim="zoom"] .window,
+  html[data-boot-anim="slide"] .window {
     animation: none;
   }
 }

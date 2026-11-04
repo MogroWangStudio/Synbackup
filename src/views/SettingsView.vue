@@ -39,6 +39,16 @@ const appearanceOptions: SelectOption[] = appearances.map((a) => ({
 }));
 const fontOptions: SelectOption[] = fonts.map((f) => ({ value: f, label: t(`font.${f}`) }));
 
+// 启动动画预设与曲线选项
+const animPresetOptions: SelectOption[] = ["fade", "rise", "zoom", "slide"].map((p) => ({
+  value: p,
+  label: t(`anim.${p}`),
+}));
+const animCurveOptions: SelectOption[] = ["smooth", "spring", "linear", "swift"].map((c) => ({
+  value: c,
+  label: t(`curve.${c}`),
+}));
+
 // ---- 自定义主题色 ----
 const pickerOpen = ref(false);
 const customHex = ref(store.settings.accentCustom || "#9b62cf");
@@ -297,16 +307,45 @@ function onLanguageSelect(v: string) {
           @update:model-value="(v) => update({ launchAnimation: v })"
         />
       </div>
-      <div class="row">
-        <div class="row-label">
-          <span class="row-name">{{ t("settings.launch_anim") }}</span>
-          <span class="row-hint">{{ t("settings.launch_anim_hint") }}</span>
+      <template v-if="store.settings.launchAnimation">
+        <div class="row">
+          <div class="row-label">
+            <span class="row-name">{{ t("settings.launch_anim_preset") }}</span>
+          </div>
+          <Select
+            :model-value="store.settings.launchAnimPreset"
+            :options="animPresetOptions"
+            :aria-label="t('settings.launch_anim_preset')"
+            @update:model-value="(v) => update({ launchAnimPreset: v })"
+          />
         </div>
-        <Toggle
-          :model-value="store.settings.launchAnimation"
-          @update:model-value="(v) => update({ launchAnimation: v })"
-        />
-      </div>
+        <div class="row">
+          <div class="row-label">
+            <span class="row-name">{{ t("settings.launch_anim_duration") }}</span>
+          </div>
+          <Stepper
+            :model-value="store.settings.launchAnimMs"
+            :step="100"
+            :min="200"
+            :max="1200"
+            :format="(v) => `${v} ms`"
+            :decrease-label="t('settings.size_decrease')"
+            :increase-label="t('settings.size_increase')"
+            @update:model-value="(v) => update({ launchAnimMs: v })"
+          />
+        </div>
+        <div class="row">
+          <div class="row-label">
+            <span class="row-name">{{ t("settings.launch_anim_curve") }}</span>
+          </div>
+          <Select
+            :model-value="store.settings.launchAnimCurve"
+            :options="animCurveOptions"
+            :aria-label="t('settings.launch_anim_curve')"
+            @update:model-value="(v) => update({ launchAnimCurve: v })"
+          />
+        </div>
+      </template>
     </section>
 
     <section class="card group">

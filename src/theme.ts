@@ -19,6 +19,9 @@ const UI_PREF_FIELDS = [
   "fontScale",
   "uiScale",
   "launchAnimation",
+  "launchAnimPreset",
+  "launchAnimMs",
+  "launchAnimCurve",
 ] as const;
 
 export function loadUiPrefs(): Partial<AppSettings> {
@@ -120,6 +123,17 @@ export function applyUiPrefs(s: AppSettings) {
   const accent = getComputedStyle(root).getPropertyValue("--accent");
   root.style.setProperty("--on-accent", onAccentColor(accent));
 
-  if (s.launchAnimation) root.dataset.bootAnim = "on";
-  else delete root.dataset.bootAnim;
+  root.dataset.bootAnim = s.launchAnimation ? s.launchAnimPreset : "off";
+  root.style.setProperty("--boot-ms", String(s.launchAnimMs));
+  root.style.setProperty("--boot-ease", bootCurve(s.launchAnimCurve));
+}
+
+/** 启动动画曲线映射（CSS cubic-bezier） */
+function bootCurve(key: string): string {
+  switch (key) {
+    case "spring": return "cubic-bezier(0.34, 1.4, 0.64, 1)"; // 轻微过冲
+    case "linear": return "linear";
+    case "swift": return "cubic-bezier(0.32, 0.72, 0, 1)";    // iOS sheet 减速
+    default: return "cubic-bezier(0.2, 0.8, 0.2, 1)";         // smooth（默认）
+  }
 }
