@@ -20,14 +20,25 @@ function closeWindow() {
   busy.value = true;
   store.closeConfirm = false;
   // 直接销毁窗口：后端保留在托盘继续运行。
-  // getCurrentWindow() 返回已缓存的句柄，为排除句柄失效的可能，
-  // 失败时改用 Window.getByLabel 重新获取再销毁一次。
-  const attempt = (w: { destroy: () => Promise<void> }) =>
-    w.destroy().catch((e) => {
-      console.error("[synbackup] 销毁窗口失败", e);
-      return Window.getByLabel("main").then((w2) => w2?.destroy());
+  // 优先走前端 destroy IPC；被 capability 拒绝或句柄失效时，
+  // 逐级回退：重取句柄 → 后端 destroy_main_window 命令（无权限限制）。
+  const fallbackToBackend = (e: unknown) => {
+    console.error("[synbackup] 前端销毁窗口失败，改用后端命令", e);
+    void api.destroyMainWindow().catch((e2) => {
+      console.error("[synbackup] 后端销毁窗口也失败", e2);
+      busy.value = false;
     });
-  attempt(getCurrentWindow());
+  };
+  getCurrentWindow()
+    .destroy()
+    .catch((e) =>
+      Window.getByLabel("main")
+        .then((w2) => w2?.destroy())
+        .catch((e2) => {
+          void e2;
+          fallbackToBackend(e);
+        }),
+    );
 }
 
 function quitApp() {

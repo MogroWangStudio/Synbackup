@@ -33,6 +33,7 @@ export const api = {
   openExternal: (url: string) => invoke<void>("open_external", { url }),
   markUiReady: () => invoke<void>("mark_ui_ready"),
   exitApp: () => invoke<void>("exit_app"),
+  destroyMainWindow: () => invoke<void>("destroy_main_window"),
   checkUpdate: () => invoke<UpdateInfo>("check_update"),
   testNotification: () => invoke<void>("test_notification"),
 };

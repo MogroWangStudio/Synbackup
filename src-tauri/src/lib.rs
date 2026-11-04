@@ -154,6 +154,7 @@ pub fn run() {
             commands::mark_ui_ready,
             commands::exit_app,
             commands::test_notification,
+            commands::destroy_main_window,
             update::check_update,
         ])
         .setup(|app| {

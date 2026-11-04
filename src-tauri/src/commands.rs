@@ -254,6 +254,17 @@ pub fn exit_app(app: AppHandle) -> CmdResult<()> {
     Ok(())
 }
 
+/// 销毁主窗口（后端保留在托盘运行）。"仅退出窗口"的兜底通道：
+/// 前端 destroy IPC 受 capability 管控，权限缺失时由此命令完成同一动作。
+#[tauri::command]
+pub fn destroy_main_window(app: AppHandle) -> CmdResult<()> {
+    use tauri::Manager;
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.destroy();
+    }
+    Ok(())
+}
+
 /// 发送一条测试通知（走与自动同步相同的系统通知链路）
 #[tauri::command]
 pub fn test_notification(app: AppHandle, core: State<'_, backend::Core>) -> CmdResult<()> {
