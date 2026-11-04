@@ -2,7 +2,7 @@
 // 自绘调色板：SV 面板（饱和度 × 明度）+ 色相滑条 + hex 输入。
 // 全部指针事件 1:1 跟踪（Pointer Events + capture），无原生 input[type=color]。
 // 出入弹层自锚点方向展开，Esc / 点外部关闭（与 Select 一致的交互语言）。
-import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 
 const props = withDefaults(
   defineProps<{
@@ -157,7 +157,11 @@ function onKey(e: KeyboardEvent) {
 
 function onOutside(e: PointerEvent) {
   const t = e.target as Node;
-  if (!panelRef.value?.closest(".cpop")?.contains(t)) emit("close");
+  // 自身弹层内任意位置（含 SV 面板、滑条、hex 输入）都不算外部
+  if (panelRef.value?.contains(t)) return;
+  // 触发色块也不算外部：否则点色块关闭后，其 click 又会重新打开
+  if (document.querySelector(".swatch.custom")?.contains(t)) return;
+  emit("close");
 }
 
 // 关闭监听挂 document,延迟一拍避免打开用的同一次点击立刻关闭
@@ -167,14 +171,10 @@ onBeforeUnmount(() => {
   svCleanup?.();
   hueCleanup?.();
 });
-
-// 定位锚点(由父组件设置)
-defineExpose({});
-void nextTick;
 </script>
 
 <template>
-  <div class="cpop" role="dialog" :aria-label="ariaLabel" tabindex="-1" @keydown="onKey">
+  <div ref="panelRef" class="cpop" role="dialog" :aria-label="ariaLabel" tabindex="-1" @keydown="onKey">
     <!-- SV 面板：底色为当前色相,横向饱和度纵向明度 -->
     <div
       class="cp-sv"

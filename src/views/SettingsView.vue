@@ -52,18 +52,29 @@ function togglePicker() {
   }
   const el = customSwatchEl.value;
   if (el) {
+    // 色块在 zoom（--ui-scale）容器内：getBoundingClientRect 是缩放后的
+    // 视口坐标，除以 zoom 换算回未缩放坐标系，Teleport 到 body 的弹层
+    // 才能对准（弹层自身不在 zoom 容器内）。
+    const zoom = Number(getComputedStyle(el).zoom) || 1;
     const r = el.getBoundingClientRect();
-    // 空间不足时上翻（与 Select 弹层同规则）
-    const below = window.innerHeight - r.bottom > 260;
-    pickerPos.value = {
-      left: `${Math.round(r.left)}px`,
-      top: below ? `${Math.round(r.bottom + 8)}px` : `${Math.round(r.top - 8)}px`,
-    };
+    const PICKER_W = 240 + 16; // cpop 宽 + 边距余量
+    const PICKER_H = 240;
+    // 先按缩放系换算，再做视口钳制，避免超出窗口边框
+    let left = r.left / zoom;
+    const top = below(r) ? r.bottom / zoom + 8 : r.top / zoom - PICKER_H - 8;
+    left = Math.min(left, window.innerWidth / zoom - PICKER_W);
+    left = Math.max(8, left);
+    pickerPos.value = { left: `${Math.round(left)}px`, top: `${Math.round(Math.max(8, top))}px` };
   }
   customHex.value = isValidHex(store.settings.accentCustom)
     ? store.settings.accentCustom
     : "#9b62cf";
   pickerOpen.value = true;
+}
+
+/** 色块下方空间是否放得下调色板（zoom 无关，都用缩放后的视口坐标判断） */
+function below(r: DOMRect): boolean {
+  return window.innerHeight - r.bottom > 260;
 }
 
 function onCustomHex(v: string) {
