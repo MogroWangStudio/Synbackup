@@ -253,3 +253,15 @@ pub fn exit_app(app: AppHandle) -> CmdResult<()> {
     app.exit(0);
     Ok(())
 }
+
+/// 发送一条测试通知（走与自动同步相同的系统通知链路）
+#[tauri::command]
+pub fn test_notification(app: AppHandle, core: State<'_, backend::Core>) -> CmdResult<()> {
+    let settings = core.settings();
+    crate::notify::notify(
+        &app,
+        crate::text(&settings.language, "app_title"),
+        &crate::text(&settings.language, "test_notification_body"),
+    );
+    Ok(())
+}

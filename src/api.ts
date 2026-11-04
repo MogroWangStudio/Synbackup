@@ -34,4 +34,5 @@ export const api = {
   markUiReady: () => invoke<void>("mark_ui_ready"),
   exitApp: () => invoke<void>("exit_app"),
   checkUpdate: () => invoke<UpdateInfo>("check_update"),
+  testNotification: () => invoke<void>("test_notification"),
 };

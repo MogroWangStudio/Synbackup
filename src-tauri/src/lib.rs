@@ -44,6 +44,11 @@ pub(crate) fn text_fmt(lang: &str, key: &str, name: &str, n: usize) -> String {
         } else {
             format!("Auto-sync started for \"{name}\" — {n} file(s).")
         },
+        "test_notification_body" => if zh {
+            "这是一条测试通知，通知链路工作正常。".to_string()
+        } else {
+            "This is a test notification — the pipeline is working.".to_string()
+        },
         _ => String::new(),
     }
 }
@@ -148,6 +153,7 @@ pub fn run() {
             commands::open_external,
             commands::mark_ui_ready,
             commands::exit_app,
+            commands::test_notification,
             update::check_update,
         ])
         .setup(|app| {

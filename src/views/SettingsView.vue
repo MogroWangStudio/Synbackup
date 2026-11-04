@@ -87,6 +87,11 @@ function openUpdatePage() {
   if (pendingUrl) void api.openExternal(pendingUrl).catch((e) => toast("error", String(e)));
 }
 
+/** 发送一条测试通知：走与自动同步相同的系统通知链路 */
+function onTestNotification() {
+  api.testNotification().catch((e) => toast("error", String(e)));
+}
+
 // ---- 检查更新 ----
 const checking = ref(false);
 let pendingUrl = "";
@@ -373,10 +378,20 @@ function onLanguageSelect(v: string) {
           <span class="row-name">{{ t("settings.notify") }}</span>
           <span class="row-hint">{{ t("settings.notify_hint") }}</span>
         </div>
-        <Toggle
-          :model-value="store.settings.notifyOnInsert"
-          @update:model-value="(v) => update({ notifyOnInsert: v })"
-        />
+        <div class="notify-controls">
+          <button
+            type="button"
+            class="btn btn-sm"
+            :title="t('settings.notify_test_title')"
+            @click="onTestNotification"
+          >
+            {{ t("settings.notify_test") }}
+          </button>
+          <Toggle
+            :model-value="store.settings.notifyOnInsert"
+            @update:model-value="(v) => update({ notifyOnInsert: v })"
+          />
+        </div>
       </div>
     </section>
 
@@ -498,6 +513,13 @@ function onLanguageSelect(v: string) {
   font-size: calc(11.5px * var(--font-scale, 1));
   color: var(--text-3);
   padding: 0 0 4px;
+}
+/* 系统通知行的测试按钮 + 开关组合 */
+.notify-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
 }
 .brand-mark {
   display: flex;
