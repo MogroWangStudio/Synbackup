@@ -56,6 +56,38 @@ function onAccentColor(accent: string): string {
   return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#1d1a22" : "#ffffff";
 }
 
+/** 校验 #RRGGBB */
+export function isValidHex(v: string): boolean {
+  return /^#[0-9a-f]{6}$/i.test(v.trim());
+}
+
+/**
+ * 从自定义强调色派生整套强调色变量：
+ * 实色 --accent / 悬停加深 --accent-hover / 虚色 --accent-2（同色相提亮）。
+ * 派生规则与 tokens.css 预设同构（预设是静态三值，这里动态计算）。
+ */
+function injectCustomAccent(root: HTMLElement, hex: string) {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const mix = (c: number, target: number, k: number) =>
+    Math.round(c + (target - c) * k);
+  // 悬停：向黑混合 10%（与预设 #9b62cf → #8a4fc0 的比例一致）
+  const hover = `#${[mix(r, 0, 0.1), mix(g, 0, 0.1), mix(b, 0, 0.1)]
+    .map((c) => c.toString(16).padStart(2, "0"))
+    .join("")}`;
+  // 虚色：向白混合 32%（与 brand 的 #9b62cf → #be93e3 相当）
+  const soft = `#${[mix(r, 255, 0.32), mix(g, 255, 0.32), mix(b, 255, 0.32)]
+    .map((c) => c.toString(16).padStart(2, "0"))
+    .join("")}`;
+  root.style.setProperty("--accent", hex);
+  root.style.setProperty("--accent-hover", hover);
+  root.style.setProperty("--accent-2", soft);
+}
+
 /** 把外观 / 字体 / 缩放 / 启动动画同步到根元素 */
 export function applyUiPrefs(s: AppSettings) {
   const root = document.documentElement;
@@ -66,8 +98,17 @@ export function applyUiPrefs(s: AppSettings) {
     delete root.dataset.appearance; // follow：交给 prefers-color-scheme
   }
 
-  if (s.accent && s.accent !== "brand") root.dataset.accent = s.accent;
-  else delete root.dataset.accent;
+  // 自定义强调色 = 运行时变量覆盖（优先于 data-accent 预设）；否则清掉覆盖
+  if (s.accent === "custom" && isValidHex(s.accentCustom)) {
+    root.dataset.accent = "";
+    injectCustomAccent(root, s.accentCustom);
+  } else {
+    root.style.removeProperty("--accent");
+    root.style.removeProperty("--accent-hover");
+    root.style.removeProperty("--accent-2");
+    if (s.accent && s.accent !== "brand") root.dataset.accent = s.accent;
+    else delete root.dataset.accent;
+  }
 
   if (s.fontFamily && s.fontFamily !== "system") root.dataset.font = s.fontFamily;
   else delete root.dataset.font;

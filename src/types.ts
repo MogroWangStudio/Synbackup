@@ -8,8 +8,10 @@ export interface AppSettings {
   notifyOnInsert: boolean;
   /** 外观：follow = 跟随系统，light / dark 为强制指定 */
   appearance: string;
-  /** 强调色预设 key（brand / blue / green / orange / pink） */
+  /** 强调色预设 key（brand / blue / green / orange / pink / custom） */
   accent: string;
+  /** 自定义强调色（#RRGGBB，accent = custom 时生效） */
+  accentCustom: string;
   /** 界面字体预设 key（system / serif / rounded） */
   fontFamily: string;
   /** 字体缩放（0.9–1.15） */

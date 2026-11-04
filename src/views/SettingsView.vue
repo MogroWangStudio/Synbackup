@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { api } from "../api";
 import { store, toast } from "../store";
-import { applyUiPrefs, persistUiPrefs } from "../theme";
+import { applyUiPrefs, persistUiPrefs, isValidHex } from "../theme";
 import { t } from "../i18n";
 import type { AppSettings, UpdateInfo } from "../types";
 import Icon from "../components/Icon.vue";
@@ -10,6 +10,7 @@ import Logo from "../components/Logo.vue";
 import Toggle from "../components/Toggle.vue";
 import Stepper from "../components/Stepper.vue";
 import Select from "../components/Select.vue";
+import ColorPicker from "../components/ColorPicker.vue";
 import type { SelectOption } from "../components/Select.vue";
 
 /** 强调色预设：key 与 tokens.css 的 data-accent 对应，color 用于色块展示 */
@@ -37,6 +38,46 @@ const appearanceOptions: SelectOption[] = appearances.map((a) => ({
   label: t(`appearance.${a}`),
 }));
 const fontOptions: SelectOption[] = fonts.map((f) => ({ value: f, label: t(`font.${f}`) }));
+
+// ---- 自定义主题色 ----
+const pickerOpen = ref(false);
+const customHex = ref(store.settings.accentCustom || "#9b62cf");
+const customSwatchEl = ref<HTMLElement | null>(null);
+const pickerPos = ref<{ left: string; top: string } | null>(null);
+
+function togglePicker() {
+  if (pickerOpen.value) {
+    pickerOpen.value = false;
+    return;
+  }
+  const el = customSwatchEl.value;
+  if (el) {
+    const r = el.getBoundingClientRect();
+    // 空间不足时上翻（与 Select 弹层同规则）
+    const below = window.innerHeight - r.bottom > 260;
+    pickerPos.value = {
+      left: `${Math.round(r.left)}px`,
+      top: below ? `${Math.round(r.bottom + 8)}px` : `${Math.round(r.top - 8)}px`,
+    };
+  }
+  customHex.value = isValidHex(store.settings.accentCustom)
+    ? store.settings.accentCustom
+    : "#9b62cf";
+  pickerOpen.value = true;
+}
+
+function onCustomHex(v: string) {
+  if (!isValidHex(v)) return;
+  customHex.value = v;
+  // 立即生效：切到 custom 渠道并应用
+  void update({ accent: "custom", accentCustom: v });
+}
+
+function onCustomClose() {
+  pickerOpen.value = false;
+  // 若关闭时用户改动过颜色但没有点确定，保留最近有效值（update 已实时应用）
+  void update({ accent: "custom", accentCustom: customHex.value });
+}
 
 function openStudioSite() {
   void api.openExternal("https://www.mogrowangstudio.top").catch((e) => toast("error", String(e)));
@@ -160,7 +201,35 @@ function onLanguageSelect(v: string) {
             :aria-label="t(`accent.${sw.key}`)"
             @click="update({ accent: sw.key })"
           />
+          <!-- 自定义：多色环形渐变色块，点击弹出自绘调色板 -->
+          <button
+            ref="customSwatchEl"
+            type="button"
+            class="swatch custom"
+            :class="{ active: store.settings.accent === 'custom' }"
+            :aria-checked="store.settings.accent === 'custom'"
+            role="radio"
+            :title="t('accent.custom')"
+            :aria-label="t('accent.custom')"
+            @click="togglePicker"
+          />
         </div>
+        <Teleport to="body">
+          <Transition name="cselect-pop">
+            <div
+              v-if="pickerOpen"
+              class="picker-anchor"
+              :style="pickerPos"
+            >
+              <ColorPicker
+                :model-value="customHex"
+                :aria-label="t('accent.custom')"
+                @update:model-value="onCustomHex"
+                @close="onCustomClose"
+              />
+            </div>
+          </Transition>
+        </Teleport>
       </div>
       <div class="row">
         <div class="row-label">
@@ -393,6 +462,25 @@ function onLanguageSelect(v: string) {
 .swatch:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+/* 自定义色块：多色环形渐变，与单色预设区分 */
+.swatch.custom {
+  background: conic-gradient(#f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+.swatch.custom.active {
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 0 0 2px var(--bg-content),
+    0 0 0 4px var(--accent);
+}
+/* 调色板锚点：fixed 定位（坐标由 JS 依据色块计算） */
+.picker-anchor {
+  position: fixed;
+  z-index: 400;
+  transform: translateY(0);
+}
+.picker-anchor > * {
+  position: static;
 }
 
 .group {

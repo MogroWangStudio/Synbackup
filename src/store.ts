@@ -38,6 +38,7 @@ export const store = reactive({
     notifyOnInsert: true,
     appearance: "follow",
     accent: "brand",
+    accentCustom: "#9b62cf",
     fontFamily: "system",
     fontScale: 1,
     uiScale: 1,

@@ -33,6 +33,8 @@ pub struct AppSettings {
     pub appearance: String,
     /// 强调色预设 key（brand / blue / green / orange / pink）
     pub accent: String,
+    /// 自定义强调色（#RRGGBB，accent = custom 时生效）
+    pub accent_custom: String,
     /// 界面字体预设 key（system / serif / rounded）
     pub font_family: String,
     /// 字体缩放（0.9–1.15），作用于全部文本
@@ -63,6 +65,7 @@ impl Default for AppSettings {
             notify_on_insert: true,
             appearance: "follow".into(),
             accent: "brand".into(),
+            accent_custom: "#9b62cf".into(),
             font_family: "system".into(),
             font_scale: 1.0,
             ui_scale: 1.0,
