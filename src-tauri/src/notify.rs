@@ -23,6 +23,8 @@ static IDENTIFIER: OnceLock<String> = OnceLock::new();
 
 pub fn init(app: &AppHandle) {
     let _ = IDENTIFIER.set(app.config().identifier.clone());
+    #[cfg(target_os = "windows")]
+    register_aumid_windows();
     #[cfg(target_os = "macos")]
     imp::init();
 }
@@ -143,37 +145,67 @@ mod imp {
 
         #[cfg(target_os = "windows")]
         {
-            // 安装版（NSIS 注册过 AUMID）→ 用应用身份，通知显示应用名与图标；
-            // 便携版 / 开发环境 → 不设置 AUMID，notify-rust 自动落到 PowerShell
-            // AUMID，toast 仍会弹出（来源显示为 Windows PowerShell）。
-            if aumid_registered() {
-                if let Some(id) = super::IDENTIFIER.get() {
-                    n.app_id(id);
-                }
+            // 启动时已把自身 AUMID 注册到 HKCU（含 DisplayName 与 IconUri），
+            // 通知直接以应用身份发出：显示"同备 Synbackup"与软件图标，
+            // 不再落到 PowerShell 的 AUMID 上。
+            if let Some(id) = super::IDENTIFIER.get() {
+                n.app_id(id);
             }
         }
 
         // notify-rust 的 show() 返回通知句柄，这里只关心是否投递成功
         n.show().map(|_| ()).map_err(|e| e.to_string())
     }
+}
 
-    /// 检测 NSIS 安装器写入的 AUMID 注册表键是否存在。
-    #[cfg(target_os = "windows")]
-    fn aumid_registered() -> bool {
-        use std::os::windows::process::CommandExt;
-        use std::process::Command;
+/// Windows：便携版 AUMID 自注册。
+///
+/// WinRT ToastNotifier 解析 AUMID 的标准路径是
+/// `HKCU\Software\Classes\AppUserModelId\<AUMID>`；键下的 `DisplayName`
+/// 与 `IconUri` 值决定 toast 归属区显示的名称与图标。安装版的键由
+/// NSIS 写入；便携版没有安装器，这里在启动时自行注册——幂等，重复
+/// 启动只是覆盖同名值，卸载即随目录删除（注册表残留一个空键无碍）。
+#[cfg(target_os = "windows")]
+pub fn register_aumid_windows() {
+    use std::os::windows::process::CommandExt;
+    use std::process::Command;
 
-        let Some(id) = super::IDENTIFIER.get() else {
-            return false;
-        };
-        if id.is_empty() || id.chars().any(|c| c.is_control() || c == '"') {
-            return false;
-        }
-        let key = format!(r"HKCU\Software\Classes\AppUserModelId\{id}");
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    let Some(id) = IDENTIFIER.get() else { return };
+    if id.is_empty() || id.chars().any(|c| c.is_control() || c == '"') {
+        return;
+    }
+
+    // 图标：exe 同级的 icons/ 目录。IconUri 用 PNG 即可；
+    // 缺失时仍注册 DisplayName（通知有名字、无图标），不阻断启动。
+    let icon_path = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|d| d.join("icons").join("32x32.png")));
+    let Some(icon_path) = icon_path else { return };
+    if !icon_path.is_file() {
+        eprintln!("[synbackup] AUMID 图标缺失，通知将无图标：{}", icon_path.display());
+    }
+
+    let key = format!(r"HKCU\Software\Classes\AppUserModelId\{id}");
+    // reg add 幂等覆盖；逐条执行，任一失败仅记录（不影响应用运行）
+    let entries: [(&str, &str, &str); 2] = [
+        ("DisplayName", "REG_SZ", "同备 Synbackup"),
+        ("IconUri", "REG_EXPAND_SZ", &icon_uri.to_string_lossy()),
+    ];
+    for (name, ty, data) in entries {
         let mut cmd = Command::new("reg");
-        cmd.args(["query", &key]);
-        // CREATE_NO_WINDOW：后台查询不能闪出一个控制台窗口
-        cmd.creation_flags(0x0800_0000);
-        cmd.output().map(|o| o.status.success()).unwrap_or(false)
+        cmd.args(["add", &key, "/v", name, "/t", ty, "/d", data, "/f"]);
+        cmd.creation_flags(CREATE_NO_WINDOW);
+        match cmd.output() {
+            Ok(out) if out.status.success() => {}
+            Ok(out) => {
+                eprintln!(
+                    "[synbackup] AUMID 值注册失败（{name}）: {}",
+                    String::from_utf8_lossy(&out.stderr)
+                );
+            }
+            Err(e) => eprintln!("[synbackup] AUMID 注册命令执行失败（{name}）: {e}"),
+        }
     }
 }
