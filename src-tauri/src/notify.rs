@@ -177,25 +177,32 @@ pub fn register_aumid_windows() {
         return;
     }
 
-    // 图标：exe 同级的 icons/ 目录。IconUri 用 PNG 即可；
-    // 缺失时仍注册 DisplayName（通知有名字、无图标），不阻断启动。
-    let icon_path = std::env::current_exe()
+    let key = format!(r"HKCU\Software\Classes\AppUserModelId\{id}");
+    let mut entries: Vec<(&str, &str, String)> =
+        vec![("DisplayName", "REG_SZ", "同备 Synbackup".to_string())];
+
+    // 图标：优先用 exe 旁的 icons/ 目录；便携版与开发环境没有该目录，
+    // 退回把内置图标落到 %LOCALAPPDATA% 下，保证 IconUri 指向真实文件。
+    let near_exe = std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|d| d.join("icons").join("32x32.png")));
-    let Some(icon_path) = icon_path else { return };
-    if !icon_path.is_file() {
-        eprintln!("[synbackup] AUMID 图标缺失，通知将无图标：{}", icon_path.display());
+    match near_exe.as_deref().and_then(icon_file_for_aumid) {
+        Some(path) => entries.push(("IconUri", "REG_SZ", path.display().to_string())),
+        None => eprintln!("[synbackup] AUMID 图标不可用，通知将无图标"),
     }
 
-    let key = format!(r"HKCU\Software\Classes\AppUserModelId\{id}");
     // reg add 幂等覆盖；逐条执行，任一失败仅记录（不影响应用运行）
-    let entries: [(&str, &str, &str); 2] = [
-        ("DisplayName", "REG_SZ", "同备 Synbackup"),
-        ("IconUri", "REG_EXPAND_SZ", &icon_uri.to_string_lossy()),
-    ];
     for (name, ty, data) in entries {
         let mut cmd = Command::new("reg");
-        cmd.args(["add", &key, "/v", name, "/t", ty, "/d", data, "/f"]);
+        cmd.arg("add")
+            .arg(&key)
+            .arg("/v")
+            .arg(name)
+            .arg("/t")
+            .arg(ty)
+            .arg("/d")
+            .arg(&data)
+            .arg("/f");
         cmd.creation_flags(CREATE_NO_WINDOW);
         match cmd.output() {
             Ok(out) if out.status.success() => {}
@@ -208,4 +215,21 @@ pub fn register_aumid_windows() {
             Err(e) => eprintln!("[synbackup] AUMID 注册命令执行失败（{name}）: {e}"),
         }
     }
+}
+
+/// 取一个真实存在的图标文件：exe 旁已有就直接用，否则把内置的 32×32
+/// 图标写到 `%LOCALAPPDATA%\Synbackup\` 下（只写一次）。
+#[cfg(target_os = "windows")]
+fn icon_file_for_aumid(near_exe: &std::path::Path) -> Option<std::path::PathBuf> {
+    if near_exe.is_file() {
+        return Some(near_exe.to_path_buf());
+    }
+    let base = std::env::var_os("LOCALAPPDATA")?;
+    let dir = std::path::PathBuf::from(base).join("Synbackup");
+    let file = dir.join("icon-32.png");
+    if !file.is_file() {
+        std::fs::create_dir_all(&dir).ok()?;
+        std::fs::write(&file, include_bytes!("../icons/32x32.png")).ok()?;
+    }
+    Some(file)
 }
