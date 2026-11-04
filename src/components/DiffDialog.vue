@@ -7,6 +7,8 @@ import { fmtDateTime, fmtSize, t } from "../i18n";
 import type { ApplyResult, Decision, DiffStatus, SyncAction } from "../types";
 import Icon from "./Icon.vue";
 import Modal from "./Modal.vue";
+import Select from "./Select.vue";
+import type { SelectOption } from "./Select.vue";
 
 const info = store.diffDialog!;
 const modalRef = ref<InstanceType<typeof Modal>>();
@@ -103,8 +105,13 @@ function applyBulk(kind: "suggest" | "l2r" | "r2l" | "skip") {
   }
 }
 
-function setAction(path: string, ev: Event) {
-  decisions.set(path, (ev.target as HTMLSelectElement).value as SyncAction);
+function setAction(path: string, action: string) {
+  decisions.set(path, action as SyncAction);
+}
+
+/** 各差异状态允许的处理方式（复用 actionsByStatus，供 Select 组件渲染） */
+function actionsFor(status: DiffStatus): SelectOption[] {
+  return actionsByStatus[status].map((a) => ({ value: a, label: t(`act.${a}`) }));
 }
 
 let unlisten: (() => void) | null = null;
@@ -217,19 +224,14 @@ function handleClose() {
           >
             {{ item.remote ? fmtSize(item.remote.size) : "—" }}
           </span>
-          <select
-            class="input diff-action"
-            :value="decisions.get(item.path)"
-            @change="setAction(item.path, $event)"
-          >
-            <option
-              v-for="a in actionsByStatus[item.status]"
-              :key="a"
-              :value="a"
-            >
-              {{ t(`act.${a}`) }}
-            </option>
-          </select>
+          <Select
+            class="diff-action"
+            fill
+            :model-value="decisions.get(item.path) ?? ''"
+            :options="actionsFor(item.status)"
+            :aria-label="t('diff.col_action')"
+            @update:model-value="(v) => setAction(item.path, v)"
+          />
         </div>
       </div>
     </template>

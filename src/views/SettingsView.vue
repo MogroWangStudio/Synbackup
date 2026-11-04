@@ -8,6 +8,8 @@ import Icon from "../components/Icon.vue";
 import Logo from "../components/Logo.vue";
 import Toggle from "../components/Toggle.vue";
 import Stepper from "../components/Stepper.vue";
+import Select from "../components/Select.vue";
+import type { SelectOption } from "../components/Select.vue";
 
 /** 强调色预设：key 与 tokens.css 的 data-accent 对应，color 用于色块展示 */
 const accents = [
@@ -20,6 +22,20 @@ const accents = [
 
 const appearances = ["follow", "light", "dark"] as const;
 const fonts = ["system", "serif", "rounded"] as const;
+
+const languageOptions: SelectOption[] = [
+  { value: "zh-CN", label: "简体中文" },
+  { value: "en-US", label: "English" },
+];
+const channelOptions: SelectOption[] = [
+  { value: "stable", label: t("channel.stable") },
+  { value: "beta", label: t("channel.beta") },
+];
+const appearanceOptions: SelectOption[] = appearances.map((a) => ({
+  value: a,
+  label: t(`appearance.${a}`),
+}));
+const fontOptions: SelectOption[] = fonts.map((f) => ({ value: f, label: t(`font.${f}`) }));
 
 function openStudioSite() {
   void api.openExternal("https://www.mogrowangstudio.top").catch((e) => toast("error", String(e)));
@@ -43,8 +59,8 @@ async function update(patch: Partial<AppSettings>) {
   }
 }
 
-function onLanguage(ev: Event) {
-  void update({ language: (ev.target as HTMLSelectElement).value });
+function onLanguageSelect(v: string) {
+  void update({ language: v });
 }
 </script>
 
@@ -62,10 +78,12 @@ function onLanguage(ev: Event) {
         <div class="row-label">
           <span class="row-name">{{ t("settings.language") }}</span>
         </div>
-        <select class="input" :value="store.settings.language" @change="onLanguage">
-          <option value="zh-CN">简体中文</option>
-          <option value="en-US">English</option>
-        </select>
+        <Select
+          :model-value="store.settings.language"
+          :options="languageOptions"
+          :aria-label="t('settings.language')"
+          @update:model-value="onLanguageSelect"
+        />
       </div>
       <div class="row">
         <div class="row-label">
@@ -81,14 +99,12 @@ function onLanguage(ev: Event) {
           <span class="row-name">{{ t("settings.update_channel") }}</span>
           <span class="row-hint">{{ t("settings.update_channel_hint") }}</span>
         </div>
-        <select
-          class="input"
-          :value="store.settings.updateChannel"
-          @change="update({ updateChannel: ($event.target as HTMLSelectElement).value })"
-        >
-          <option value="stable">{{ t("channel.stable") }}</option>
-          <option value="beta">{{ t("channel.beta") }}</option>
-        </select>
+        <Select
+          :model-value="store.settings.updateChannel"
+          :options="channelOptions"
+          :aria-label="t('settings.update_channel')"
+          @update:model-value="(v) => update({ updateChannel: v })"
+        />
       </div>
     </section>
 
@@ -118,25 +134,23 @@ function onLanguage(ev: Event) {
         <div class="row-label">
           <span class="row-name">{{ t("settings.appearance") }}</span>
         </div>
-        <select
-          class="input"
-          :value="store.settings.appearance"
-          @change="update({ appearance: ($event.target as HTMLSelectElement).value })"
-        >
-          <option v-for="a in appearances" :key="a" :value="a">{{ t(`appearance.${a}`) }}</option>
-        </select>
+        <Select
+          :model-value="store.settings.appearance"
+          :options="appearanceOptions"
+          :aria-label="t('settings.appearance')"
+          @update:model-value="(v) => update({ appearance: v })"
+        />
       </div>
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.font") }}</span>
         </div>
-        <select
-          class="input"
-          :value="store.settings.fontFamily"
-          @change="update({ fontFamily: ($event.target as HTMLSelectElement).value })"
-        >
-          <option v-for="f in fonts" :key="f" :value="f">{{ t(`font.${f}`) }}</option>
-        </select>
+        <Select
+          :model-value="store.settings.fontFamily"
+          :options="fontOptions"
+          :aria-label="t('settings.font')"
+          @update:model-value="(v) => update({ fontFamily: v })"
+        />
       </div>
       <div class="row">
         <div class="row-label">

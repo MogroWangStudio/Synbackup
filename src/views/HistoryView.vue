@@ -4,6 +4,8 @@ import { api } from "../api";
 import { refreshHistory, store, toast } from "../store";
 import { fmtDateTime, fmtSize, t } from "../i18n";
 import type { DiffStatus, HistoryEntry } from "../types";
+import Select from "../components/Select.vue";
+import type { SelectOption } from "../components/Select.vue";
 
 const confirmingClear = ref(false);
 let confirmTimer = 0;
@@ -21,6 +23,11 @@ const pairOptions = computed(() => {
   }
   return [...seen].map(([id, name]) => ({ id, name }));
 });
+
+const pairSelectOptions = computed<SelectOption[]>(() => [
+  { value: "", label: t("history.pair_all") },
+  ...pairOptions.value.map(({ id, name }) => ({ value: id, label: name })),
+]);
 
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase();
@@ -113,10 +120,12 @@ function onClear() {
           {{ t("history.filter_" + k) }}
         </button>
       </div>
-      <select v-model="pairFilter" class="input filter-pair" :aria-label="t('history.filter_pair')">
-        <option value="">{{ t("history.pair_all") }}</option>
-        <option v-for="p in pairOptions" :key="p.id" :value="p.id">{{ p.name }}</option>
-      </select>
+      <Select
+        v-model="pairFilter"
+        :options="pairSelectOptions"
+        class="filter-pair"
+        :aria-label="t('history.filter_pair')"
+      />
       <input
         v-model="query"
         class="input filter-search"

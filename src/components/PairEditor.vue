@@ -7,6 +7,8 @@ import { t } from "../i18n";
 import type { SyncDirection, SyncPair } from "../types";
 import Icon from "./Icon.vue";
 import Modal from "./Modal.vue";
+import Select from "./Select.vue";
+import type { SelectOption } from "./Select.vue";
 
 const modalRef = ref<InstanceType<typeof Modal>>();
 
@@ -26,6 +28,11 @@ const error = ref("");
 const saving = ref(false);
 
 const hasVolumes = computed(() => store.volumes.length > 0);
+
+const deviceOptions = computed<SelectOption[]>(() => [
+  { value: "", label: t("editor.device_hint"), disabled: true },
+  ...store.volumes.map((v) => ({ value: v.label, label: `${v.label}（${v.mount}）` })),
+]);
 
 onMounted(() => {
   if (!hasVolumes.value) void refreshVolumes();
@@ -175,13 +182,7 @@ function handleClose() {
 
       <div class="field">
         <span class="field-label">{{ t("editor.device") }}</span>
-        <!-- 不加 .grow：.field 是纵向 flex，flex-basis 会压掉 .input 的固定高度 -->
-        <select v-model="form.deviceLabel" class="input">
-          <option value="" disabled>{{ t("editor.device_hint") }}</option>
-          <option v-for="v in store.volumes" :key="v.mount" :value="v.label">
-            {{ v.label }}（{{ v.mount }}）
-          </option>
-        </select>
+        <Select v-model="form.deviceLabel" :options="deviceOptions" fill :aria-label="t('editor.device')" />
         <p v-if="!hasVolumes" class="field-hint warn">{{ t("editor.device_none") }}</p>
       </div>
 
