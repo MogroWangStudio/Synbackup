@@ -172,18 +172,6 @@ function onLanguageSelect(v: string) {
           @update:model-value="(v) => update({ launchAtLogin: v })"
         />
       </div>
-      <div class="row">
-        <div class="row-label">
-          <span class="row-name">{{ t("settings.update_channel") }}</span>
-          <span class="row-hint">{{ t("settings.update_channel_hint") }}</span>
-        </div>
-        <Select
-          :model-value="store.settings.updateChannel"
-          :options="channelOptions"
-          :aria-label="t('settings.update_channel')"
-          @update:model-value="(v) => update({ updateChannel: v })"
-        />
-      </div>
     </section>
 
     <section class="card group">
@@ -408,6 +396,18 @@ function onLanguageSelect(v: string) {
           </span>
         </div>
         <span class="row-value">{{ store.appInfo?.version ?? "0.3.0" }}</span>
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.update_channel") }}</span>
+          <span class="row-hint">{{ t("settings.update_channel_hint") }}</span>
+        </div>
+        <Select
+          :model-value="store.settings.updateChannel"
+          :options="channelOptions"
+          :aria-label="t('settings.update_channel')"
+          @update:model-value="(v) => update({ updateChannel: v })"
+        />
       </div>
       <div class="row">
         <div class="row-label">
