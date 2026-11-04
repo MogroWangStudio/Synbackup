@@ -329,10 +329,13 @@ mod windows_devices {
 
     use windows::core::{PCWSTR, w};
     use windows::Win32::Foundation::{HANDLE, HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
+    // GetModuleHandleW 属于 System::LibraryLoader（不是 WindowsAndMessaging），
+    // 对应 Cargo.toml 里的 Win32_System_LibraryLoader feature。
+    use windows::Win32::System::LibraryLoader::GetModuleHandleW;
     use windows::Win32::UI::WindowsAndMessaging::{
-        CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, GetModuleHandleW,
-        RegisterClassW, RegisterDeviceNotificationW, TranslateMessage, MSG,
-        REGISTER_NOTIFICATION_FLAGS, WNDCLASSW, WM_DEVICECHANGE,
+        CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, RegisterClassW,
+        RegisterDeviceNotificationW, TranslateMessage, MSG, REGISTER_NOTIFICATION_FLAGS,
+        WNDCLASSW, WM_DEVICECHANGE,
     };
 
     use super::DEVICE_EVENT;
@@ -384,7 +387,8 @@ mod windows_devices {
             lpszMenuName: PCWSTR::null(),
             lpszClassName: class_name,
         };
-        if RegisterClassW(&wc).is_err() {
+        // RegisterClassW 返回 ATOM（u16），0 表示失败
+        if RegisterClassW(&wc) == 0 {
             return;
         }
 

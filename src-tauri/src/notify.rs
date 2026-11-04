@@ -153,7 +153,8 @@ mod imp {
             }
         }
 
-        n.show().map_err(|e| e.to_string())
+        // notify-rust 的 show() 返回通知句柄，这里只关心是否投递成功
+        n.show().map(|_| ()).map_err(|e| e.to_string())
     }
 
     /// 检测 NSIS 安装器写入的 AUMID 注册表键是否存在。

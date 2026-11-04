@@ -43,7 +43,11 @@ block2 = "0.6"
 
 # Windows 设备事件：隐藏消息窗口接收 WM_DEVICECHANGE（卷插入 / 移除）
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_LibraryLoader",
+] }
 
 [profile.release]
 codegen-units = 1
