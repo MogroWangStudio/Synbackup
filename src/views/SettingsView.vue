@@ -226,10 +226,19 @@ function onLanguageSelect(v: string) {
       </div>
       <div class="row">
         <div class="row-label">
-          <span class="row-name">{{ t("settings.status_bar") }}</span>
-          <span class="row-hint">{{ t("settings.status_bar_hint") }}</span>
+          <span class="row-name">{{ t("settings.launch_anim") }}</span>
+          <span class="row-hint">{{ t("settings.launch_anim_hint") }}</span>
         </div>
+        <Toggle
+          :model-value="store.settings.launchAnimation"
+          @update:model-value="(v) => update({ launchAnimation: v })"
+        />
       </div>
+    </section>
+
+    <section class="card group">
+      <h3 class="group-title">{{ t("settings.status_bar") }}</h3>
+      <p class="group-hint">{{ t("settings.status_bar_hint") }}</p>
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.status_devices") }}</span>
@@ -395,6 +404,12 @@ function onLanguageSelect(v: string) {
   font-weight: 600;
   color: var(--text-2);
   padding: 10px 0 4px;
+}
+/* 板块级说明：紧跟板块标题之下、首行设置项之上 */
+.group-hint {
+  font-size: calc(11.5px * var(--font-scale, 1));
+  color: var(--text-3);
+  padding: 0 0 4px;
 }
 .brand-mark {
   display: flex;
