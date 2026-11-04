@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import { api } from "../api";
 import { store, toast } from "../store";
 import { applyUiPrefs, persistUiPrefs } from "../theme";
 import { t } from "../i18n";
-import type { AppSettings } from "../types";
+import type { AppSettings, UpdateInfo } from "../types";
 import Icon from "../components/Icon.vue";
 import Logo from "../components/Logo.vue";
 import Toggle from "../components/Toggle.vue";
@@ -39,6 +40,37 @@ const fontOptions: SelectOption[] = fonts.map((f) => ({ value: f, label: t(`font
 
 function openStudioSite() {
   void api.openExternal("https://www.mogrowangstudio.top").catch((e) => toast("error", String(e)));
+}
+
+function openUpdatePage() {
+  if (pendingUrl) void api.openExternal(pendingUrl).catch((e) => toast("error", String(e)));
+}
+
+// ---- 检查更新 ----
+const checking = ref(false);
+let pendingUrl = "";
+const updateHint = ref("");
+
+async function onCheckUpdate() {
+  if (checking.value) return;
+  checking.value = true;
+  try {
+    const info: UpdateInfo = await api.checkUpdate();
+    if (info.available) {
+      updateHint.value = t("update.available", { v: info.version });
+      toast("success", t("update.available_toast", { v: info.version }));
+      // 更新说明写入提示行；点击版本行可打开下载页
+      pendingUrl = info.url;
+    } else {
+      updateHint.value = t("update.up_to_date");
+      toast("info", t("update.up_to_date_toast"));
+    }
+  } catch (e) {
+    updateHint.value = "";
+    toast("error", String(e));
+  } finally {
+    checking.value = false;
+  }
 }
 
 async function update(patch: Partial<AppSettings>) {
@@ -278,8 +310,19 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.version") }}</span>
+          <span class="row-hint" :class="{ clickable: !!pendingUrl }" @click="openUpdatePage">
+            {{ updateHint }}
+          </span>
         </div>
         <span class="row-value">{{ store.appInfo?.version ?? "0.3.0" }}</span>
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.check_update") }}</span>
+        </div>
+        <button class="btn btn-sm" :disabled="checking" @click="onCheckUpdate">
+          {{ checking ? t("update.checking") : t("update.check") }}
+        </button>
       </div>
       <div class="row">
         <div class="row-label">

@@ -5,6 +5,7 @@ mod backend;
 mod commands;
 mod monitor;
 mod notify;
+mod update;
 
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WebviewWindowBuilder};
 
@@ -147,6 +148,7 @@ pub fn run() {
             commands::open_external,
             commands::mark_ui_ready,
             commands::exit_app,
+            update::check_update,
         ])
         .setup(|app| {
             app.manage(backend::Core::new());

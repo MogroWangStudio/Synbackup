@@ -172,3 +172,14 @@ export interface AppInfo {
   dataDir: string;
   version: string;
 }
+
+/** 更新检查结果（后端查询 GitHub Releases 并按渠道匹配） */
+export interface UpdateInfo {
+  available: boolean;
+  version: string;
+  /** 发布说明（markdown 原文，截断到 2000 字符） */
+  notes: string;
+  /** 下载页地址（浏览器打开） */
+  url: string;
+  current: string;
+}
