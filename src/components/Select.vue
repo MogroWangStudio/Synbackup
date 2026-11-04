@@ -243,11 +243,15 @@ watch(() => props.modelValue, () => {
 .cselect.fill {
   width: 100%;
 }
-.cselect:not(.fill):hover {
-  min-width: 0;
+/* 悬停：描边突出（柔和光圈由内向外晕开），不改变触发器宽度 */
+.cselect:not(.fill) {
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
 }
 .cselect:hover {
   border-color: var(--accent-2);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .cselect.open,
 .cselect:focus-visible {
