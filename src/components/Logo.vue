@@ -1,45 +1,20 @@
 <script setup lang="ts">
 // 品牌标识（矢量）：直接内联 <svg>，不经过 <img>、不嵌入位图或 data URI，
 // 因此在任意缩放与高 DPI 下都按矢量绘制，边缘始终清晰。
-// 源文件：Synbackup Design/Synbackup Logo.svg、Synbackup Logo with text.svg
+// 源文件：Synbackup Design/Synbackup Logo with text.svg
 import { computed } from "vue";
 
-const props = withDefaults(defineProps<{ variant?: "mark" | "wordmark"; size?: number }>(), {
-  variant: "mark",
-  size: 18,
-});
+const props = withDefaults(defineProps<{ size?: number }>(), { size: 18 });
 
-// 方形标按 size 取正方形；文字标原始比例 1144:206，宽度由高度推算，绝不拉伸
-const box = computed(() =>
-  props.variant === "mark"
-    ? { width: `${props.size}px`, height: `${props.size}px` }
-    : { width: `${((props.size * 1144) / 206).toFixed(2)}px`, height: `${props.size}px` },
-);
+// 文字标原始比例 1144:206，宽度由高度推算，绝不拉伸
+const box = computed(() => ({
+  width: `${((props.size * 1144) / 206).toFixed(2)}px`,
+  height: `${props.size}px`,
+}));
 </script>
 
 <template>
   <svg
-    v-if="variant === 'mark'"
-    class="logo"
-    :style="box"
-    viewBox="0 0 588 588"
-    style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"
-    role="img"
-    aria-label="同备 Synbackup"
-  >
-    <g transform="matrix(1,0,0,1,-6576.060326,-246.060326)">
-    <g transform="matrix(2.7471,0,0,2.7471,178.641224,-4391.797848)">
-    <g transform="matrix(1,0,0,1,-239.907263,-77.802482)">
-    <path d="M2579.95,1825.583L2579.795,1825.506C2584.977,1815.067 2591.726,1805.727 2599.676,1797.716L2636.465,1824.104L2771.483,1920.648C2766.349,1930.991 2759.677,1940.254 2751.822,1948.216L2579.854,1825.716L2579.95,1825.583Z" style="fill:rgb(190,147,227);"/>
-    </g>
-    <path d="M2435.732,1902.274L2328.79,1902.274L2389.013,1842.052L2389.013,1857.987L2435.732,1857.987C2450.297,1857.987 2464.093,1852.942 2475.036,1844.143L2511.914,1870.413C2492.123,1890.474 2464.827,1902.274 2435.732,1902.274Z" style="fill:rgb(155,98,207);"/>
-    <path d="M2435.732,1732.561C2421.224,1732.561 2407.48,1737.567 2396.557,1746.302L2359.769,1719.913C2379.543,1699.987 2406.745,1688.274 2435.732,1688.274L2542.79,1688.274L2482.568,1748.497L2482.568,1732.561L2435.732,1732.561Z" style="fill:rgb(155,98,207);"/>
-    </g>
-    </g>
-  </svg>
-
-  <svg
-    v-else
     class="logo"
     :style="box"
     viewBox="0 0 1144 206"

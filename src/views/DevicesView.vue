@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { store } from "../store";
 import { fmtSize, t } from "../i18n";
 import Icon from "../components/Icon.vue";
+import EmptyState from "../components/EmptyState.vue";
 import type { VolumeInfo } from "../types";
 
 const pairNameById = computed(() => {
@@ -92,11 +93,12 @@ const offlineDevices = computed(() => {
       </div>
     </div>
 
-    <div v-else class="card empty">
-      <Icon name="drive" :size="26" class="empty-icon" />
-      <p class="empty-title">{{ t("devices.none") }}</p>
-      <p class="empty-desc">{{ t("devices.desc") }}</p>
-    </div>
+    <EmptyState
+      v-else
+      icon="drive"
+      :title="t('devices.none')"
+      :desc="t('devices.desc')"
+    />
   </div>
 </template>
 
@@ -178,25 +180,5 @@ const offlineDevices = computed(() => {
 .offline-badge {
   margin-left: 6px;
   vertical-align: 1px;
-}
-.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 40px 20px;
-  text-align: center;
-}
-.empty-icon {
-  color: var(--text-3);
-}
-.empty-title {
-  font-size: calc(14px * var(--font-scale, 1));
-  font-weight: 600;
-}
-.empty-desc {
-  font-size: calc(12.5px * var(--font-scale, 1));
-  color: var(--text-2);
-  max-width: 340px;
 }
 </style>

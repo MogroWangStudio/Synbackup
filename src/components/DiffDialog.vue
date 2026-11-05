@@ -8,6 +8,7 @@ import type { ApplyResult, Decision, DiffStatus, SyncAction } from "../types";
 import Icon from "./Icon.vue";
 import Modal from "./Modal.vue";
 import Select from "./Select.vue";
+import { statusChipClass } from "../ui";
 import type { SelectOption } from "./Select.vue";
 
 const info = store.diffDialog!;
@@ -62,22 +63,6 @@ const conflictCount = computed(
       (i) => i.status === "both_changed" || i.status === "type_conflict",
     ).length,
 );
-
-function statusClass(status: DiffStatus): string {
-  switch (status) {
-    case "both_changed":
-    case "type_conflict":
-      return "chip-red";
-    case "changed_local":
-    case "changed_remote":
-      return "chip-orange";
-    case "new_local":
-    case "new_remote":
-      return "chip-green";
-    default:
-      return "chip-gray";
-  }
-}
 
 function arrowFor(status: DiffStatus): string {
   switch (status) {
@@ -188,7 +173,7 @@ function handleClose() {
 
     <!-- 状态统计 -->
     <div class="diff-counts">
-      <span v-for="c in counts" :key="c.status" class="chip" :class="statusClass(c.status)">
+      <span v-for="c in counts" :key="c.status" class="chip" :class="statusChipClass(c.status)">
         {{ t(`st.${c.status}`) }} {{ c.n }}
       </span>
     </div>
@@ -205,7 +190,7 @@ function handleClose() {
           <span>{{ t("diff.col_action") }}</span>
         </div>
         <div v-for="item in items" :key="item.path" class="diff-row">
-          <span class="chip" :class="statusClass(item.status)">
+          <span class="chip" :class="statusChipClass(item.status)">
             {{ t(`st.${item.status}`) }}
           </span>
           <span class="diff-path" :title="item.path">{{ item.path }}</span>
@@ -518,9 +503,8 @@ function handleClose() {
   gap: 6px;
   flex-wrap: wrap;
 }
+/* 底部动作行公共样式在 base.css；左侧有统计文字，整体右推 */
 .foot-actions {
-  display: flex;
-  gap: 8px;
   margin-left: auto;
 }
 .syncing-hint {

@@ -21,10 +21,6 @@ const icons: Record<string, string> = {
   alert:
     '<path d="M12 3.8 2.9 19.4h18.2L12 3.8z"/><path d="M12 10v4.4"/><path d="M12 17.4h.01"/>',
   info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><path d="M12 8h.01"/>',
-  trash:
-    '<path d="M4 7h16"/><path d="M9.5 7V5.6c0-.9.7-1.6 1.6-1.6h1.8c.9 0 1.6.7 1.6 1.6V7"/><path d="M6.3 7l.8 11.6c.1 1 .9 1.9 2 1.9h5.8c1.1 0 1.9-.9 2-1.9L17.7 7"/><path d="M10 11v6"/><path d="M14 11v6"/>',
-  edit:
-    '<path d="m14.5 5.5 4 4"/><path d="M4 20l1.2-4.8L16.4 4a2.1 2.1 0 0 1 3 0l.6.6a2.1 2.1 0 0 1 0 3L8.8 18.8 4 20z"/>',
   arrow_down: '<path d="M12 19.5v-15"/><path d="m5.5 13 6.5 6.5L18.5 13"/>',
   arrow_r: '<path d="M4.5 12h15"/><path d="m13 5.5 6.5 6.5-6.5 6.5"/>',
   arrow_l: '<path d="M19.5 12h-15"/><path d="m11 5.5-6.5 6.5 6.5 6.5"/>',

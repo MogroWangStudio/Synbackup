@@ -24,7 +24,6 @@ onMounted(async () => {
 
   try {
     await refreshAll();
-    applyLang();
     // 前端就绪：此后后端收到关闭请求会询问退出方式
     await api.markUiReady();
   } catch (e) {
@@ -47,10 +46,6 @@ async function registerListeners() {
   await listen("close-requested", () => {
     store.closeConfirm = true;
   });
-}
-
-function applyLang() {
-  document.documentElement.lang = store.settings.language === "en-US" ? "en" : "zh-CN";
 }
 </script>
 

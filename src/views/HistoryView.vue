@@ -3,12 +3,11 @@ import { computed, ref } from "vue";
 import { api } from "../api";
 import { refreshHistory, store, toast } from "../store";
 import { fmtDateTime, fmtSize, t } from "../i18n";
-import type { DiffStatus, HistoryEntry } from "../types";
+import { statusChipClass } from "../ui";
+import { useConfirmAction } from "../composables/useConfirmAction";
+import type { HistoryEntry } from "../types";
 import Select from "../components/Select.vue";
 import type { SelectOption } from "../components/Select.vue";
-
-const confirmingClear = ref(false);
-let confirmTimer = 0;
 
 // ---- 筛选与查找 ----
 const kindFilter = ref<"all" | "sync" | "scan">("all");
@@ -32,7 +31,7 @@ const pairSelectOptions = computed<SelectOption[]>(() => [
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase();
   return store.history.filter((h) => {
-    const kind = h.kind ?? "sync"; // 旧记录缺省为同步
+    const kind = h.kind;
     if (kindFilter.value !== "all" && kind !== kindFilter.value) return false;
     if (pairFilter.value && h.pairId !== pairFilter.value) return false;
     if (q) {
@@ -47,40 +46,19 @@ const filtered = computed(() => {
   });
 });
 
-/** 该条记录的数据量（后端累计；旧记录无此字段时为 0，不显示） */
+/** 该条记录的数据量（后端累计，旧记录由后端缺省补 0；为 0 时不显示） */
 function totalBytes(h: HistoryEntry): number {
-  return (h as HistoryEntry & { totalBytes?: number }).totalBytes ?? 0;
+  return h.totalBytes;
 }
 
-/** 差异状态配色（与差异处理对话框一致） */
-function statusClass(status: DiffStatus): string {
-  switch (status) {
-    case "both_changed":
-    case "type_conflict":
-      return "chip-red";
-    case "changed_local":
-    case "changed_remote":
-      return "chip-orange";
-    case "new_local":
-    case "new_remote":
-      return "chip-green";
-    default:
-      return "chip-gray";
-  }
-}
+/** 差异状态配色（与差异处理对话框一致，见 ui.ts） */
 
 /** scan 记录中的冲突数（both_changed / type_conflict） */
 function conflictCount(h: HistoryEntry): number {
   return (h.scanDiffs ?? []).filter((d) => d.status === "both_changed" || d.status === "type_conflict").length;
 }
 
-function onClear() {
-  if (!confirmingClear.value) {
-    confirmingClear.value = true;
-    confirmTimer = window.setTimeout(() => (confirmingClear.value = false), 3000);
-    return;
-  }
-  window.clearTimeout(confirmTimer);
+function clearHistory() {
   api
     .clearHistory()
     .then(async () => {
@@ -89,6 +67,8 @@ function onClear() {
     })
     .catch((e) => toast("error", String(e)));
 }
+
+const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clearHistory);
 </script>
 
 <template>
@@ -191,7 +171,7 @@ function onClear() {
           <template v-if="h.kind === 'scan'">
             <div v-for="(d, k) in h.scanDiffs" :key="k" class="history-item">
               <span class="history-item-act">
-                <span class="chip" :class="statusClass(d.status)">{{ t("st." + d.status) }}</span>
+                <span class="chip" :class="statusChipClass(d.status)">{{ t("st." + d.status) }}</span>
               </span>
               <span class="history-item-path">{{ d.path }}</span>
               <span v-if="d.size" class="history-item-size">{{ fmtSize(d.size) }}</span>

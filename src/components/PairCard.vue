@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from "vue";
+import { computed } from "vue";
 import { api } from "../api";
 import { refreshConfig, refreshPending, store, toast } from "../store";
 import { fmtTime, t } from "../i18n";
+import { useConfirmAction } from "../composables/useConfirmAction";
 import type { SyncPair } from "../types";
 import Icon from "./Icon.vue";
 
 const props = defineProps<{ pair: SyncPair }>();
-
-const confirmingDelete = ref(false);
-let confirmTimer = 0;
 
 const connected = computed(() =>
   store.volumes.some((v) => v.matchedPairIds.includes(props.pair.id)),
@@ -38,13 +36,7 @@ const remoteLabel = computed(() =>
     : `${props.pair.deviceLabel} / ${t("editor.remote_root")}`,
 );
 
-function onDelete() {
-  if (!confirmingDelete.value) {
-    confirmingDelete.value = true;
-    confirmTimer = window.setTimeout(() => (confirmingDelete.value = false), 3000);
-    return;
-  }
-  window.clearTimeout(confirmTimer);
+function removePair() {
   api
     .deletePair(props.pair.id)
     .then(async () => {
@@ -53,6 +45,8 @@ function onDelete() {
     })
     .catch((e) => toast("error", String(e)));
 }
+
+const { confirming: confirmingDelete, confirm: onDelete } = useConfirmAction(removePair);
 
 async function onCheck() {
   try {
@@ -83,8 +77,6 @@ function onToggleEnabled() {
     .then(refreshConfig)
     .catch((e) => toast("error", String(e)));
 }
-
-onBeforeUnmount(() => window.clearTimeout(confirmTimer));
 </script>
 
 <template>

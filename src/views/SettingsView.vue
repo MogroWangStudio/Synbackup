@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { api } from "../api";
 import { store, toast } from "../store";
-import { applyUiPrefs, persistUiPrefs, isValidHex } from "../theme";
+import { applyUiPrefs, DEFAULT_ACCENT, persistUiPrefs, isValidHex } from "../theme";
 import { t } from "../i18n";
 import type { AppSettings, UpdateInfo } from "../types";
 import Icon from "../components/Icon.vue";
@@ -51,7 +51,7 @@ const animCurveOptions: SelectOption[] = ["smooth", "spring", "linear", "swift"]
 
 // ---- 自定义主题色 ----
 const pickerOpen = ref(false);
-const customHex = ref(store.settings.accentCustom || "#9b62cf");
+const customHex = ref(store.settings.accentCustom || DEFAULT_ACCENT);
 const customSwatchEl = ref<HTMLElement | null>(null);
 const pickerPos = ref<{ left: string; top: string } | null>(null);
 
@@ -78,7 +78,7 @@ function togglePicker() {
   }
   customHex.value = isValidHex(store.settings.accentCustom)
     ? store.settings.accentCustom
-    : "#9b62cf";
+    : DEFAULT_ACCENT;
   pickerOpen.value = true;
 }
 
@@ -153,7 +153,7 @@ async function update(patch: Partial<AppSettings>) {
     return;
   }
   if (patch.language) {
-    document.documentElement.lang = next.language === "en-US" ? "en" : "zh-CN";
+    // 语言已由 applyUiPrefs 同步到根元素；托盘文案要重启才生效，提示用户
     toast("info", t("settings.tray_hint"));
   }
 }
@@ -436,7 +436,7 @@ function onLanguageSelect(v: string) {
     <section class="card group">
       <h3 class="group-title">{{ t("settings.about") }}</h3>
       <div class="brand-mark">
-        <Logo variant="wordmark" :size="32" />
+        <Logo :size="32" />
       </div>
       <div class="row">
         <div class="row-label">
@@ -617,11 +617,6 @@ function onLanguageSelect(v: string) {
 .row-value.mono {
   font-family: var(--mono);
   font-size: calc(11px * var(--font-scale, 1));
-}
-.num {
-  width: 76px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
 }
 
 /* ---- 开发者 ---- */

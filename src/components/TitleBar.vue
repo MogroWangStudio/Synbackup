@@ -88,7 +88,7 @@ onUnmounted(() => {
     <div class="identity" data-tauri-drag-region>
       <!-- 横向文字标：16px 高、按 1144:206 原始比例推算宽度；不带拖拽区，可点按 -->
       <span class="mark" :class="eggClass" @click="onLogoClick">
-        <Logo variant="wordmark" :size="16" />
+        <Logo :size="16" />
       </span>
     </div>
 

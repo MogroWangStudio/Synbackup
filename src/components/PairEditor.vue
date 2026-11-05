@@ -324,8 +324,4 @@ function handleClose() {
   font-size: calc(12.5px * var(--font-scale, 1));
   color: var(--red-text);
 }
-.foot-actions {
-  display: flex;
-  gap: 8px;
-}
 </style>

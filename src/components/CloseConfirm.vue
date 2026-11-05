@@ -74,10 +74,8 @@ function quitApp() {
   padding: 2px 0 6px;
 }
 /* 按钮固定在窗口右下角：Modal 的 footer 默认 space-between（左侧留空给批量操作），
-   确认框没有左侧内容，改为整体右对齐 */
+   确认框没有左侧内容，改为整体右对齐（display / gap 在 base.css 的 .foot-actions） */
 .foot-actions {
-  display: flex;
-  gap: 8px;
   justify-content: flex-end;
   flex: 1;
 }

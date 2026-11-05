@@ -11,6 +11,9 @@ import type { AppSettings } from "./types";
 
 const UI_PREFS_KEY = "synbackup.ui-prefs";
 
+/** 品牌默认强调色（与 tokens.css 的 --accent-brand 预设一致） */
+export const DEFAULT_ACCENT = "#9b62cf";
+
 /** 只持久化影响"首帧观感"的字段，避免整份设置重复落盘 */
 const UI_PREF_FIELDS = [
   "appearance",
@@ -91,9 +94,10 @@ function injectCustomAccent(root: HTMLElement, hex: string) {
   root.style.setProperty("--accent-2", soft);
 }
 
-/** 把外观 / 字体 / 缩放 / 启动动画同步到根元素 */
+/** 把语言 / 外观 / 字体 / 缩放 / 启动动画同步到根元素 */
 export function applyUiPrefs(s: AppSettings) {
   const root = document.documentElement;
+  root.lang = s.language === "en-US" ? "en" : "zh-CN";
 
   if (s.appearance === "light" || s.appearance === "dark") {
     root.dataset.appearance = s.appearance;

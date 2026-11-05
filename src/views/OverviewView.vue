@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { store } from "../store";
 import { fmtTime, t } from "../i18n";
 import Icon from "../components/Icon.vue";
+import EmptyState from "../components/EmptyState.vue";
 
 const pendingTotal = computed(() =>
   store.pending.reduce((n, p) => n + p.items.length, 0),
@@ -43,15 +44,17 @@ function goPairs() {
     </div>
 
     <!-- 空状态 -->
-    <div v-if="!store.pairs.length" class="card empty">
-      <Icon name="sync" :size="26" class="empty-icon" />
-      <p class="empty-title">{{ t("overview.empty_pairs_title") }}</p>
-      <p class="empty-desc">{{ t("overview.empty_pairs_desc") }}</p>
+    <EmptyState
+      v-if="!store.pairs.length"
+      icon="sync"
+      :title="t('overview.empty_pairs_title')"
+      :desc="t('overview.empty_pairs_desc')"
+    >
       <button class="btn btn-primary" @click="store.editor = { pair: null }">
         <Icon name="plus" :size="14" />
         {{ t("overview.empty_pairs_cta") }}
       </button>
-    </div>
+    </EmptyState>
 
     <!-- 最近同步 -->
     <section v-if="store.history.length" class="recent">
@@ -125,30 +128,6 @@ function goPairs() {
 .stat-label {
   font-size: calc(12px * var(--font-scale, 1));
   color: var(--text-2);
-}
-
-.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 40px 20px;
-  text-align: center;
-}
-.empty-icon {
-  color: var(--text-3);
-}
-.empty-title {
-  font-size: calc(14px * var(--font-scale, 1));
-  font-weight: 600;
-}
-.empty-desc {
-  font-size: calc(12.5px * var(--font-scale, 1));
-  color: var(--text-2);
-  max-width: 340px;
-}
-.empty .btn {
-  margin-top: 6px;
 }
 
 .section-title {

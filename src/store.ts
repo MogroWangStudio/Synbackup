@@ -1,6 +1,6 @@
 import { reactive } from "vue";
 import { api } from "./api";
-import { applyUiPrefs, loadUiPrefs, persistUiPrefs } from "./theme";
+import { applyUiPrefs, DEFAULT_ACCENT, loadUiPrefs, persistUiPrefs } from "./theme";
 import type {
   AppSettings,
   DiffItem,
@@ -28,7 +28,6 @@ export interface DiffDialogState {
 export type ViewKey = "overview" | "pairs" | "devices" | "history" | "settings";
 
 export const store = reactive({
-  booted: false,
   view: "overview" as ViewKey,
   settings: {
     language: "zh-CN",
@@ -38,7 +37,7 @@ export const store = reactive({
     notifyOnInsert: true,
     appearance: "follow",
     accent: "brand",
-    accentCustom: "#9b62cf",
+    accentCustom: DEFAULT_ACCENT,
     fontFamily: "system",
     fontScale: 1,
     uiScale: 1,
@@ -100,7 +99,6 @@ export async function refreshAll() {
   // 权威配置到位后以它为准，重新应用外观并把增量落回 localStorage
   applyUiPrefs(store.settings);
   persistUiPrefs(store.settings);
-  store.booted = true;
 }
 
 export async function refreshConfig() {

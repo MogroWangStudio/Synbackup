@@ -160,14 +160,6 @@ button {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-select.input {
-  padding-right: 26px;
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9.5 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-}
-
 /* ---- 卡片 / 芯片 ---- */
 
 .card {
@@ -379,6 +371,12 @@ select.input {
   padding: 12px 18px;
   border-top: 1px solid var(--hairline);
   background: var(--fill-softer);
+}
+/* 弹层底部动作行（DiffDialog / PairEditor / CloseConfirm 共用），
+   各组件只保留自身的差异规则 */
+.foot-actions {
+  display: flex;
+  gap: 8px;
 }
 
 /* ---- 提示条 ---- */
