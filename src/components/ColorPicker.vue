@@ -3,6 +3,7 @@
 // 全部指针事件 1:1 跟踪（Pointer Events + capture），无原生 input[type=color]。
 // 出入弹层自锚点方向展开，Esc / 点外部关闭（与 Select 一致的交互语言）。
 import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { t } from "../i18n";
 
 const props = withDefaults(
   defineProps<{
@@ -210,7 +211,7 @@ onBeforeUnmount(() => {
         @keydown.enter="confirm"
       />
       <button type="button" class="btn btn-sm btn-primary cp-ok" @click="confirm">
-        确定
+        {{ t("common.confirm") }}
       </button>
     </div>
   </div>

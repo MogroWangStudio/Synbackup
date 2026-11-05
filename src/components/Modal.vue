@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import Icon from "./Icon.vue";
+import { t } from "../i18n";
 
 const props = defineProps<{ title: string; wide?: boolean; busy?: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -49,7 +50,7 @@ defineExpose({ requestClose });
         <div class="modal-panel" :class="{ wide }" role="dialog" aria-modal="true">
           <header class="modal-head">
             <h2>{{ title }}</h2>
-            <button class="icon-btn" :disabled="busy" :aria-label="'关闭'" @click="requestClose">
+            <button class="icon-btn" :disabled="busy" :aria-label="t('common.close')" @click="requestClose">
               <Icon name="close" :size="15" />
             </button>
           </header>

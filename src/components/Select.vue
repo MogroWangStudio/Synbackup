@@ -183,7 +183,7 @@ watch(() => props.modelValue, () => {
     @keydown="onTriggerKey"
   >
     <span class="cselect-label" :class="{ placeholder: !current }">{{ currentLabel }}</span>
-    <Icon name="arrow-down" :size="13" class="cselect-chevron" />
+    <Icon name="arrow_down" :size="13" class="cselect-chevron" />
   </button>
 
   <Teleport to="body">

@@ -65,6 +65,9 @@ const zh: Dict = {
   "editor.remote_pick": "浏览…",
   "editor.remote_hint": "相对设备根目录填写；点“浏览…”在设备上选择后自动换算。",
   "editor.err_remote_volume": "所选文件夹不在目标设备上，请进入设备卷内选择。",
+  "editor.err_name": "请填写名称",
+  "editor.err_local": "请选择本地文件夹",
+  "editor.err_device": "请选择目标设备",
   "editor.remote_placeholder": "例如：Backup/Projects（留空为设备根目录）",
   "editor.remote_root": "设备根目录",
 
@@ -228,6 +231,8 @@ const zh: Dict = {
 
   "common.cancel": "取消",
   "common.save": "保存",
+  "common.close": "关闭",
+  "common.confirm": "确定",
 };
 
 const en: Dict = {
@@ -293,6 +298,9 @@ const en: Dict = {
   "editor.remote_pick": "Browse…",
   "editor.remote_hint": "Relative to the drive root; Browse… picks a folder on the drive and converts it automatically.",
   "editor.err_remote_volume": "The selected folder is not on the target device. Pick one inside the drive.",
+  "editor.err_name": "Name is required",
+  "editor.err_local": "Choose a local folder",
+  "editor.err_device": "Choose a target device",
   "editor.remote_placeholder": "e.g. Backup/Projects (empty = drive root)",
   "editor.remote_root": "Drive root",
 
@@ -457,6 +465,8 @@ const en: Dict = {
 
   "common.cancel": "Cancel",
   "common.save": "Save",
+  "common.close": "Close",
+  "common.confirm": "Confirm",
 };
 
 export function t(key: string, params?: Record<string, string | number>): string {
