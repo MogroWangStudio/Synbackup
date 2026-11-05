@@ -20,7 +20,7 @@ pub fn apply(
     let total = decisions.len() as u32;
     for (idx, d) in decisions.iter().enumerate() {
         on_progress(idx as u32, total, &d.path);
-        let Some(_item) = items.iter().find(|i| i.path == d.path) else {
+        if !items.iter().any(|i| i.path == d.path) {
             // 该文件在重新扫描后已消失，按跳过处理
             result.skipped += 1;
             result.items.push(ApplyOutcome::failed(
@@ -29,73 +29,65 @@ pub fn apply(
                 "重新扫描后该文件已消失",
             ));
             continue;
-        };
+        }
         let lp = devices::remote_root(&local_root.to_string_lossy(), &d.path);
         let rp = devices::remote_root(&remote_root.to_string_lossy(), &d.path);
 
-        match d.action {
-            SyncAction::LocalToRemote => match copy_over(&lp, &rp) {
-                Ok(()) => {
-                    let size = file_size(&lp);
-                    result.copied_to_remote += 1;
-                    result.total_bytes += size.unwrap_or(0);
-                    refresh_entry(manifest, &d.path, &lp, &rp);
-                    result.items.push(ApplyOutcome::done(&d.path, d.action, size));
+        match run_step(d.action, local_root, remote_root, &d.path, &lp, &rp) {
+            Ok(size_path) => {
+                let size = size_path.as_deref().and_then(file_size);
+                match d.action {
+                    SyncAction::LocalToRemote => result.copied_to_remote += 1,
+                    SyncAction::RemoteToLocal => result.copied_to_local += 1,
+                    SyncAction::DeleteRemote => result.deleted_remote += 1,
+                    SyncAction::DeleteLocal => result.deleted_local += 1,
+                    SyncAction::Skip => result.skipped += 1,
                 }
-                Err(e) => {
-                    result.errors.push(ApplyError::new(&d.path, &e));
-                    result.items.push(ApplyOutcome::failed(&d.path, d.action, &e));
-                }
-            },
-            SyncAction::RemoteToLocal => match copy_over(&rp, &lp) {
-                Ok(()) => {
-                    let size = file_size(&rp);
-                    result.copied_to_local += 1;
-                    result.total_bytes += size.unwrap_or(0);
-                    refresh_entry(manifest, &d.path, &lp, &rp);
-                    result.items.push(ApplyOutcome::done(&d.path, d.action, size));
-                }
-                Err(e) => {
-                    result.errors.push(ApplyError::new(&d.path, &e));
-                    result.items.push(ApplyOutcome::failed(&d.path, d.action, &e));
-                }
-            },
-            SyncAction::DeleteRemote => match remove_path(remote_root, &d.path) {
-                Ok(()) => {
-                    let size = file_size(&rp);
-                    result.deleted_remote += 1;
-                    result.total_bytes += size.unwrap_or(0);
-                    refresh_entry(manifest, &d.path, &lp, &rp);
-                    result.items.push(ApplyOutcome::done(&d.path, d.action, size));
-                }
-                Err(e) => {
-                    result.errors.push(ApplyError::new(&d.path, &e));
-                    result.items.push(ApplyOutcome::failed(&d.path, d.action, &e));
-                }
-            },
-            SyncAction::DeleteLocal => match remove_path(local_root, &d.path) {
-                Ok(()) => {
-                    let size = file_size(&lp);
-                    result.deleted_local += 1;
-                    result.total_bytes += size.unwrap_or(0);
-                    refresh_entry(manifest, &d.path, &lp, &rp);
-                    result.items.push(ApplyOutcome::done(&d.path, d.action, size));
-                }
-                Err(e) => {
-                    result.errors.push(ApplyError::new(&d.path, &e));
-                    result.items.push(ApplyOutcome::failed(&d.path, d.action, &e));
-                }
-            },
-            SyncAction::Skip => {
-                result.skipped += 1;
-                // 跳过：保留当前实际状态，下次扫描仍会提示
+                result.total_bytes += size.unwrap_or(0);
                 refresh_entry(manifest, &d.path, &lp, &rp);
-                result.items.push(ApplyOutcome::done(&d.path, d.action, None));
+                result.items.push(ApplyOutcome::done(&d.path, d.action, size));
+            }
+            Err(e) => {
+                result.errors.push(ApplyError::new(&d.path, &e));
+                result.items.push(ApplyOutcome::failed(&d.path, d.action, &e));
             }
         }
     }
     on_progress(total, total, "");
     result
+}
+
+/// 执行单条决策对应的操作，成功时返回"涉及文件"的路径（复制 = 源文件，
+/// 删除 = 被删文件；Skip 为 None）。删除动作在删除之后计量，目录或
+/// 已不存在的路径由 [`file_size`] 归为 None，与既有统计口径一致。
+fn run_step(
+    action: SyncAction,
+    local_root: &Path,
+    remote_root: &Path,
+    rel: &str,
+    lp: &Path,
+    rp: &Path,
+) -> Result<Option<PathBuf>, String> {
+    match action {
+        SyncAction::LocalToRemote => {
+            copy_over(lp, rp)?;
+            Ok(Some(lp.to_path_buf()))
+        }
+        SyncAction::RemoteToLocal => {
+            copy_over(rp, lp)?;
+            Ok(Some(rp.to_path_buf()))
+        }
+        SyncAction::DeleteRemote => {
+            remove_path(remote_root, rel)?;
+            Ok(Some(rp.to_path_buf()))
+        }
+        SyncAction::DeleteLocal => {
+            remove_path(local_root, rel)?;
+            Ok(Some(lp.to_path_buf()))
+        }
+        // 跳过：保留当前实际状态，下次扫描仍会提示
+        SyncAction::Skip => Ok(None),
+    }
 }
 
 impl ApplyError {

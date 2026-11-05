@@ -19,7 +19,6 @@ pub const IGNORE_NAMES: &[&str] = &[
     super::model::MARKER_FILE,
     ".Spotlight-V100",
     ".Trashes",
-    ".Trashes",
     ".fseventsd",
     "$RECYCLE.BIN",
     "System Volume Information",
@@ -120,7 +119,7 @@ pub fn compute_diff(local_root: &Path, remote_root: &Path, manifest: &Manifest) 
             }
             (Some(l), None) => {
                 // 设备侧缺失：若清单记录过设备侧，说明设备侧被删除
-                let status = if m.map_or(false, |e| e.remote.is_some()) {
+                let status = if m.is_some_and(|e| e.remote.is_some()) {
                     DiffStatus::DeletedRemote
                 } else {
                     DiffStatus::NewLocal
@@ -134,7 +133,7 @@ pub fn compute_diff(local_root: &Path, remote_root: &Path, manifest: &Manifest) 
                 });
             }
             (None, Some(r)) => {
-                let status = if m.map_or(false, |e| e.local.is_some()) {
+                let status = if m.is_some_and(|e| e.local.is_some()) {
                     DiffStatus::DeletedLocal
                 } else {
                     DiffStatus::NewRemote

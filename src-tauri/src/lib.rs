@@ -5,6 +5,7 @@ mod backend;
 mod commands;
 mod monitor;
 mod notify;
+mod sync_flow;
 mod update;
 
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WebviewWindowBuilder};
@@ -28,11 +29,6 @@ pub(crate) fn text_fmt(lang: &str, key: &str, name: &str, n: usize) -> String {
             format!("任务「{name}」发现 {n} 处差异，请打开同备处理。")
         } else {
             format!("{n} difference(s) found in \"{name}\". Open Synbackup to review.")
-        },
-        "uptodate_body" => if zh {
-            format!("任务「{name}」两侧一致，无需同步。")
-        } else {
-            format!("\"{name}\" is already in sync.")
         },
         "local_missing" => if zh {
             format!("任务「{name}」的本地文件夹不存在。")
@@ -148,7 +144,6 @@ pub fn run() {
             commands::get_history,
             commands::get_sync_count,
             commands::clear_history,
-            commands::check_all_devices,
             commands::get_app_info,
             commands::open_external,
             commands::mark_ui_ready,

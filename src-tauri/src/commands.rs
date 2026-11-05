@@ -1,22 +1,13 @@
 //! IPC 命令：前端 WebView 的唯一入口，全部是对 backend 核心的薄封装。
 //! 前端退出后这些命令不再被调用，后端照常运行。
 
-use std::path::PathBuf;
-
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::backend::{self, model::*};
+use crate::sync_flow::{self, ScanFailure};
 
 type CmdResult<T> = Result<T, String>;
-
-async fn blocking<T, F>(f: F) -> CmdResult<T>
-where
-    F: FnOnce() -> T + Send + 'static,
-    T: Send + 'static,
-{
-    tauri::async_runtime::spawn_blocking(f).await.map_err(|e| e.to_string())
-}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,12 +46,12 @@ pub async fn upsert_pair(core: State<'_, backend::Core>, pair: SyncPair) -> CmdR
     let mut pair = pair;
     // 目标设备当前已连接时，读取或生成设备标记
     if pair.device_marker.is_none() {
-        let vols = blocking(backend::devices::list_volumes).await?;
+        let vols = sync_flow::run_blocking(backend::devices::list_volumes).await?;
         if let Some(vol) = vols.iter().find(|v| v.label == pair.device_label) {
             let root = backend::devices::remote_root(&vol.mount, &backend::devices::normalize_rel(&pair.remote_path));
             let marker_pair = pair.clone();
             let marker_root = root.clone();
-            let _ = blocking(move || backend::devices::ensure_marker(&marker_root, &marker_pair)).await;
+            let _ = sync_flow::run_blocking(move || backend::devices::ensure_marker(&marker_root, &marker_pair)).await;
             pair.device_marker = backend::devices::read_marker(&root);
         }
     }
@@ -84,12 +75,7 @@ pub async fn set_pair_enabled(
 #[tauri::command]
 pub async fn list_volumes(core: State<'_, backend::Core>) -> CmdResult<Vec<VolumeInfo>> {
     let pairs = core.pairs();
-    Ok(blocking(move || {
-        let mut vols = backend::devices::list_volumes();
-        backend::devices::attach_pairs(&mut vols, &pairs);
-        vols
-    })
-    .await?)
+    sync_flow::run_blocking(move || backend::devices::snapshot_with_pairs(&pairs)).await
 }
 
 /// 手动扫描单个任务，返回差异报告（同时存入待处理列表）
@@ -99,36 +85,17 @@ pub async fn scan_pair(
     pair_id: String,
 ) -> CmdResult<PendingReview> {
     let pair = core.pair_by_id(&pair_id).ok_or("任务不存在")?;
-    let dir = core.dir.clone();
 
-    let vols = blocking(backend::devices::list_volumes).await?;
-    let remote_root =
-        backend::devices::resolve_remote_root(&vols, &pair).ok_or("设备未连接，请插入后重试")?;
-    let local_root = PathBuf::from(&pair.local_path);
-    if !local_root.is_dir() {
-        return Err("本地文件夹不存在".into());
-    }
+    let vols = sync_flow::run_blocking(backend::devices::list_volumes).await?;
+    let scan = sync_flow::prepare_and_scan(&core.dir, &pair, &vols)
+        .await
+        .map_err(|f| match f {
+            ScanFailure::DeviceNotConnected => "设备未连接，请插入后重试".into(),
+            ScanFailure::LocalMissing => "本地文件夹不存在".into(),
+            ScanFailure::Failed(e) => e,
+        })?;
 
-    let marker_pair = pair.clone();
-    let marker_root = remote_root.clone();
-    blocking(move || backend::devices::ensure_marker(&marker_root, &marker_pair))
-        .await?
-        .map_err(|e| e.to_string())?;
-
-    let manifest = backend::manifest::load(&dir, &pair.id);
-    let items = {
-        let lr = local_root;
-        let rr = remote_root;
-        blocking(move || backend::scan::compute_diff(&lr, &rr, &manifest)).await?
-    };
-
-    let review = PendingReview {
-        pair_id: pair.id.clone(),
-        pair_name: pair.name.clone(),
-        device_label: pair.device_label.clone(),
-        scanned_at: now_ms(),
-        items,
-    };
+    let review = PendingReview::new(&pair, scan.items);
     core.put_pending(review.clone());
     // 手动扫描到差异：写入"检查到差异"历史记录
     core.record_scan_history(&pair, &review.items, Trigger::Manual);
@@ -145,23 +112,21 @@ pub async fn apply_decisions(
 ) -> CmdResult<ApplyResult> {
     let _guard = core.sync_lock.lock().await;
     let pair = core.pair_by_id(&pair_id).ok_or("任务不存在")?;
-    let dir = core.dir.clone();
 
-    let vols = blocking(backend::devices::list_volumes).await?;
-    let remote_root =
-        backend::devices::resolve_remote_root(&vols, &pair).ok_or("设备未连接，同步已中止")?;
-    let local_root = PathBuf::from(&pair.local_path);
-    if !local_root.is_dir() {
-        return Err("本地文件夹不存在，同步已中止".into());
-    }
+    let vols = sync_flow::run_blocking(backend::devices::list_volumes).await?;
+    let (local_root, remote_root) = sync_flow::prepare_roots(&vols, &pair).map_err(|f| match f {
+        ScanFailure::DeviceNotConnected => "设备未连接，同步已中止".into(),
+        ScanFailure::LocalMissing => "本地文件夹不存在，同步已中止".into(),
+        ScanFailure::Failed(e) => e,
+    })?;
 
-    let manifest = backend::manifest::load(&dir, &pair.id);
+    let manifest = backend::manifest::load(&core.dir, &pair.id);
     let (result, updated_manifest) = {
         let lr = local_root;
         let rr = remote_root;
         let handle = app.clone();
         let pid = pair.id.clone();
-        blocking(move || {
+        sync_flow::run_blocking(move || {
             let items = backend::scan::compute_diff(&lr, &rr, &manifest);
             let mut manifest = manifest;
             let on_progress = |done: u32, total: u32, current: &str| {
@@ -176,14 +141,7 @@ pub async fn apply_decisions(
         .await?
     };
 
-    backend::manifest::save(&dir, &pair.id, &updated_manifest).map_err(|e| e.to_string())?;
-    core.record_history(&pair, &result, Trigger::Manual);
-    core.touch_last_sync(&pair_id)?;
-    core.remove_pending(&pair_id);
-    let _ = app.emit(
-        "sync-finished",
-        serde_json::json!({ "pairId": pair_id, "result": result, "trigger": Trigger::Manual }),
-    );
+    sync_flow::finish_sync(&app, &core, &core.dir, &pair, &result, &updated_manifest, Trigger::Manual)?;
     Ok(result)
 }
 
@@ -213,13 +171,6 @@ pub async fn get_sync_count(core: State<'_, backend::Core>) -> CmdResult<u64> {
 pub async fn clear_history(core: State<'_, backend::Core>) -> CmdResult<()> {
     backend::history::clear(&core.dir);
     Ok(())
-}
-
-#[tauri::command]
-pub async fn check_all_devices(app: AppHandle) -> CmdResult<usize> {
-    crate::monitor::check_all_devices(&app).await;
-    let core = app.state::<backend::Core>();
-    Ok(core.pending_snapshot().len())
 }
 
 #[tauri::command]
@@ -258,7 +209,6 @@ pub fn exit_app(app: AppHandle) -> CmdResult<()> {
 /// 前端 destroy IPC 受 capability 管控，权限缺失时由此命令完成同一动作。
 #[tauri::command]
 pub fn destroy_main_window(app: AppHandle) -> CmdResult<()> {
-    use tauri::Manager;
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.destroy();
     }
@@ -272,7 +222,7 @@ pub fn test_notification(app: AppHandle, core: State<'_, backend::Core>) -> CmdR
     crate::notify::notify(
         &app,
         crate::text(&settings.language, "app_title"),
-        &crate::text(&settings.language, "test_notification_body"),
+        crate::text(&settings.language, "test_notification_body"),
     );
     Ok(())
 }

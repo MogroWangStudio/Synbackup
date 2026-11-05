@@ -123,10 +123,16 @@ pub fn resolve_remote_root(volumes: &[VolumeInfo], pair: &SyncPair) -> Option<Pa
     None
 }
 
+/// 裸卷列表 + 任务补全一步到位。前端命令返回与后台推送共用，
+/// 只取裸卷列表会让前端拿到 `matchedPairIds: []`，刚插入的设备
+/// 在界面上仍显示"设备未连接"。
+pub fn snapshot_with_pairs(pairs: &[SyncPair]) -> Vec<VolumeInfo> {
+    let mut vols = list_volumes();
+    attach_pairs(&mut vols, pairs);
+    vols
+}
+
 /// 为卷列表补上匹配到的同步任务 id。
-///
-/// 前端据此判断"某个任务对应的设备是否在线"，所以命令返回与后台推送
-/// 必须走同一套补全逻辑，否则推送出去的负载会缺 `matchedPairIds`。
 pub fn attach_pairs(volumes: &mut [VolumeInfo], pairs: &[SyncPair]) {
     for v in volumes.iter_mut() {
         // 先复制一份只读快照，避免同时持有可变与不可变借用

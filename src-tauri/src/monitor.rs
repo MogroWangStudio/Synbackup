@@ -10,16 +10,16 @@
 //! [`DEVICE_EVENT`]，消费循环合并去抖后走与原来相同的快照对比逻辑。
 
 use std::collections::HashSet;
-use std::path::PathBuf;
 use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::backend;
 use crate::backend::model::{
-    Decision, DiffStatus, PendingReview, SyncPair, Trigger, VolumeInfo, now_ms,
+    Decision, PendingReview, SyncAction, SyncPair, Trigger, VolumeInfo,
 };
 use crate::notify;
+use crate::sync_flow::{self, ScanFailure};
 use crate::{autosync_body, text, text_fmt};
 
 /// 平台监听器发出的"设备可能变化"信号（无载荷，处理一律以快照为准）。
@@ -95,13 +95,9 @@ async fn monitor_loop(app: AppHandle) {
 /// `matchedPairIds: []`，于是刚插入的设备在界面上仍显示"设备未连接"。
 async fn volumes_snapshot(app: &AppHandle) -> Option<Vec<VolumeInfo>> {
     let pairs = app.state::<backend::Core>().pairs();
-    run_blocking(move || {
-        let mut vols = backend::devices::list_volumes();
-        backend::devices::attach_pairs(&mut vols, &pairs);
-        vols
-    })
-    .await
-    .ok()
+    sync_flow::run_blocking(move || backend::devices::snapshot_with_pairs(&pairs))
+        .await
+        .ok()
 }
 
 /// 推送设备变化；内容未变则不推，避免每轮轮询都打一次 IPC。
@@ -145,113 +141,71 @@ async fn handle_volume_inserted(
         (core.dir.clone(), core.settings(), pairs)
     };
 
+    let notify_user = |body: &str| {
+        if settings.notify_on_insert {
+            notify::notify(app, text(&settings.language, "app_title"), body);
+        }
+    };
+
     for pair in pairs {
-        let Some(remote_root) = backend::devices::resolve_remote_root(std::slice::from_ref(vol), &pair)
-        else {
-            continue;
-        };
         // 自动同步也得先扫描：只开了"无冲突自动同步"而关了"插入时自动检查"时，
         // 以前会直接 continue，自动同步（以及它的通知）永远不会发生。
+        // 该守卫放在设备解析之前：两者都关闭时不为每个任务白读一遍设备标记。
         if !settings.auto_scan_on_insert && !settings.auto_sync_no_conflict && !force_scan {
             continue;
         }
-        let local_root = PathBuf::from(&pair.local_path);
-        if !local_root.is_dir() {
-            if settings.notify_on_insert {
-                notify::notify(
-                    app,
-                    text(&settings.language, "app_title"),
-                    &text_fmt(&settings.language, "local_missing", &pair.name, 0),
-                );
+        let scan = match sync_flow::prepare_and_scan(&dir, &pair, std::slice::from_ref(vol)).await {
+            Err(ScanFailure::DeviceNotConnected) => continue,
+            Err(ScanFailure::LocalMissing) => {
+                notify_user(&text_fmt(&settings.language, "local_missing", &pair.name, 0));
+                continue;
             }
-            continue;
-        }
-
-        // 确保设备侧目录与标记文件存在
-        let root = remote_root.clone();
-        let marker_pair = pair.clone();
-        run_blocking(move || backend::devices::ensure_marker(&root, &marker_pair))
-            .await
-            .and_then(|r| r.map_err(|e| e.to_string()))?;
-
-        let manifest = backend::manifest::load(&dir, &pair.id);
-        let items = {
-            let lr = local_root.clone();
-            let rr = remote_root.clone();
-            let mf = manifest.clone();
-            run_blocking(move || backend::scan::compute_diff(&lr, &rr, &mf)).await?
+            Err(ScanFailure::Failed(e)) => return Err(e),
+            Ok(scan) => scan,
         };
 
         let core = app.state::<backend::Core>();
-        if items.is_empty() {
+        if scan.items.is_empty() {
             core.touch_last_sync(&pair.id)?;
             continue;
         }
 
-        let safe = items.iter().all(|i| {
-            matches!(
-                i.status,
-                DiffStatus::NewLocal
-                    | DiffStatus::NewRemote
-                    | DiffStatus::ChangedLocal
-                    | DiffStatus::ChangedRemote
-            )
-        });
+        // 建议操作里没有 Skip（即全部可按建议方向复制）视为无冲突
+        let safe = scan.items.iter().all(|i| i.suggested != SyncAction::Skip);
 
         if safe && settings.auto_sync_no_conflict {
             // 无冲突：按建议方向自动执行
-            if settings.notify_on_insert {
-                notify::notify(
-                    app,
-                    text(&settings.language, "app_title"),
-                    &text_fmt(
-                        &settings.language,
-                        "sync_started_body",
-                        &pair.name,
-                        items.len(),
-                    ),
-                );
-            }
-            let decisions: Vec<Decision> =
-                items.iter().map(|i| Decision { path: i.path.clone(), action: i.suggested }).collect();
+            notify_user(&text_fmt(
+                &settings.language,
+                "sync_started_body",
+                &pair.name,
+                scan.items.len(),
+            ));
+            let decisions: Vec<Decision> = scan
+                .items
+                .iter()
+                .map(|i| Decision { path: i.path.clone(), action: i.suggested })
+                .collect();
             let (result, updated_manifest) = {
-                let lr = local_root.clone();
-                let rr = remote_root.clone();
-                let items = items.clone();
-                let mut manifest = manifest;
-                run_blocking(move || {
-                    let res = backend::execute::apply(
-                        &lr, &rr, &items, &decisions, &mut manifest, &|_, _, _| {},
-                    );
+                let lr = scan.local_root;
+                let rr = scan.remote_root;
+                let items = scan.items;
+                let mut manifest = scan.manifest;
+                sync_flow::run_blocking(move || {
+                    let res = backend::execute::apply(&lr, &rr, &items, &decisions, &mut manifest, &|_, _, _| {});
                     (res, manifest)
                 })
                 .await?
             };
-            backend::manifest::save(&dir, &pair.id, &updated_manifest).map_err(|e| e.to_string())?;
-            core.record_history(&pair, &result, Trigger::Auto);
-            core.touch_last_sync(&pair.id)?;
-            // 自动同步已经处理完这批差异，之前若留下待审条目就是过期状态
-            core.remove_pending(&pair.id);
-            let _ = app.emit(
-                "sync-finished",
-                serde_json::json!({ "pairId": pair.id, "result": result, "trigger": Trigger::Auto }),
-            );
-            if settings.notify_on_insert {
-                let copied = (result.copied_to_remote + result.copied_to_local) as usize;
-                notify::notify(
-                    app,
-                    text(&settings.language, "app_title"),
-                    &autosync_body(&settings.language, &pair.name, copied, result.errors.len()),
-                );
-            }
+            sync_flow::finish_sync(app, &core, &dir, &pair, &result, &updated_manifest, Trigger::Auto)?;
+            notify_user(&autosync_body(
+                &settings.language,
+                &pair.name,
+                (result.copied_to_remote + result.copied_to_local) as usize,
+                result.errors.len(),
+            ));
         } else {
-            let review = PendingReview {
-                pair_id: pair.id.clone(),
-                pair_name: pair.name.clone(),
-                device_label: pair.device_label.clone(),
-                scanned_at: now_ms(),
-                items,
-            };
+            let review = PendingReview::new(&pair, scan.items);
             let n = review.items.len();
             core.put_pending(review.clone());
             // 检查到差异但未执行同步：写入"检查到差异"历史记录
@@ -261,24 +215,10 @@ async fn handle_volume_inserted(
                 if force_scan { Trigger::Manual } else { Trigger::Auto },
             );
             let _ = app.emit("review-available", &review);
-            if settings.notify_on_insert {
-                notify::notify(
-                    app,
-                    text(&settings.language, "app_title"),
-                    &text_fmt(&settings.language, "diff_body", &pair.name, n),
-                );
-            }
+            notify_user(&text_fmt(&settings.language, "diff_body", &pair.name, n));
         }
     }
     Ok(())
-}
-
-async fn run_blocking<T, F>(f: F) -> Result<T, String>
-where
-    F: FnOnce() -> T + Send + 'static,
-    T: Send + 'static,
-{
-    tauri::async_runtime::spawn_blocking(f).await.map_err(|e| e.to_string())
 }
 
 // ---- 平台事件源 ----

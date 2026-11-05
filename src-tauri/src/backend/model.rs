@@ -7,10 +7,7 @@ use serde::{Deserialize, Serialize};
 pub const MARKER_FILE: &str = ".synbackup-device";
 
 pub fn now_ms() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
+    time_ms(std::time::SystemTime::now())
 }
 
 pub fn time_ms(t: std::time::SystemTime) -> i64 {
@@ -210,6 +207,18 @@ pub struct PendingReview {
     pub device_label: String,
     pub scanned_at: i64,
     pub items: Vec<DiffItem>,
+}
+
+impl PendingReview {
+    pub fn new(pair: &SyncPair, items: Vec<DiffItem>) -> Self {
+        Self {
+            pair_id: pair.id.clone(),
+            pair_name: pair.name.clone(),
+            device_label: pair.device_label.clone(),
+            scanned_at: now_ms(),
+            items,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

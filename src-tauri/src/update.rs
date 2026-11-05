@@ -74,7 +74,7 @@ pub async fn check_update(app: AppHandle) -> Result<UpdateInfo, String> {
             let ver = semver::Version::parse(tag.trim_start_matches(['v', 'V'])).ok()?;
             Some((r, ver))
         })
-        .max_by_key(|(_, ver)| ver.clone())
+        .max_by(|a, b| a.1.cmp(&b.1))
         .filter(|(_, ver)| *ver > current_ver);
 
     Ok(match target {

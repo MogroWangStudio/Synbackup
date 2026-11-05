@@ -24,9 +24,12 @@ tokio = { version = "1", features = ["time", "sync", "macros"] }
 sysinfo = "0.33"
 filetime = "0.2"
 uuid = { version = "1", features = ["v4"] }
-notify-rust = "4"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 semver = "1"
+
+# 非 macOS 平台的系统通知（macOS 走 UNUserNotificationCenter，见 notify.rs）
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+notify-rust = "4"
 
 # macOS 系统通知：UNUserNotificationCenter 现代绑定（请求授权 + 前台横幅）
 [target.'cfg(target_os = "macos")'.dependencies]
