@@ -6,3 +6,6 @@ src-tauri/gen/
 *.log
 *.local
 /.workbuddy/memory
+
+# ZCode 会话工作目录（会话计划等工具产物，不入库）
+.zcode/

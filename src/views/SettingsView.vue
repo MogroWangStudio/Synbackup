@@ -229,7 +229,7 @@ function onLanguageSelect(v: string) {
           />
         </div>
         <Teleport to="body">
-          <Transition name="cselect-pop">
+          <Transition name="picker-pop">
             <div
               v-if="pickerOpen"
               class="picker-anchor"
@@ -445,7 +445,7 @@ function onLanguageSelect(v: string) {
             {{ updateHint }}
           </span>
         </div>
-        <span class="row-value">{{ store.appInfo?.version ?? "0.3.0" }}</span>
+        <span class="row-value">{{ store.appInfo?.version ?? "0.4.0" }}</span>
       </div>
       <div class="row">
         <div class="row-label">
@@ -546,6 +546,32 @@ function onLanguageSelect(v: string) {
 }
 .picker-anchor > * {
   position: static;
+}
+/* 调色板出入：自色块方向浮出，与弹窗家族同一语言，快而克制 */
+.picker-pop-enter-active {
+  transition:
+    opacity 140ms var(--ease),
+    transform 160ms var(--ease);
+}
+.picker-pop-leave-active {
+  transition:
+    opacity 110ms var(--ease),
+    transform 120ms var(--ease);
+}
+.picker-pop-enter-from,
+.picker-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+}
+@media (prefers-reduced-motion: reduce) {
+  .picker-pop-enter-active,
+  .picker-pop-leave-active {
+    transition: opacity 120ms ease;
+  }
+  .picker-pop-enter-from,
+  .picker-pop-leave-to {
+    transform: none;
+  }
 }
 
 .group {
