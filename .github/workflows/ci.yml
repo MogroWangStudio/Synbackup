@@ -168,16 +168,25 @@ jobs:
             echo "flag=--latest" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: 创建 Release
+      - name: 发布（已存在则上传产物并纠正渠道标记）
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ "${use_generate:-0}" = "1" ]; then
-            gh release create "${GITHUB_REF_NAME}" artifacts/* \
-              --title "同备 Synbackup ${GITHUB_REF_NAME#v}" \
-              ${{ steps.channel.outputs.flag }} --generate-notes
+          TITLE="同备 Synbackup ${GITHUB_REF_NAME#v}"
+          if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
+            # 同 tag 的 Release 已存在（如手动预建）：不重建，只把产物塞进去
+            # （--clobber 覆盖同名文件），渠道标记以 tag 为准纠正——手动建时
+            # 漏勾 pre-release 也会被纠回，稳定渠道才不会误收到测试版
+            gh release upload "${GITHUB_REF_NAME}" artifacts/* --clobber
+            gh release edit "${GITHUB_REF_NAME}" ${{ steps.channel.outputs.flag }}
           else
-            gh release create "${GITHUB_REF_NAME}" artifacts/* \
-              --title "同备 Synbackup ${GITHUB_REF_NAME#v}" \
-              ${{ steps.channel.outputs.flag }} --notes-file release-notes.md
+            if [ "${use_generate:-0}" = "1" ]; then
+              gh release create "${GITHUB_REF_NAME}" artifacts/* \
+                --title "$TITLE" \
+                ${{ steps.channel.outputs.flag }} --generate-notes
+            else
+              gh release create "${GITHUB_REF_NAME}" artifacts/* \
+                --title "$TITLE" \
+                ${{ steps.channel.outputs.flag }} --notes-file release-notes.md
+            fi
           fi
