@@ -1,6 +1,6 @@
 [package]
 name = "synbackup"
-version = "0.4.0"
+version = "0.4.0-beta1"
 description = "同备 Synbackup — USB 移动存储设备文件同步与备份"
 edition = "2021"
 rust-version = "1.77.2"

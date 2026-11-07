@@ -13,7 +13,9 @@
 - 计划任务与定时备份
 - 冲突"保留两份"策略
 
-## [0.4.0] - 2026-11-07
+## [0.4.0-beta1] - 2026-11-07
+
+> 0.4.0 的首个预发布，面向测试通道（Pre-Release）；稳定渠道收不到本版本。
 
 ### 变更
 
@@ -132,6 +134,8 @@
 - 中英双语界面，浅色 / 深色外观自适应。
 - 占位应用图标与生成脚本（`scripts/generate_icon.py`）。
 
-[Unreleased]: https://example.com/synbackup/compare/v0.2.0...HEAD
-[0.2.0]: https://example.com/synbackup/releases/tag/v0.2.0
-[0.1.0]: https://example.com/synbackup/releases/tag/v0.1.0
+[Unreleased]: https://github.com/MogroWangStudio/Synbackup/compare/v0.4.0-beta1...HEAD
+[0.4.0-beta1]: https://github.com/MogroWangStudio/Synbackup/releases/tag/v0.4.0-beta1
+[0.3.0]: https://github.com/MogroWangStudio/Synbackup/releases/tag/v0.3.0
+[0.2.0]: https://github.com/MogroWangStudio/Synbackup/releases/tag/v0.2.0
+[0.1.0]: https://github.com/MogroWangStudio/Synbackup/releases/tag/v0.1.0
