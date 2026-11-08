@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   AppInfo,
+  FontFamilyInfo,
   AppSettings,
   ApplyResult,
   Config,
@@ -31,6 +32,8 @@ export const api = {
   getAppInfo: () => invoke<AppInfo>("get_app_info"),
   /** 本应用当前物理内存（RAM）占用，字节 */
   getAppMemory: () => invoke<number>("get_app_memory"),
+  /** 枚举系统已安装字体（按字族聚合，含本地化名称与语言标签） */
+  listSystemFonts: () => invoke<FontFamilyInfo[]>("list_system_fonts"),
   /** 读取自定义图片 logo，返回 data URI（格式 / 大小校验在后端） */
   readLogoImage: (path: string) => invoke<string>("read_logo_image", { path }),
   openExternal: (url: string) => invoke<void>("open_external", { url }),

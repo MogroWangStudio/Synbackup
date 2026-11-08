@@ -1,6 +1,7 @@
 //! IPC 命令：前端 WebView 的唯一入口，全部是对 backend 核心的薄封装。
 //! 前端退出后这些命令不再被调用，后端照常运行。
 
+use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, OnceLock};
 
 use serde::Serialize;
@@ -193,6 +194,84 @@ pub fn get_app_memory() -> CmdResult<u64> {
     };
     guard.refresh_processes(ProcessesToUpdate::Some(&[pid]), false);
     Ok(guard.process(pid).map(|p| p.memory()).unwrap_or(0))
+}
+
+/// 系统字体的语言标签（按本地化名称的语言归类）
+fn font_language_tag(lang: &fontdb::Language) -> &'static str {
+    let name = format!("{lang:?}");
+    if name.starts_with("Chinese_PeoplesRepublicOfChina") || name.starts_with("Chinese_Singapore") {
+        "zh-Hans"
+    } else if name.starts_with("Chinese_Taiwan")
+        || name.starts_with("Chinese_HongKong")
+        || name.starts_with("Chinese_Macao")
+    {
+        "zh-Hant"
+    } else if name == "Japanese" {
+        "ja"
+    } else if name == "Korean" || name == "Korean_Johab" {
+        "ko"
+    } else if name.starts_with("English") {
+        "latin"
+    } else {
+        "other"
+    }
+}
+
+/// 系统字体信息（按字族聚合）
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FontFamilyInfo {
+    family: String,
+    languages: Vec<String>,
+    localized_names: Vec<String>,
+    faces: usize,
+}
+
+/// 枚举系统已安装字体：按字族聚合，返回字族名 / 本地化名称 / 语言标签 / 面数。
+/// 字体集进程内缓存（会话内不变）。
+#[tauri::command]
+pub fn list_system_fonts() -> CmdResult<Vec<FontFamilyInfo>> {
+    use fontdb::Database;
+
+    static FONT_DB: OnceLock<Database> = OnceLock::new();
+    let db = FONT_DB.get_or_init(|| {
+        let mut db = Database::new();
+        db.load_system_fonts();
+        db
+    });
+
+    #[derive(Default)]
+    struct Agg {
+        languages: HashSet<&'static str>,
+        localized: HashSet<String>,
+        faces: usize,
+    }
+    let mut aggs: HashMap<String, Agg> = HashMap::new();
+    for face in db.faces() {
+        // families 首项恒为英文名（缺失时为首个可用名），其余为各语言的本地化名
+        let Some((primary, _)) = face.families.first() else { continue };
+        let family = primary.clone();
+        let agg = aggs.entry(family.clone()).or_default();
+        agg.faces += 1;
+        for (name, lang) in &face.families {
+            agg.languages.insert(font_language_tag(lang));
+            if name != &family {
+                agg.localized.insert(name.clone());
+            }
+        }
+    }
+    let mut list: Vec<FontFamilyInfo> = aggs
+        .into_iter()
+        .map(|(family, a)| {
+            let mut languages: Vec<String> = a.languages.into_iter().map(String::from).collect();
+            languages.sort();
+            let mut localized: Vec<String> = a.localized.into_iter().collect();
+            localized.sort_by_key(|n| n.to_lowercase());
+            FontFamilyInfo { family, languages, localized_names: localized, faces: a.faces }
+        })
+        .collect();
+    list.sort_by(|a, b| a.family.to_lowercase().cmp(&b.family.to_lowercase()));
+    Ok(list)
 }
 
 /// 读取自定义图片 logo：校验格式与大小（≤4MB），转 data URI 返回。

@@ -193,6 +193,17 @@ export interface HistoryEntry {
   scanTotal: number;
 }
 
+/** 系统字体信息（按字族聚合，list_system_fonts 返回） */
+export interface FontFamilyInfo {
+  family: string;
+  /** 该字族本地化名称的语言标签（zh-Hans / zh-Hant / ja / ko / latin / other） */
+  languages: string[];
+  /** 各语言的本地化名称（不含主名） */
+  localizedNames: string[];
+  /** 字体面数（不同字重 / 样式的文件组合） */
+  faces: number;
+}
+
 export interface AppInfo {
   dataDir: string;
   version: string;

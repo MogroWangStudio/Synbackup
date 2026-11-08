@@ -14,6 +14,7 @@ import Stepper from "../components/Stepper.vue";
 import Select from "../components/Select.vue";
 import ColorPicker from "../components/ColorPicker.vue";
 import NotifyTestDialog from "../components/NotifyTestDialog.vue";
+import FontBrowser from "../components/FontBrowser.vue";
 import type { SelectOption } from "../components/Select.vue";
 
 /** 强调色预设：key 与 tokens.css 的 data-accent 对应，color 用于色块展示 */
@@ -86,9 +87,41 @@ async function pickLogoImage() {
   await update({ logoImagePath: path });
   await refreshLogoImage();
 }
-const fontOptions = computed<SelectOption[]>(() =>
-  fonts.map((f) => ({ value: f, label: t(`font.${f}`) })),
-);
+// 界面字体：预设选项 + 自定义字族动态项（自定义字族由字体浏览弹窗选择）
+const fontOptions = computed<SelectOption[]>(() => {
+  const base: SelectOption[] = fonts.map((f) => ({ value: f, label: t(`font.${f}`) }));
+  const cur = store.settings.fontFamily;
+  if (cur && !fonts.includes(cur as (typeof fonts)[number])) {
+    base.push({ value: cur, label: `${t("font.custom")} · ${cur}` });
+  } else {
+    base.push({ value: "custom", label: t("font.custom") });
+  }
+  return base;
+});
+const fontBrowserOpen = ref(false);
+const fontHint = computed(() => {
+  const cur = store.settings.fontFamily;
+  if (cur && !fonts.includes(cur as (typeof fonts)[number])) {
+    return t("settings.font_custom_hint", { family: cur });
+  }
+  return t("settings.font_hint");
+});
+function onFontSelect(v: string) {
+  if (v === "custom") {
+    fontBrowserOpen.value = true;
+    return;
+  }
+  void update({ fontFamily: v });
+}
+function onFontBrowserUse(family: string) {
+  void update({ fontFamily: family });
+  fontBrowserOpen.value = false;
+}
+/** Select 的显示值：自定义字族时即字族名本身（与动态选项 value 对齐） */
+const fontSelectValue = computed(() => {
+  const cur = store.settings.fontFamily;
+  return cur && !fonts.includes(cur as (typeof fonts)[number]) ? cur : cur;
+});
 
 // 启动动画预设与曲线选项
 const animPresetOptions = computed<SelectOption[]>(() =>
@@ -351,13 +384,19 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.font") }}</span>
+          <span class="row-hint">{{ fontHint }}</span>
         </div>
-        <Select
-          :model-value="store.settings.fontFamily"
-          :options="fontOptions"
-          :aria-label="t('settings.font')"
-          @update:model-value="(v) => update({ fontFamily: v })"
-        />
+        <div class="font-controls">
+          <Select
+            :model-value="fontSelectValue"
+            :options="fontOptions"
+            :aria-label="t('settings.font')"
+            @update:model-value="onFontSelect"
+          />
+          <button type="button" class="btn btn-sm" @click="fontBrowserOpen = true">
+            {{ t("settings.font_browse") }}
+          </button>
+        </div>
       </div>
       <div class="row">
         <div class="row-label">
@@ -494,6 +533,12 @@ function onLanguageSelect(v: string) {
           {{ t("settings.logo_pick") }}
         </button>
       </div>
+      <FontBrowser
+        v-if="fontBrowserOpen"
+        :current="store.settings.fontFamily"
+        @use="onFontBrowserUse"
+        @close="fontBrowserOpen = false"
+      />
     </section>
 
     <section class="card group">

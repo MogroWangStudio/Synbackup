@@ -335,6 +335,7 @@ pub fn run() {
             commands::clear_history,
             commands::get_app_info,
             commands::get_app_memory,
+            commands::list_system_fonts,
             commands::read_logo_image,
             commands::open_path,
             commands::open_external,

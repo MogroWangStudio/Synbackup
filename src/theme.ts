@@ -104,6 +104,13 @@ export const UI_THEMES = ["standard", "paper", "terminal", "glass"] as const;
 
 /** 同步任务卡片按钮显示模式集合（both = 默认无块） */
 const TASK_BTN_STYLES = ["both", "icon", "text"];
+/** 界面字体预设集合（system = 默认跟随主题；其余为自定义字族名） */
+const FONT_PRESETS = ["system", "serif", "rounded"];
+/** 自定义字族的回退栈（与 tokens.css 的默认系统栈保持一致） */
+const FONT_FALLBACK =
+  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro SC", "PingFang SC", ' +
+  '"HarmonyOS Sans SC", "MiSans", "Microsoft YaHei UI", "Hiragino Kaku Gothic ProN", ' +
+  '"Yu Gothic UI", "Meiryo", "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif';
 
 /** 把语言 / 外观 / 字体 / 缩放 / 启动动画同步到根元素 */
 export function applyUiPrefs(s: AppSettings) {
@@ -143,8 +150,16 @@ export function applyUiPrefs(s: AppSettings) {
     else delete root.dataset.accent;
   }
 
-  if (s.fontFamily && s.fontFamily !== "system") root.dataset.font = s.fontFamily;
-  else delete root.dataset.font;
+  // 界面字体：预设（data-font 规则）与自定义字族（内联 --font，含既有回退栈）分流
+  if (s.fontFamily && !FONT_PRESETS.includes(s.fontFamily)) {
+    // 自定义字族：CSS font-family 字符串中的引号需转义
+    const family = s.fontFamily.replace(/"/g, '\\"');
+    root.style.setProperty("--font", `"${family}", ${FONT_FALLBACK}`);
+    delete root.dataset.font;
+  } else {
+    delete root.dataset.font;
+    root.style.removeProperty("--font");
+  }
 
   root.style.setProperty("--font-scale", String(s.fontScale));
   root.style.setProperty("--ui-scale", String(s.uiScale));
