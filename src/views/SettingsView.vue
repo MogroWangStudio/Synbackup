@@ -32,6 +32,10 @@ const languageOptions: SelectOption[] = LOCALES.map((l) => ({
   value: l.code,
   label: l.label,
 }));
+// 空白处点击关闭行为（顺序即用户口中的双击 / 单击 / 从不）
+const blankClickOptions = computed<SelectOption[]>(() =>
+  ["double", "single", "never"].map((k) => ({ value: k, label: t(`blankclick.${k}`) })),
+);
 // 选项标签经 t() 求值，必须包成 computed 跟随语言重算——
 // setup 期一次性求值会在切换语言后让下拉标签停留在旧语言
 const channelOptions = computed<SelectOption[]>(() => [
@@ -218,6 +222,18 @@ function onLanguageSelect(v: string) {
         <Toggle
           :model-value="store.settings.launchAtLogin"
           @update:model-value="(v) => update({ launchAtLogin: v })"
+        />
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.blank_click") }}</span>
+          <span class="row-hint">{{ t("settings.blank_click_hint") }}</span>
+        </div>
+        <Select
+          :model-value="store.settings.blankClick"
+          :options="blankClickOptions"
+          :aria-label="t('settings.blank_click')"
+          @update:model-value="(v) => update({ blankClick: v })"
         />
       </div>
     </section>

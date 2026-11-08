@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onBeforeUnmount, onMounted } from "vue";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { api } from "./api";
 import { refreshAll, refreshConfig, refreshHistory, refreshPending, store, toast } from "./store";
 import { replayBootAnim } from "./theme";
@@ -62,6 +63,45 @@ async function registerListeners() {
     }
   });
 }
+
+/* ---- 空白处点击关闭（设置 → 通用；never / single / double）----
+   关闭动作走 win.close()，与标题栏关闭键同一条链路（后端拦截后询问
+   退出方式）。空白 = 目标在窗口树内、且不在任何交互 / 内容元素内；
+   标题栏拖拽区单独排除，双击最大化等原生语义不受影响。 */
+function isBlankArea(e: MouseEvent): boolean {
+  const el = e.target as HTMLElement | null;
+  if (!el?.closest) return false;
+  if (!el.closest(".window")) return false; // Teleport 弹层等不在窗口树内
+  if (
+    el.closest(
+      "button, a, input, textarea, select, label, summary, .card, .toggle, .mws-cbx, .mws-pop, " +
+        ".picker-anchor, .modal-overlay, .foot-line, .sidebar, .nav-item, .swatches, .seg, " +
+        ".toast-host, .dev-section, .studio-link, [data-tauri-drag-region]",
+    )
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function fireWindowClose() {
+  void getCurrentWindow().close().catch(() => {});
+}
+
+function onWinClick(e: MouseEvent) {
+  if (store.settings.blankClick === "single" && isBlankArea(e)) fireWindowClose();
+}
+
+function onWinDblClick(e: MouseEvent) {
+  if (store.settings.blankClick === "double" && isBlankArea(e)) fireWindowClose();
+}
+
+document.addEventListener("click", onWinClick);
+document.addEventListener("dblclick", onWinDblClick);
+onBeforeUnmount(() => {
+  document.removeEventListener("click", onWinClick);
+  document.removeEventListener("dblclick", onWinDblClick);
+});
 </script>
 
 <template>

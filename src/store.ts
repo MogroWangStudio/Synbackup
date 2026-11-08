@@ -32,6 +32,7 @@ export const store = reactive({
   settings: {
     language: "zh-CN",
     launchAtLogin: false,
+    blankClick: "never",
     autoScanOnInsert: true,
     autoSyncNoConflict: false,
     notifyOnInsert: true,

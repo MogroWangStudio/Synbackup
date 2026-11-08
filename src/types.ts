@@ -3,6 +3,8 @@
 export interface AppSettings {
   language: string;
   launchAtLogin: boolean;
+  /** 空白处点击关闭行为：never = 从不，single = 单击关闭，double = 双击关闭 */
+  blankClick: string;
   autoScanOnInsert: boolean;
   autoSyncNoConflict: boolean;
   notifyOnInsert: boolean;

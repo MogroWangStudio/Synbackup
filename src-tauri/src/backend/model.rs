@@ -21,6 +21,9 @@ pub fn time_ms(t: std::time::SystemTime) -> i64 {
 pub struct AppSettings {
     pub language: String,
     pub launch_at_login: bool,
+    /// 空白处点击关闭行为：never = 从不，single = 单击关闭，double = 双击关闭
+    #[serde(default = "default_blank_click")]
+    pub blank_click: String,
     /// 插入设备时自动检查差异
     pub auto_scan_on_insert: bool,
     /// 无冲突时按建议方向自动同步（冲突与删除永远需要确认）
@@ -68,11 +71,17 @@ fn default_status_order() -> Vec<String> {
     vec!["devices".into(), "pairs".into(), "sync".into(), "version".into()]
 }
 
+/// 空白处点击关闭的默认行为：从不（向后兼容）
+fn default_blank_click() -> String {
+    "never".into()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
             language: "zh-CN".into(),
             launch_at_login: false,
+            blank_click: default_blank_click(),
             auto_scan_on_insert: true,
             auto_sync_no_conflict: false,
             notify_on_insert: true,
