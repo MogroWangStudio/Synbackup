@@ -198,6 +198,9 @@ pub fn show_main_window(app: &AppHandle) {
             let _ = builder.build();
         }
     }
+    // 窗口可见时机：前端以此事件重播启动动画。挂载即播的动画在真实窗口
+    // 首次绘制前就已放完；托盘重开的已挂载窗口更不会自己重播
+    let _ = app.emit("window-shown", ());
 }
 
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {

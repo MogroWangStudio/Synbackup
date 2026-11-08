@@ -141,8 +141,21 @@ export function applyUiPrefs(s: AppSettings) {
   root.style.setProperty("--on-accent", onAccentColor(accent));
 
   root.dataset.bootAnim = s.launchAnimation ? s.launchAnimPreset : "off";
-  root.style.setProperty("--boot-ms", String(s.launchAnimMs));
+  // 必须带单位：无单位的 "340" 会让 animation-duration 解析为 0s，
+  // 动画瞬间放完——这是"启动动画不生效"的根因
+  root.style.setProperty("--boot-ms", `${s.launchAnimMs}ms`);
   root.style.setProperty("--boot-ease", bootCurve(s.launchAnimCurve));
+}
+
+/** 重播启动动画：窗口真正可见时调用（冷启动首帧后 / 托盘重开 / 设置页预览）。
+    挂载即播的动画在真实窗口首次绘制前就已放完，托盘重开的已挂载窗口
+    更不会自己重播——统一以 off → 强制 reflow → 挂回预设 重启 */
+export function replayBootAnim(s: AppSettings) {
+  if (!s.launchAnimation) return;
+  const root = document.documentElement;
+  root.dataset.bootAnim = "off";
+  void root.offsetWidth; // 强制 reflow：让 off 态落地后再挂回动画，动画才会重头播
+  root.dataset.bootAnim = s.launchAnimPreset;
 }
 
 /** 启动动画曲线映射（CSS cubic-bezier） */

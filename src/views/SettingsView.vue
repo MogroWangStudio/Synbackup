@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import { api } from "../api";
 import { store, toast } from "../store";
-import { applyUiPrefs, DEFAULT_ACCENT, persistUiPrefs, UI_THEMES, isValidHex } from "../theme";
+import { applyUiPrefs, DEFAULT_ACCENT, persistUiPrefs, replayBootAnim, UI_THEMES, isValidHex } from "../theme";
 import { titlebarHeight } from "../ui";
 import { LOCALES, t } from "../i18n";
 import type { AppSettings, UpdateInfo } from "../types";
@@ -51,7 +51,10 @@ const fontOptions = computed<SelectOption[]>(() =>
 
 // 启动动画预设与曲线选项
 const animPresetOptions = computed<SelectOption[]>(() =>
-  ["fade", "rise", "zoom", "slide"].map((p) => ({ value: p, label: t(`anim.${p}`) })),
+  ["fade", "rise", "zoom", "slide", "blur", "pop"].map((p) => ({
+    value: p,
+    label: t(`anim.${p}`),
+  })),
 );
 const animCurveOptions = computed<SelectOption[]>(() =>
   ["smooth", "spring", "linear", "swift"].map((c) => ({ value: c, label: t(`curve.${c}`) })),
@@ -380,6 +383,15 @@ function onLanguageSelect(v: string) {
             :aria-label="t('settings.launch_anim_curve')"
             @update:model-value="(v) => update({ launchAnimCurve: v })"
           />
+        </div>
+        <div class="row">
+          <div class="row-label">
+            <span class="row-name">{{ t("settings.launch_anim_preview") }}</span>
+            <span class="row-hint">{{ t("settings.launch_anim_preview_hint") }}</span>
+          </div>
+          <button type="button" class="btn btn-sm" @click="replayBootAnim(store.settings)">
+            {{ t("settings.launch_anim_preview_btn") }}
+          </button>
         </div>
       </template>
     </section>

@@ -3,6 +3,7 @@ import { onMounted } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
 import { refreshAll, refreshConfig, refreshHistory, refreshPending, store, toast } from "./store";
+import { replayBootAnim } from "./theme";
 import { t } from "./i18n";
 import type { PendingReview, VolumeInfo } from "./types";
 import Sidebar from "./components/Sidebar.vue";
@@ -18,6 +19,10 @@ import ToastHost from "./components/ToastHost.vue";
 import TitleBar from "./components/TitleBar.vue";
 
 onMounted(async () => {
+  // 冷启动：首帧后才重播启动动画——挂载即播的动画在真实窗口首次
+  // 绘制前就已放完，双 rAF 确保从"已绘制"的状态重启
+  requestAnimationFrame(() => requestAnimationFrame(() => replayBootAnim(store.settings)));
+
   // 先挂监听再拉数据：首次拉取失败时也要保持实时更新能力，
   // 否则设备插入、扫描完成这些事件从此再也收不到。
   await registerListeners();
@@ -46,6 +51,8 @@ async function registerListeners() {
   await listen("close-requested", () => {
     store.closeConfirm = true;
   });
+  // 窗口显示（托盘重开 / Dock 点击 / 重建）：重播启动动画
+  await listen("window-shown", () => replayBootAnim(store.settings));
   // 测试通知的点击反馈：点了按钮 / 点了通知本体（仅测试类别会发此事件）
   await listen<{ kind: string; action: string }>("notification-action", (e) => {
     if (e.payload.kind === "open") {
@@ -110,6 +117,12 @@ html[data-boot-anim="zoom"] .window {
 html[data-boot-anim="slide"] .window {
   animation: boot-slide var(--boot-ms, 340ms) var(--boot-ease, var(--ease)) both;
 }
+html[data-boot-anim="blur"] .window {
+  animation: boot-blur var(--boot-ms, 340ms) var(--boot-ease, var(--ease)) both;
+}
+html[data-boot-anim="pop"] .window {
+  animation: boot-pop var(--boot-ms, 340ms) var(--boot-ease, var(--ease)) both;
+}
 @keyframes boot-fade {
   from { opacity: 0; }
 }
@@ -131,11 +144,41 @@ html[data-boot-anim="slide"] .window {
     transform: translateX(-14px);
   }
 }
+/* 虚化聚焦：材质从磨砂里显影（blur → 清晰），与弹窗遮罩的 blur 同语言 */
+@keyframes boot-blur {
+  from {
+    opacity: 0;
+    filter: blur(14px);
+    transform: scale(0.99);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+/* 弹出：快速缩放登场，60% 处轻微过冲再落定（动量手感） */
+@keyframes boot-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.015);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   html[data-boot-anim="fade"] .window,
   html[data-boot-anim="rise"] .window,
   html[data-boot-anim="zoom"] .window,
-  html[data-boot-anim="slide"] .window {
+  html[data-boot-anim="slide"] .window,
+  html[data-boot-anim="blur"] .window,
+  html[data-boot-anim="pop"] .window {
     animation: none;
   }
 }
