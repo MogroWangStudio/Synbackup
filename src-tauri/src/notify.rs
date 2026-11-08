@@ -131,12 +131,12 @@ mod imp {
                 ));
             }
 
-            /// 点击通知本体或通知上的按钮。
+            /// 点击任何来自同备的通知（本体或按钮）都打开前端窗口；
+            /// 仅从通知中心清除（dismiss）不弹窗。
             /// - 同步前询问类别（sync-review:<pairId>）：点「开始同步」由后端
-            ///   直接按建议方向执行同步；点「取消任务」移除待处理差异；点
-            ///   通知本体打开主窗口查看。窗口是否存活均可用。
+            ///   直接按建议方向执行同步；点「取消任务」移除待处理差异。
             /// - 测试类别：回传事件给界面（按钮文字即 actionIdentifier）。
-            /// - 其他通知（自动同步等）的点击行为交给系统默认，不打扰。
+            /// - 其余通知（自动同步等）：点击仅打开窗口，无额外动作。
             #[unsafe(method(userNotificationCenter:didReceiveNotificationResponse:withCompletionHandler:))]
             unsafe fn did_receive_response(
                 &self,
@@ -148,7 +148,7 @@ mod imp {
                 let Some(app) = super::APP.get() else { return };
                 let action = response.actionIdentifier().to_string();
                 if action == UNNotificationDismissActionIdentifier.to_string() {
-                    return; // 关闭不打扰
+                    return; // 从通知中心清除：不弹窗
                 }
                 let identifier = response.notification().request().identifier().to_string();
                 // 同步前询问：请求 ID 携带 pairId
@@ -167,13 +167,13 @@ mod imp {
                         let core = app.state::<crate::backend::Core>();
                         core.remove_pending(&pair_id);
                         let _ = app.emit("pending-changed", &pair_id);
-                    } else {
-                        // 点通知本体：打开主窗口查看差异
-                        crate::show_main_window(app);
                     }
+                    crate::show_main_window(app);
                     return;
                 }
-                // 测试通知类别：回传事件给界面
+                // 其余通知：点击一律打开前端窗口
+                crate::show_main_window(app);
+                // 测试通知类别：回传事件给界面（预览按钮 / 点击反馈）
                 let category = response
                     .notification()
                     .request()
