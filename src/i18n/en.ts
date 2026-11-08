@@ -24,6 +24,7 @@ export const en: Dict = {
   "overview.stat_pairs": "Sync pairs",
   "overview.stat_devices": "Devices connected",
   "overview.stat_pending": "Pending differences",
+  "overview.stat_memory": "Memory usage",
   "overview.empty_pairs_title": "No sync pairs yet",
   "overview.empty_pairs_desc":
     "Create a pair between a local folder and a folder on your removable drive. When the drive is plugged in, Synbackup checks both sides for you.",

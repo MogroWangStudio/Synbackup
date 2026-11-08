@@ -24,6 +24,7 @@ export const fr: Dict = {
   "overview.stat_pairs": "Paires de sync",
   "overview.stat_devices": "Périphériques connectés",
   "overview.stat_pending": "Différences en attente",
+  "overview.stat_memory": "Utilisation mémoire",
   "overview.empty_pairs_title": "Aucune paire pour l'instant",
   "overview.empty_pairs_desc":
     "Créez une paire entre un dossier local et un dossier de votre périphérique amovible. Dès son branchement, Synbackup compare les deux côtés pour vous.",

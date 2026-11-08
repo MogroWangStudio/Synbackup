@@ -24,6 +24,7 @@ export const pt: Dict = {
   "overview.stat_pairs": "Tarefas de sync",
   "overview.stat_devices": "Dispositivos conectados",
   "overview.stat_pending": "Diferências pendentes",
+  "overview.stat_memory": "Uso de memória",
   "overview.empty_pairs_title": "Nenhuma tarefa de sync ainda",
   "overview.empty_pairs_desc":
     "Crie uma tarefa entre uma pasta local e uma pasta do seu dispositivo removível. Ao conectá-lo, o Synbackup compara os dois lados para você.",

@@ -276,6 +276,7 @@ pub fn run() {
             commands::get_sync_count,
             commands::clear_history,
             commands::get_app_info,
+            commands::get_app_memory,
             commands::open_external,
             commands::mark_ui_ready,
             commands::exit_app,

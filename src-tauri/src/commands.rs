@@ -1,7 +1,10 @@
 //! IPC 命令：前端 WebView 的唯一入口，全部是对 backend 核心的薄封装。
 //! 前端退出后这些命令不再被调用，后端照常运行。
 
+use std::sync::{Mutex, OnceLock};
+
 use serde::Serialize;
+use sysinfo::{Pid, ProcessesToUpdate, System};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::backend::{self, model::*};
@@ -171,6 +174,25 @@ pub async fn get_sync_count(core: State<'_, backend::Core>) -> CmdResult<u64> {
 pub async fn clear_history(core: State<'_, backend::Core>) -> CmdResult<()> {
     backend::history::clear(&core.dir);
     Ok(())
+}
+
+/// 本进程内存查询用的 sysinfo 实例（仅刷新自身进程，代价极小）
+static MEM_SYS: OnceLock<Mutex<System>> = OnceLock::new();
+
+/// 本应用当前物理内存（RAM）占用，字节
+#[tauri::command]
+pub fn get_app_memory() -> CmdResult<u64> {
+    let pid = Pid::from_u32(std::process::id());
+    let sys = MEM_SYS.get_or_init(|| {
+        let mut s = System::new();
+        s.refresh_processes(ProcessesToUpdate::Some(&[pid]), true);
+        Mutex::new(s)
+    });
+    let Ok(mut guard) = sys.lock() else {
+        return Ok(0);
+    };
+    guard.refresh_processes(ProcessesToUpdate::Some(&[pid]), false);
+    Ok(guard.process(pid).map(|p| p.memory()).unwrap_or(0))
 }
 
 #[tauri::command]

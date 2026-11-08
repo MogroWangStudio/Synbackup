@@ -23,6 +23,7 @@ export const zh = {
   "overview.stat_pairs": "同步任务",
   "overview.stat_devices": "已连接设备",
   "overview.stat_pending": "待处理差异",
+  "overview.stat_memory": "内存占用",
   "overview.empty_pairs_title": "还没有同步任务",
   "overview.empty_pairs_desc":
     "创建一个任务，选择本地文件夹和移动设备上的对应文件夹。设备插入后，同备会自动检查两侧差异。",

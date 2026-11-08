@@ -24,6 +24,7 @@ export const zhTw: Dict = {
   "overview.stat_pairs": "同步任務",
   "overview.stat_devices": "已連接裝置",
   "overview.stat_pending": "待處理差異",
+  "overview.stat_memory": "記憶體占用",
   "overview.empty_pairs_title": "還沒有同步任務",
   "overview.empty_pairs_desc":
     "建立一個任務，選擇本機資料夾與行動裝置上對應的資料夾。裝置插入後，同備會自動檢查兩側差異。",

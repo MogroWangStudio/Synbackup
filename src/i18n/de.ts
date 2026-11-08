@@ -24,6 +24,7 @@ export const de: Dict = {
   "overview.stat_pairs": "Sync-Paare",
   "overview.stat_devices": "Verbundene Geräte",
   "overview.stat_pending": "Offene Unterschiede",
+  "overview.stat_memory": "Speichernutzung",
   "overview.empty_pairs_title": "Noch keine Sync-Paare",
   "overview.empty_pairs_desc":
     "Lege ein Paar aus einem lokalen Ordner und einem Ordner auf deinem Wechseldatenträger an. Beim Einstecken prüft Synbackup beide Seiten für dich.",

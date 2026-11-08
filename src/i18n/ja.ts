@@ -24,6 +24,7 @@ export const ja: Dict = {
   "overview.stat_pairs": "同期タスク",
   "overview.stat_devices": "接続中のデバイス",
   "overview.stat_pending": "未処理の差分",
+  "overview.stat_memory": "メモリ使用量",
   "overview.empty_pairs_title": "同期タスクがまだありません",
   "overview.empty_pairs_desc":
     "タスクを作成し、ローカルフォルダと USB ドライブ上のフォルダを指定してください。ドライブを挿入すると、Synbackup が両側の差分を自動チェックします。",

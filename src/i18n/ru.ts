@@ -24,6 +24,7 @@ export const ru: Dict = {
   "overview.stat_pairs": "Задачи",
   "overview.stat_devices": "Подключено устройств",
   "overview.stat_pending": "Различий к разбору",
+  "overview.stat_memory": "Использование памяти",
   "overview.empty_pairs_title": "Задач пока нет",
   "overview.empty_pairs_desc":
     "Создайте задачу: выберите локальную папку и папку на съёмном накопителе. Когда устройство подключено, Synbackup сам сравнит обе стороны.",

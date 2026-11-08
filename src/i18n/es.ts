@@ -24,6 +24,7 @@ export const es: Dict = {
   "overview.stat_pairs": "Tareas de sync",
   "overview.stat_devices": "Dispositivos conectados",
   "overview.stat_pending": "Diferencias pendientes",
+  "overview.stat_memory": "Uso de memoria",
   "overview.empty_pairs_title": "Aún no hay tareas de sync",
   "overview.empty_pairs_desc":
     "Crea una tarea entre una carpeta local y una carpeta de tu unidad extraíble. Al conectarla, Synbackup compara ambas caras por ti.",

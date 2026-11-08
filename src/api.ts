@@ -29,6 +29,8 @@ export const api = {
   clearHistory: () => invoke<void>("clear_history"),
   getSyncCount: () => invoke<number>("get_sync_count"),
   getAppInfo: () => invoke<AppInfo>("get_app_info"),
+  /** 本应用当前物理内存（RAM）占用，字节 */
+  getAppMemory: () => invoke<number>("get_app_memory"),
   openExternal: (url: string) => invoke<void>("open_external", { url }),
   markUiReady: () => invoke<void>("mark_ui_ready"),
   exitApp: () => invoke<void>("exit_app"),

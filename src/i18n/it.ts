@@ -24,6 +24,7 @@ export const it: Dict = {
   "overview.stat_pairs": "Sincronizzazioni",
   "overview.stat_devices": "Dispositivi connessi",
   "overview.stat_pending": "Differenze in sospeso",
+  "overview.stat_memory": "Uso di memoria",
   "overview.empty_pairs_title": "Nessuna sincronizzazione ancora",
   "overview.empty_pairs_desc":
     "Crea un'attività tra una cartella locale e una cartella dell'unità rimovibile. All'inserimento, Synbackup confronta entrambi i lati per te.",

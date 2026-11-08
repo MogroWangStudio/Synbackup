@@ -24,6 +24,7 @@ export const ko: Dict = {
   "overview.stat_pairs": "동기화 작업",
   "overview.stat_devices": "연결된 기기",
   "overview.stat_pending": "대기 중인 차이",
+  "overview.stat_memory": "메모리 사용량",
   "overview.empty_pairs_title": "아직 동기화 작업이 없습니다",
   "overview.empty_pairs_desc":
     "작업을 만들어 로컬 폴더와 이동식 기기의 폴더를 지정하세요. 기기를 연결하면 Synbackup이 양쪽 차이를 자동으로 검사합니다.",

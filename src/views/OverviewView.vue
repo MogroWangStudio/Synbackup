@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { store } from "../store";
-import { fmtTime, t } from "../i18n";
+import { api } from "../api";
+import { fmtSize, fmtTime, t } from "../i18n";
 import Icon from "../components/Icon.vue";
 import EmptyState from "../components/EmptyState.vue";
 
@@ -9,10 +10,27 @@ const pendingTotal = computed(() =>
   store.pending.reduce((n, p) => n + p.items.length, 0),
 );
 
+/* 本应用内存（RAM）占用：5 秒轮询，离开总览页即停 */
+const memoryText = ref("");
+let memTimer: number | undefined;
+async function refreshMemory() {
+  try {
+    memoryText.value = fmtSize(await api.getAppMemory());
+  } catch {
+    /* 拉取失败保持上一次显示 */
+  }
+}
+onMounted(() => {
+  void refreshMemory();
+  memTimer = window.setInterval(refreshMemory, 5000);
+});
+onBeforeUnmount(() => window.clearInterval(memTimer));
+
 const stats = computed(() => [
   { n: store.pairs.length, label: t("overview.stat_pairs") },
   { n: store.volumes.length, label: t("overview.stat_devices") },
   { n: pendingTotal.value, label: t("overview.stat_pending") },
+  { n: memoryText.value || "–", label: t("overview.stat_memory") },
 ]);
 
 function goPairs() {
@@ -108,7 +126,7 @@ function goPairs() {
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin-bottom: 22px;
 }
