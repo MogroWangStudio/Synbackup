@@ -134,9 +134,10 @@ onUnmounted(() => {
   padding-left: var(--titlebar-inset);
   /* 与侧栏同一层材质：结构层，不是内容层 */
   background: var(--bg-sidebar);
-  /* 弹窗遮罩（z-index 100）之上：关窗与拖动始终可用，与原生标题栏一致 */
+  /* 弹窗遮罩与应用弹出层（--z-modal / --z-popup）之上：关窗与拖动始终可用，
+     ComboBox 弹层、调色板等也不得遮挡，与原生标题栏一致 */
   position: relative;
-  z-index: 150;
+  z-index: var(--z-titlebar);
   user-select: none;
 }
 

@@ -7,10 +7,12 @@
 //     320ms）再收回——"列表移动、按钮不动"的选中手感；
 //   · 弹出方向三态：优先以选中行为中心，空间不足整体向下 / 向上，再不足贴边钳制。
 // 应用侧适配：弹层 Teleport 到 body 用 fixed 定位（不被 Modal / 滚动容器裁剪），
-// 触发器几何按容器 zoom（--ui-scale）换算到 body 坐标系；Esc 阻断冒泡避免连带
-// 关闭 Modal；prefers-reduced-motion 下所有位移动画退化为瞬时切换。
+// 触发器几何按容器 zoom（--ui-scale）换算到 body 坐标系；顶部让出标题栏
+// （--z-popup 压在 --z-titlebar 之下 + 几何上界贴其下缘），永不遮挡标题栏；
+// Esc 阻断冒泡避免连带关闭 Modal；prefers-reduced-motion 下所有位移动画退化为瞬时切换。
 import { computed, onBeforeUnmount, onBeforeUpdate, onMounted, ref, watch } from "vue";
 import type { ComponentPublicInstance } from "vue";
+import { titlebarHeight } from "../ui";
 
 export interface SelectOption {
   value: string;
@@ -101,17 +103,24 @@ function rootRect(): { top: number; left: number; width: number } {
   return { top: r.top / z, left: r.left / z, width: r.width / z };
 }
 
+/** 弹层顶部下限：标题栏下缘 + 留白。弹层坐标 = 真实视口 / zoom，
+    标题栏不在 zoom 容器内，高度按同一模型换算 */
+function topBound(): number {
+  return titlebarHeight() / zoomOf() + MARGIN;
+}
+
 /** 第 to 行对准触发器时弹层（fixed）应在的 top；同时判定弹出方向 lastDir */
 function popTopFor(to: number): number {
   const z = zoomOf();
   const vh = window.innerHeight / z;
   const { top } = rootRect();
   const total = props.options.length * ROW;
-  const up = Math.max(0, top - MARGIN);
+  const bound = topBound();
+  const up = Math.max(0, top - bound);
   const down = Math.max(0, vh - (top + ROW) - MARGIN);
   const needUp = to * ROW;
   const needDown = (props.options.length - to) * ROW;
-  const lo = MARGIN - top;
+  const lo = bound - top;
   const hi = vh - MARGIN - total - top;
   let rel: number;
   if (up >= needUp && down >= needDown) {
@@ -125,7 +134,8 @@ function popTopFor(to: number): number {
     rel = -total;
   } else {
     lastDir = up >= down ? "down" : "up";
-    rel = lastDir === "down" ? lo : hi;
+    // 两边都放不下：顶贴标题栏下缘（底贴会越过标题栏），超出部分由窗口底部裁去
+    rel = Math.max(lastDir === "down" ? lo : hi, lo);
   }
   return top + rel;
 }
@@ -617,7 +627,7 @@ watch(
    靠 visibility 切换以承载收回动画 ---- */
 .mws-pop {
   position: fixed;
-  z-index: 400; /* 弹窗遮罩 100 / 标题栏 150 之上 */
+  z-index: var(--z-popup); /* 弹窗遮罩之上、标题栏之下：弹层永不遮挡标题栏 */
   visibility: hidden;
   pointer-events: none;
   font-family: var(--mws-font);

@@ -26,7 +26,7 @@ const iconFor = (kind: string) => (kind === "success" ? "check" : kind === "erro
   position: fixed;
   right: 16px;
   bottom: 16px;
-  z-index: 200;
+  z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
   gap: 8px;

@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { api } from "../api";
 import { store, toast } from "../store";
 import { applyUiPrefs, DEFAULT_ACCENT, persistUiPrefs, isValidHex } from "../theme";
+import { titlebarHeight } from "../ui";
 import { t } from "../i18n";
 import type { AppSettings, UpdateInfo } from "../types";
 import Icon from "../components/Icon.vue";
@@ -69,12 +70,15 @@ function togglePicker() {
     const r = el.getBoundingClientRect();
     const PICKER_W = 240 + 16; // cpop 宽 + 边距余量
     const PICKER_H = 240;
-    // 先按缩放系换算，再做视口钳制，避免超出窗口边框
+    // 先按缩放系换算，再做视口钳制；顶部让出标题栏（与 ComboBox 弹层同一规则）
     let left = r.left / zoom;
     const top = below(r) ? r.bottom / zoom + 8 : r.top / zoom - PICKER_H - 8;
     left = Math.min(left, window.innerWidth / zoom - PICKER_W);
     left = Math.max(8, left);
-    pickerPos.value = { left: `${Math.round(left)}px`, top: `${Math.round(Math.max(8, top))}px` };
+    pickerPos.value = {
+      left: `${Math.round(left)}px`,
+      top: `${Math.round(Math.max(titlebarHeight() / zoom + 8, top))}px`,
+    };
   }
   customHex.value = isValidHex(store.settings.accentCustom)
     ? store.settings.accentCustom
@@ -538,10 +542,10 @@ function onLanguageSelect(v: string) {
     0 0 0 2px var(--bg-content),
     0 0 0 4px var(--accent);
 }
-/* 调色板锚点：fixed 定位（坐标由 JS 依据色块计算） */
+/* 调色板锚点：fixed 定位（坐标由 JS 依据色块计算），层级与 ComboBox 弹层同档 */
 .picker-anchor {
   position: fixed;
-  z-index: 400;
+  z-index: var(--z-popup);
   transform: translateY(0);
 }
 .picker-anchor > * {

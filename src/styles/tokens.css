@@ -51,6 +51,14 @@
   --radius-m: 10px;
   --radius-l: 14px;
 
+  /* 层级（低 → 高）：弹窗遮罩 < 应用弹出层 < 标题栏 < 通知。
+     标题栏是系统 chrome，永远在内容与弹出层之上，关窗 / 拖动不受遮挡；
+     通知在右下角，与标题栏无视觉交集 */
+  --z-modal: 100;
+  --z-popup: 120;
+  --z-titlebar: 150;
+  --z-toast: 200;
+
   /* 自定义标题栏：高度与左侧留白（macOS 留给红绿灯），见文件末尾的 html[data-os] */
   --titlebar-h: 40px;
   --titlebar-inset: 14px;
