@@ -278,6 +278,7 @@ pub fn run() {
             commands::get_app_info,
             commands::get_app_memory,
             commands::read_logo_image,
+            commands::open_path,
             commands::open_external,
             commands::mark_ui_ready,
             commands::exit_app,

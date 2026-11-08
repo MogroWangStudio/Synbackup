@@ -46,6 +46,9 @@ export const it: Dict = {
   "pairs.enable": "Attiva",
   "pairs.disable": "Disattiva",
   "pairs.last_sync": "Ultima sync",
+  "pairs.open_local": "Apri la cartella locale",
+  "pairs.open_device": "Apri la cartella sull'unità",
+  "pairs.open_device_offline": "Unità non connessa",
 
   "editor.new": "Nuova sincronizzazione",
   "editor.edit": "Modifica sincronizzazione",

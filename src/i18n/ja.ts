@@ -46,6 +46,9 @@ export const ja: Dict = {
   "pairs.enable": "有効にする",
   "pairs.disable": "無効にする",
   "pairs.last_sync": "最終同期",
+  "pairs.open_local": "ローカルフォルダを開く",
+  "pairs.open_device": "デバイス上のフォルダを開く",
+  "pairs.open_device_offline": "デバイス未接続",
 
   "editor.new": "新規同期タスク",
   "editor.edit": "同期タスクを編集",

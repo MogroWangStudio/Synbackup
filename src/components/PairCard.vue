@@ -36,6 +36,30 @@ const remoteLabel = computed(() =>
     : `${props.pair.deviceLabel} / ${t("editor.remote_root")}`,
 );
 
+/** 任务关联的已连接卷（优先按配对匹配，回退按卷标） */
+const matchedVolume = computed(() =>
+  store.volumes.find(
+    (v) =>
+      v.matchedPairIds.includes(props.pair.id) || v.label === props.pair.deviceLabel,
+  ),
+);
+/** 设备侧可打开的绝对路径：卷挂载点 + 相对路径；设备离线时为 null */
+const deviceOpenPath = computed(() => {
+  const vol = matchedVolume.value;
+  if (!vol) return null;
+  const base = vol.mount.replace(/\/+$/, "");
+  const rel = props.pair.remotePath.replace(/^\/+/, "");
+  return rel ? `${base}/${rel}` : base;
+});
+
+function openLocal() {
+  void api.openPath(props.pair.localPath).catch((e) => toast("error", String(e)));
+}
+function openDevice() {
+  if (!deviceOpenPath.value) return;
+  void api.openPath(deviceOpenPath.value).catch((e) => toast("error", String(e)));
+}
+
 function removePair() {
   api
     .deletePair(props.pair.id)
@@ -87,14 +111,31 @@ function onToggleEnabled() {
         <span class="chip" :class="statusClass">{{ statusText }}</span>
       </div>
       <div class="pair-route" :title="pair.localPath">
-        <Icon name="folder" :size="14" class="route-icon" />
+        <button
+          type="button"
+          class="route-open"
+          :title="t('pairs.open_local')"
+          :aria-label="t('pairs.open_local')"
+          @click.stop="openLocal"
+        >
+          <Icon name="folder" :size="14" class="route-icon" />
+        </button>
         <span class="route-text">{{ pair.localPath }}</span>
         <Icon
           :name="pair.direction === 'pull' ? 'arrow_l' : 'arrow_r'"
           :size="12"
           class="route-arrow"
         />
-        <Icon name="drive" :size="14" class="route-icon" />
+        <button
+          type="button"
+          class="route-open"
+          :disabled="!deviceOpenPath"
+          :title="deviceOpenPath ? t('pairs.open_device') : t('pairs.open_device_offline')"
+          :aria-label="deviceOpenPath ? t('pairs.open_device') : t('pairs.open_device_offline')"
+          @click.stop="openDevice"
+        >
+          <Icon name="drive" :size="14" class="route-icon" />
+        </button>
         <span class="route-text">{{ remoteLabel }}</span>
       </div>
       <div v-if="pair.lastSyncAt" class="pair-meta">
@@ -195,6 +236,31 @@ function onToggleEnabled() {
 .route-icon {
   flex: none;
   color: var(--text-3);
+}
+/* 路径行的打开按钮：常态融入路径行，悬停浮出 */
+.route-open {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  margin: -2px;
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  flex: none;
+  transition: background 120ms ease, color 120ms ease;
+}
+.route-open:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+.route-open:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.route-open:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 .route-text {
   overflow: hidden;

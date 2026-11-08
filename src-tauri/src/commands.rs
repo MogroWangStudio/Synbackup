@@ -247,6 +247,23 @@ pub fn open_external(app: AppHandle, url: String) -> CmdResult<()> {
     app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
 }
 
+/// 在系统文件管理器中打开文件夹（本地文件夹 / 设备卷内文件夹）
+#[tauri::command]
+pub fn open_path(app: AppHandle, path: String) -> CmdResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("路径为空".into());
+    }
+    if !std::path::Path::new(trimmed).is_dir() {
+        return Err("文件夹不存在或已被移除".into());
+    }
+    app.opener()
+        .open_path(trimmed, None::<&str>)
+        .map_err(|e| format!("无法打开文件夹: {e}"))
+}
+
 /// 前端初始化完成：此后关闭窗口改为询问退出方式
 #[tauri::command]
 pub fn mark_ui_ready(core: State<'_, backend::Core>) -> CmdResult<()> {

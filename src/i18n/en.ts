@@ -46,6 +46,9 @@ export const en: Dict = {
   "pairs.enable": "Enable",
   "pairs.disable": "Disable",
   "pairs.last_sync": "Last sync",
+  "pairs.open_local": "Open local folder",
+  "pairs.open_device": "Open folder on device",
+  "pairs.open_device_offline": "Device not connected",
 
   "editor.new": "New Sync Pair",
   "editor.edit": "Edit Sync Pair",

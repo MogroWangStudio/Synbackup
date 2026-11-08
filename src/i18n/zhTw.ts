@@ -46,6 +46,9 @@ export const zhTw: Dict = {
   "pairs.enable": "啟用",
   "pairs.disable": "停用",
   "pairs.last_sync": "上次同步",
+  "pairs.open_local": "開啟本機資料夾",
+  "pairs.open_device": "開啟裝置上的資料夾",
+  "pairs.open_device_offline": "裝置未連接",
 
   "editor.new": "新建同步任務",
   "editor.edit": "編輯同步任務",

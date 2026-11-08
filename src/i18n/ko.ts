@@ -46,6 +46,9 @@ export const ko: Dict = {
   "pairs.enable": "켜기",
   "pairs.disable": "끄기",
   "pairs.last_sync": "마지막 동기화",
+  "pairs.open_local": "로컬 폴더 열기",
+  "pairs.open_device": "기기 안의 폴더 열기",
+  "pairs.open_device_offline": "기기 연결 안 됨",
 
   "editor.new": "새 동기화 작업",
   "editor.edit": "동기화 작업 편집",

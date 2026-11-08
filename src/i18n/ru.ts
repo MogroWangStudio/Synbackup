@@ -46,6 +46,9 @@ export const ru: Dict = {
   "pairs.enable": "Включить",
   "pairs.disable": "Выключить",
   "pairs.last_sync": "Последняя синхронизация",
+  "pairs.open_local": "Открыть локальную папку",
+  "pairs.open_device": "Открыть папку на устройстве",
+  "pairs.open_device_offline": "Устройство отключено",
 
   "editor.new": "Новая задача",
   "editor.edit": "Изменить задачу",

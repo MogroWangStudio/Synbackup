@@ -45,6 +45,9 @@ export const zh = {
   "pairs.enable": "启用",
   "pairs.disable": "停用",
   "pairs.last_sync": "上次同步",
+  "pairs.open_local": "打开本地文件夹",
+  "pairs.open_device": "打开设备上的文件夹",
+  "pairs.open_device_offline": "设备未连接",
 
   "editor.new": "新建同步任务",
   "editor.edit": "编辑同步任务",

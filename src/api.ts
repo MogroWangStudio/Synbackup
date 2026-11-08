@@ -34,6 +34,8 @@ export const api = {
   /** 读取自定义图片 logo，返回 data URI（格式 / 大小校验在后端） */
   readLogoImage: (path: string) => invoke<string>("read_logo_image", { path }),
   openExternal: (url: string) => invoke<void>("open_external", { url }),
+  /** 在系统文件管理器中打开文件夹（本地 / 设备卷内） */
+  openPath: (path: string) => invoke<void>("open_path", { path }),
   markUiReady: () => invoke<void>("mark_ui_ready"),
   exitApp: () => invoke<void>("exit_app"),
   destroyMainWindow: () => invoke<void>("destroy_main_window"),

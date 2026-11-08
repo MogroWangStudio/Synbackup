@@ -46,6 +46,9 @@ export const pt: Dict = {
   "pairs.enable": "Ativar",
   "pairs.disable": "Desativar",
   "pairs.last_sync": "Última sync",
+  "pairs.open_local": "Abrir a pasta local",
+  "pairs.open_device": "Abrir a pasta no dispositivo",
+  "pairs.open_device_offline": "Dispositivo não conectado",
 
   "editor.new": "Nova tarefa de sync",
   "editor.edit": "Editar tarefa de sync",
