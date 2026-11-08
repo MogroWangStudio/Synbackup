@@ -29,10 +29,22 @@ const saving = ref(false);
 
 const hasVolumes = computed(() => store.volumes.length > 0);
 
-const deviceOptions = computed<SelectOption[]>(() => [
-  { value: "", label: t("editor.device_hint"), disabled: true },
-  ...store.volumes.map((v) => ({ value: v.label, label: `${v.label}（${v.mount}）` })),
-]);
+/** 目标设备是否在线（未选设备视为不在线） */
+const deviceOnline = computed(
+  () => !!form.deviceLabel && store.volumes.some((v) => v.label === form.deviceLabel),
+);
+
+const deviceOptions = computed<SelectOption[]>(() => {
+  const opts: SelectOption[] = [
+    { value: "", label: t("editor.device_hint"), disabled: true },
+    ...store.volumes.map((v) => ({ value: v.label, label: `${v.label}（${v.mount}）` })),
+  ];
+  // 任务目标设备离线：仅显示设备名称（无盘符可选），置灰不可选
+  if (form.deviceLabel && !deviceOnline.value) {
+    opts.push({ value: form.deviceLabel, label: form.deviceLabel, disabled: true });
+  }
+  return opts;
+});
 
 onMounted(() => {
   if (!hasVolumes.value) void refreshVolumes();
@@ -286,7 +298,7 @@ function handleClose() {
             :placeholder="t('editor.remote_placeholder')"
             spellcheck="false"
           />
-          <button class="btn" :disabled="!form.deviceLabel" @click="pickRemote">
+          <button class="btn" :disabled="!deviceOnline" @click="pickRemote">
             {{ t("editor.remote_pick") }}
           </button>
         </div>
