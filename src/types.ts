@@ -8,6 +8,8 @@ export interface AppSettings {
   notifyOnInsert: boolean;
   /** 外观：follow = 跟随系统，light / dark 为强制指定 */
   appearance: string;
+  /** 特殊主题 key（standard / paper / terminal / glass） */
+  theme: string;
   /** 强调色预设 key（brand / blue / green / orange / pink / custom） */
   accent: string;
   /** 自定义强调色（#RRGGBB，accent = custom 时生效） */

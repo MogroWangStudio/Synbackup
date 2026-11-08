@@ -96,6 +96,9 @@ function injectCustomAccent(root: HTMLElement, hex: string) {
   root.style.setProperty("--accent-2", soft);
 }
 
+/** 特殊主题集合（与 tokens.css 的 data-theme 块一一对应；standard = 默认无块） */
+export const UI_THEMES = ["standard", "paper", "terminal", "glass"] as const;
+
 /** 把语言 / 外观 / 字体 / 缩放 / 启动动画同步到根元素 */
 export function applyUiPrefs(s: AppSettings) {
   const root = document.documentElement;
@@ -106,6 +109,13 @@ export function applyUiPrefs(s: AppSettings) {
     root.dataset.appearance = s.appearance;
   } else {
     delete root.dataset.appearance; // follow：交给 prefers-color-scheme
+  }
+
+  // 特殊主题：未知值（旧配置 / 手改）一律退回默认
+  if (s.theme && (UI_THEMES as readonly string[]).includes(s.theme) && s.theme !== "standard") {
+    root.dataset.theme = s.theme;
+  } else {
+    delete root.dataset.theme;
   }
 
   // 自定义强调色 = 运行时变量覆盖（优先于 data-accent 预设）；否则清掉覆盖

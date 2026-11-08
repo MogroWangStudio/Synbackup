@@ -36,6 +36,7 @@ export const store = reactive({
     autoSyncNoConflict: false,
     notifyOnInsert: true,
     appearance: "follow",
+    theme: "standard",
     accent: "brand",
     accentCustom: DEFAULT_ACCENT,
     fontFamily: "system",

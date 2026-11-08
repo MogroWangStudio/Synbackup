@@ -28,6 +28,8 @@ pub struct AppSettings {
     pub notify_on_insert: bool,
     /// 外观：follow = 跟随系统，light / dark 为强制指定
     pub appearance: String,
+    /// 特殊主题 key（standard / paper / terminal / glass）
+    pub theme: String,
     /// 强调色预设 key（brand / blue / green / orange / pink）
     pub accent: String,
     /// 自定义强调色（#RRGGBB，accent = custom 时生效）
@@ -67,6 +69,7 @@ impl Default for AppSettings {
             auto_sync_no_conflict: false,
             notify_on_insert: true,
             appearance: "follow".into(),
+            theme: "standard".into(),
             accent: "brand".into(),
             accent_custom: "#9b62cf".into(),
             font_family: "system".into(),

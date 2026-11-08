@@ -116,14 +116,6 @@
   --accent-2: #e8a0be;
 }
 
-/* ---- 界面字体预设 ---- */
-:root[data-font="serif"] {
-  --font: var(--font-serif);
-}
-:root[data-font="rounded"] {
-  --font: var(--font-rounded);
-}
-
 /* ---- 外观：深色 token。设置选"深色"与系统深色（且未强制浅色）两条路
    都要走到，以下两段内容保持一致 ---- */
 :root[data-appearance="dark"] {
@@ -198,6 +190,163 @@
       --bg-sidebar: #242427;
     }
   }
+}
+
+/* ---- 特殊主题：改变结构气质（字体 / 圆角 / 材质 / 描边），不只换色。
+     强调色与深浅外观仍由各自设置决定，主题给出两套底色与之正交。
+     本节位于外观块之后：同特异性靠顺序取胜，主题色值在深浅下都生效。
+     界面字体的用户显式选择（data-font）在本节末尾声明并覆盖主题默认 ---- */
+
+/* 纸墨：界面即纸面文档——衬线字体、暖纸底、圆角收紧，
+   卡片平贴靠描边分层而不靠阴影 */
+:root[data-theme="paper"] {
+  --radius-s: 5px;
+  --radius-m: 7px;
+  --radius-l: 10px;
+  --font: var(--font-serif);
+  --shadow-card: none;
+  --shadow-modal: 0 18px 50px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06);
+  --bg: #f6f3ea;
+  --bg-content: #fdfbf5;
+  --bg-sidebar: rgba(240, 236, 226, 0.86);
+  --hairline: rgba(61, 46, 25, 0.12);
+  --hairline-strong: rgba(61, 46, 25, 0.22);
+}
+:root[data-appearance="dark"][data-theme="paper"] {
+  --bg: #221f19;
+  --bg-content: #2c2820;
+  --bg-sidebar: rgba(34, 30, 24, 0.86);
+  --hairline: rgba(228, 214, 186, 0.12);
+  --hairline-strong: rgba(228, 214, 186, 0.22);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="paper"]:not([data-appearance="light"]) {
+    --bg: #221f19;
+    --bg-content: #2c2820;
+    --bg-sidebar: rgba(34, 30, 24, 0.86);
+    --hairline: rgba(228, 214, 186, 0.12);
+    --hairline-strong: rgba(228, 214, 186, 0.22);
+  }
+}
+
+/* 终端：给技术用户的极客质感——等宽字体、直角、扁平面板、发丝线更硬 */
+:root[data-theme="terminal"] {
+  --radius-s: 2px;
+  --radius-m: 3px;
+  --radius-l: 4px;
+  --font: var(--mono);
+  --shadow-card: none;
+  --shadow-modal: 0 12px 36px rgba(0, 0, 0, 0.26);
+  --bg: #e8e8e6;
+  --bg-content: #f4f4f2;
+  --bg-sidebar: rgba(226, 226, 224, 0.9);
+  --hairline: rgba(0, 0, 0, 0.14);
+  --hairline-strong: rgba(0, 0, 0, 0.26);
+}
+:root[data-appearance="dark"][data-theme="terminal"] {
+  --bg: #0b0b0c;
+  --bg-content: #141416;
+  --bg-sidebar: rgba(18, 18, 20, 0.92);
+  --hairline: rgba(255, 255, 255, 0.14);
+  --hairline-strong: rgba(255, 255, 255, 0.26);
+  --shadow-modal: 0 12px 36px rgba(0, 0, 0, 0.5);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="terminal"]:not([data-appearance="light"]) {
+    --bg: #0b0b0c;
+    --bg-content: #141416;
+    --bg-sidebar: rgba(18, 18, 20, 0.92);
+    --hairline: rgba(255, 255, 255, 0.14);
+    --hairline-strong: rgba(255, 255, 255, 0.26);
+    --shadow-modal: 0 12px 36px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* 玻璃：iOS vibrancy 式材质层级——表面半透明薄磨砂、圆角加大、
+   阴影更轻更弥散；内容区铺一层强调色柔色底供磨砂咬合。
+   prefers-reduced-transparency 下全部退回实色（见节末） */
+:root[data-theme="glass"] {
+  --radius-s: 8px;
+  --radius-m: 13px;
+  --radius-l: 17px;
+  --shadow-card: 0 6px 20px rgba(0, 0, 0, 0.07);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.16), 0 3px 12px rgba(0, 0, 0, 0.07);
+  --bg: #eef0f5;
+  --bg-content: rgba(255, 255, 255, 0.66);
+  --bg-sidebar: rgba(240, 243, 248, 0.55);
+  --hairline: rgba(0, 0, 0, 0.07);
+  --hairline-strong: rgba(0, 0, 0, 0.14);
+}
+:root[data-theme="glass"] .content {
+  background:
+    radial-gradient(
+      120% 60% at 85% -10%,
+      color-mix(in srgb, var(--accent-2) 14%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      100% 55% at 10% 110%,
+      color-mix(in srgb, var(--accent-2) 9%, transparent),
+      transparent 55%
+    ),
+    var(--bg);
+}
+:root[data-theme="glass"] .card {
+  backdrop-filter: blur(14px) saturate(1.25);
+}
+:root[data-appearance="dark"][data-theme="glass"] {
+  --bg: #16161a;
+  --bg-content: rgba(38, 38, 44, 0.55);
+  --bg-sidebar: rgba(28, 28, 33, 0.5);
+  --hairline: rgba(255, 255, 255, 0.08);
+  --hairline-strong: rgba(255, 255, 255, 0.16);
+  --shadow-card: 0 6px 20px rgba(0, 0, 0, 0.24);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.45), 0 3px 12px rgba(0, 0, 0, 0.28);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="glass"]:not([data-appearance="light"]) {
+    --bg: #16161a;
+    --bg-content: rgba(38, 38, 44, 0.55);
+    --bg-sidebar: rgba(28, 28, 33, 0.5);
+    --hairline: rgba(255, 255, 255, 0.08);
+    --hairline-strong: rgba(255, 255, 255, 0.16);
+    --shadow-card: 0 6px 20px rgba(0, 0, 0, 0.24);
+    --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.45), 0 3px 12px rgba(0, 0, 0, 0.28);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-theme="glass"] {
+    --bg: #eef0f5;
+    --bg-content: #f6f7fa;
+    --bg-sidebar: #e9ebf2;
+  }
+  :root[data-theme="glass"] .card {
+    backdrop-filter: none;
+  }
+  :root[data-theme="glass"] .content {
+    background: none;
+  }
+  :root[data-appearance="dark"][data-theme="glass"] {
+    --bg: #16161a;
+    --bg-content: #26262b;
+    --bg-sidebar: #1f1f24;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root[data-theme="glass"]:not([data-appearance="light"]) {
+      --bg: #16161a;
+      --bg-content: #26262b;
+      --bg-sidebar: #1f1f24;
+    }
+  }
+}
+
+/* ---- 界面字体预设：用户显式选择优先于特殊主题的默认字体。
+     system 档无规则——特殊主题提供的默认字体得以流经 ---- */
+:root[data-font="serif"] {
+  --font: var(--font-serif);
+}
+:root[data-font="rounded"] {
+  --font: var(--font-rounded);
 }
 
 /* 平台差异只影响窗口装饰：macOS 保留系统红绿灯，标题栏内容需避开其占位

@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import { api } from "../api";
 import { store, toast } from "../store";
-import { applyUiPrefs, DEFAULT_ACCENT, persistUiPrefs, isValidHex } from "../theme";
+import { applyUiPrefs, DEFAULT_ACCENT, persistUiPrefs, UI_THEMES, isValidHex } from "../theme";
 import { titlebarHeight } from "../ui";
 import { LOCALES, t } from "../i18n";
 import type { AppSettings, UpdateInfo } from "../types";
@@ -40,6 +40,10 @@ const channelOptions = computed<SelectOption[]>(() => [
 ]);
 const appearanceOptions = computed<SelectOption[]>(() =>
   appearances.map((a) => ({ value: a, label: t(`appearance.${a}`) })),
+);
+// 特殊主题选项：键集来自 theme.ts 的注册表（与 tokens.css 的 data-theme 块对应）
+const themeOptions = computed<SelectOption[]>(() =>
+  UI_THEMES.map((k) => ({ value: k, label: t(`theme.${k}`) })),
 );
 const fontOptions = computed<SelectOption[]>(() =>
   fonts.map((f) => ({ value: f, label: t(`font.${f}`) })),
@@ -274,6 +278,18 @@ function onLanguageSelect(v: string) {
           :options="appearanceOptions"
           :aria-label="t('settings.appearance')"
           @update:model-value="(v) => update({ appearance: v })"
+        />
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.theme_label") }}</span>
+          <span class="row-hint">{{ t("settings.theme_hint") }}</span>
+        </div>
+        <Select
+          :model-value="store.settings.theme"
+          :options="themeOptions"
+          :aria-label="t('settings.theme_label')"
+          @update:model-value="(v) => update({ theme: v })"
         />
       </div>
       <div class="row">
