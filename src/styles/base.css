@@ -244,6 +244,10 @@ button {
   cursor: pointer;
   transition: background 180ms var(--ease);
 }
+.toggle:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 .toggle .knob {
   position: absolute;
   top: 2px;

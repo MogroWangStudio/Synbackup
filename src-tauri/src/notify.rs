@@ -18,6 +18,8 @@ use std::sync::OnceLock;
 
 use tauri::{AppHandle, Emitter};
 
+use crate::text;
+
 /// 应用 identifier（init 时从 Tauri 配置读取，供 Windows AUMID 使用）
 static IDENTIFIER: OnceLock<String> = OnceLock::new();
 
@@ -49,6 +51,25 @@ pub fn notify(app: &AppHandle, title: &str, body: &str) {
     }
 }
 
+/// 同步前询问通知：固定两个动作（开始同步 / 取消任务），请求 ID 携带
+/// pairId 供点击响应回溯。macOS：注册 sync-review 类别 + 持久显示；
+/// 其他平台忽略按钮只发文本（用户进应用处理）。
+pub fn notify_ask(app: &AppHandle, lang: &str, title: &str, body: &str, pair_id: &str) {
+    let actions = [
+        text(lang, "notify_action_sync").to_string(),
+        text(lang, "notify_action_cancel").to_string(),
+    ];
+    let (title, body, pair_id) = (title.to_owned(), body.to_owned(), pair_id.to_owned());
+    let send = move || {
+        if let Err(e) = imp::send_ask(&title, &body, &actions, &pair_id) {
+            eprintln!("[synbackup] 发送询问通知失败: {e}");
+        }
+    };
+    if let Err(e) = app.run_on_main_thread(send) {
+        eprintln!("[synbackup] 无法派发通知到主线程: {e}");
+    }
+}
+
 /// 测试通知：标题 / 内容 / 按钮全部由界面传入。按钮（通知动作）仅 macOS
 /// 生效——Win32 toast 的按钮需要 COM 激活链路，notify-rust 不支持，其他
 /// 平台忽略按钮只发标题与内容（界面侧已在非 macOS 隐藏按钮编辑）。
@@ -67,6 +88,7 @@ pub fn test_notify(app: &AppHandle, title: &str, body: &str, buttons: &[String])
 #[cfg(target_os = "macos")]
 mod imp {
     use super::Emitter;
+    use tauri::Manager;
     use block2::{DynBlock, RcBlock};
     use objc2::rc::Retained;
     use objc2::runtime::{Bool, ProtocolObject};
@@ -83,6 +105,8 @@ mod imp {
 
     /// 测试通知类别：按钮按发送时的文字即时重建（类别集整体替换，幂等）
     const TEST_CATEGORY: &str = "test-actions";
+    /// 同步前询问类别：固定两个动作（开始同步 / 取消任务）
+    const ASK_CATEGORY: &str = "sync-review";
 
     objc2::define_class!(
         /// 前台横幅 delegate：应用在前台时默认只把通知放进通知中心，
@@ -107,9 +131,12 @@ mod imp {
                 ));
             }
 
-            /// 点击通知本体或通知上的按钮。只对测试类别回传事件给界面
-            /// （按钮文字即 actionIdentifier，界面直接展示点击了哪个按钮）；
-            /// 自动同步通知的点击行为交给系统默认，不打扰。
+            /// 点击通知本体或通知上的按钮。
+            /// - 同步前询问类别（sync-review:<pairId>）：点「开始同步」由后端
+            ///   直接按建议方向执行同步；点「取消任务」移除待处理差异；点
+            ///   通知本体打开主窗口查看。窗口是否存活均可用。
+            /// - 测试类别：回传事件给界面（按钮文字即 actionIdentifier）。
+            /// - 其他通知（自动同步等）的点击行为交给系统默认，不打扰。
             #[unsafe(method(userNotificationCenter:didReceiveNotificationResponse:withCompletionHandler:))]
             unsafe fn did_receive_response(
                 &self,
@@ -118,6 +145,35 @@ mod imp {
                 completion_handler: &DynBlock<dyn Fn()>,
             ) {
                 completion_handler.call(());
+                let Some(app) = super::APP.get() else { return };
+                let action = response.actionIdentifier().to_string();
+                if action == UNNotificationDismissActionIdentifier.to_string() {
+                    return; // 关闭不打扰
+                }
+                let identifier = response.notification().request().identifier().to_string();
+                // 同步前询问：请求 ID 携带 pairId
+                if let Some(pair_id) = identifier.strip_prefix("sync-review:") {
+                    let pair_id = pair_id.to_string();
+                    if action == "sync" {
+                        let app2 = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            if let Err(e) =
+                                crate::monitor::sync_with_suggestions(&app2, &pair_id).await
+                            {
+                                eprintln!("[synbackup] 通知发起同步失败: {e}");
+                            }
+                        });
+                    } else if action == "cancel" {
+                        let core = app.state::<crate::backend::Core>();
+                        core.remove_pending(&pair_id);
+                        let _ = app.emit("pending-changed", &pair_id);
+                    } else {
+                        // 点通知本体：打开主窗口查看差异
+                        crate::show_main_window(app);
+                    }
+                    return;
+                }
+                // 测试通知类别：回传事件给界面
                 let category = response
                     .notification()
                     .request()
@@ -126,12 +182,8 @@ mod imp {
                 if category.to_string() != TEST_CATEGORY {
                     return;
                 }
-                let Some(app) = super::APP.get() else { return };
-                let action = response.actionIdentifier().to_string();
                 let kind = if action == UNNotificationDefaultActionIdentifier.to_string() {
                     "open"
-                } else if action == UNNotificationDismissActionIdentifier.to_string() {
-                    return; // 关闭不打扰
                 } else {
                     "button"
                 };
@@ -182,6 +234,53 @@ mod imp {
         // trigger 传 None = 立即投递
         let request = UNNotificationRequest::requestWithIdentifier_content_trigger(
             &NSString::from_str("synbackup"),
+            &content,
+            None,
+        );
+        let done = RcBlock::new(|error: *mut NSError| {
+            if let Some(e) = unsafe { error.as_ref() } {
+                eprintln!("[synbackup] 通知投递失败: {}", e.localizedDescription());
+            }
+        });
+        center.addNotificationRequest_withCompletionHandler(&request, Some(&done));
+        Ok(())
+    }
+
+    /// 同步前询问：注册 sync-review 类别（两个动作），请求 ID 携带
+    /// pairId；类别每次按当前语言重建（幂等替换）
+    pub fn send_ask(title: &str, body: &str, actions: &[String], pair_id: &str) -> Result<(), String> {
+        let center = UNUserNotificationCenter::currentNotificationCenter();
+
+        let defs = [
+            ("sync", actions.first().map(String::as_str).unwrap_or("同步")),
+            ("cancel", actions.get(1).map(String::as_str).unwrap_or("取消")),
+        ];
+        let action_refs: Vec<Retained<UNNotificationAction>> = defs
+            .iter()
+            .map(|(id, label)| {
+                UNNotificationAction::actionWithIdentifier_title_options(
+                    &NSString::from_str(id),
+                    &NSString::from_str(label),
+                    UNNotificationActionOptionNone,
+                )
+            })
+            .collect();
+        let category = UNNotificationCategory::categoryWithIdentifier_actions_intentIdentifiers_options(
+            &NSString::from_str(ASK_CATEGORY),
+            &NSArray::from_retained_slice(&action_refs),
+            &NSArray::from_retained_slice(&[]),
+            UNNotificationCategoryOptionNone,
+        );
+        center.setNotificationCategories(&NSSet::from_retained_slice(&[category]));
+
+        let content = UNMutableNotificationContent::new();
+        content.setTitle(&NSString::from_str(title));
+        content.setBody(&NSString::from_str(body));
+        content.setSound(Some(&UNNotificationSound::defaultSound()));
+        content.setCategoryIdentifier(&NSString::from_str(ASK_CATEGORY));
+
+        let request = UNNotificationRequest::requestWithIdentifier_content_trigger(
+            &NSString::from_str(&format!("sync-review:{pair_id}")),
             &content,
             None,
         );

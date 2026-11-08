@@ -37,6 +37,7 @@ export const store = reactive({
     blankClick: "never",
     autoScanOnInsert: true,
     autoSyncNoConflict: false,
+    askBeforeSync: false,
     notifyOnInsert: true,
     appearance: "follow",
     theme: "standard",

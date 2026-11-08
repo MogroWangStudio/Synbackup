@@ -54,6 +54,10 @@ async function registerListeners() {
   });
   // 窗口显示（托盘重开 / Dock 点击 / 重建）：重播启动动画
   await listen("window-shown", () => replayBootAnim(store.settings));
+  // 通知「取消任务」：待处理差异被移除，刷新
+  await listen("pending-changed", () => {
+    void refreshPending();
+  });
   // 测试通知的点击反馈：点了按钮 / 点了通知本体（仅测试类别会发此事件）
   await listen<{ kind: string; action: string }>("notification-action", (e) => {
     if (e.payload.kind === "open") {

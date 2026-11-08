@@ -28,6 +28,8 @@ pub struct AppSettings {
     pub auto_scan_on_insert: bool,
     /// 无冲突时按建议方向自动同步（冲突与删除永远需要确认）
     pub auto_sync_no_conflict: bool,
+    /// 同步前在通知中询问用户（开启时自动同步不生效）
+    pub ask_before_sync: bool,
     pub notify_on_insert: bool,
     /// 外观：follow = 跟随系统，light / dark 为强制指定
     pub appearance: String,
@@ -106,6 +108,7 @@ impl Default for AppSettings {
             blank_click: default_blank_click(),
             auto_scan_on_insert: true,
             auto_sync_no_conflict: false,
+            ask_before_sync: false,
             notify_on_insert: true,
             appearance: "follow".into(),
             theme: "standard".into(),

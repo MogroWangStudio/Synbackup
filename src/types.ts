@@ -7,6 +7,8 @@ export interface AppSettings {
   blankClick: string;
   autoScanOnInsert: boolean;
   autoSyncNoConflict: boolean;
+  /** 同步前在通知中询问用户（开启时自动同步不生效） */
+  askBeforeSync: boolean;
   notifyOnInsert: boolean;
   /** 外观：follow = 跟随系统，light / dark 为强制指定 */
   appearance: string;

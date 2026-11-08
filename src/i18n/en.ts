@@ -235,6 +235,9 @@ export const en: Dict = {
   "settings.auto_scan": "Auto-check on insert",
   "settings.auto_scan_hint": "Scan for differences as soon as a device is plugged in.",
   "settings.auto_sync": "Auto-sync when conflict-free",
+  "settings.ask_before_sync": "Ask before sync",
+  "settings.ask_before_sync_hint": "Ask in a notification before syncing; auto-sync is disabled while on.",
+  "settings.auto_sync_hint_disabled": "Taken over by “Ask before sync”.",
   "settings.auto_sync_hint":
     "Only copies and one-side changes run automatically; conflicts and deletions always ask first.",
   "settings.notify": "System notifications",

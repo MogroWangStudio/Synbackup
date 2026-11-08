@@ -551,11 +551,26 @@ function onLanguageSelect(v: string) {
       </div>
       <div class="row">
         <div class="row-label">
+          <span class="row-name">{{ t("settings.ask_before_sync") }}</span>
+          <span class="row-hint">{{ t("settings.ask_before_sync_hint") }}</span>
+        </div>
+        <Toggle
+          :model-value="store.settings.askBeforeSync"
+          @update:model-value="(v) => update({ askBeforeSync: v })"
+        />
+      </div>
+      <div class="row">
+        <div class="row-label">
           <span class="row-name">{{ t("settings.auto_sync") }}</span>
-          <span class="row-hint">{{ t("settings.auto_sync_hint") }}</span>
+          <span class="row-hint">{{
+            store.settings.askBeforeSync
+              ? t("settings.auto_sync_hint_disabled")
+              : t("settings.auto_sync_hint")
+          }}</span>
         </div>
         <Toggle
           :model-value="store.settings.autoSyncNoConflict"
+          :disabled="store.settings.askBeforeSync"
           @update:model-value="(v) => update({ autoSyncNoConflict: v })"
         />
       </div>

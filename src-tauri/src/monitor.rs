@@ -109,6 +109,95 @@ fn emit_devices(app: &AppHandle, volumes: &[VolumeInfo], last: &mut String) {
     }
 }
 
+/// 同步前询问通知（仅在 notify_on_insert 开启时发送）
+fn notify_ask_for_review(
+    app: &AppHandle,
+    settings: &backend::model::AppSettings,
+    pair_name: &str,
+    pair_id: &str,
+    n: usize,
+) {
+    if !settings.notify_on_insert {
+        return;
+    }
+    let body = text_fmt(&settings.language, "ask_body", pair_name, n);
+    notify::notify_ask(
+        app,
+        &settings.language,
+        &text(&settings.language, "app_title"),
+        &body,
+        pair_id,
+    );
+}
+
+/// 通知「开始同步」响应：重新扫描并按建议方向执行同步
+/// （与自动同步同路径；冲突项按建议跳过）
+pub async fn sync_with_suggestions(app: &AppHandle, pair_id: &str) -> Result<(), String> {
+    let core = app.state::<backend::Core>();
+    let (dir, settings, pair) = {
+        let pair = core
+            .pairs()
+            .into_iter()
+            .find(|p| p.id == pair_id)
+            .ok_or_else(|| "任务不存在".to_string())?;
+        (core.dir.clone(), core.settings(), pair)
+    };
+    if !pair.enabled {
+        return Ok(());
+    }
+    let Some(volumes) = volumes_snapshot(app).await else {
+        return Err("枚举设备失败".into());
+    };
+    let Some(vol) = volumes.iter().find(|v| {
+        v.matched_pair_ids.iter().any(|id| id == &pair.id) || v.label == pair.device_label
+    }) else {
+        return Err("设备未连接".into());
+    };
+    let scan = match sync_flow::prepare_and_scan(&dir, &pair, std::slice::from_ref(vol)).await {
+        Err(ScanFailure::DeviceNotConnected) => return Err("设备未连接".into()),
+        Err(ScanFailure::LocalMissing) => return Err("本地文件夹不存在".into()),
+        Err(ScanFailure::Failed(e)) => return Err(e),
+        Ok(scan) => scan,
+    };
+    if scan.items.is_empty() {
+        core.touch_last_sync(&pair.id)?;
+        return Ok(());
+    }
+    let decisions: Vec<Decision> = scan
+        .items
+        .iter()
+        .map(|i| Decision { path: i.path.clone(), action: i.suggested })
+        .collect();
+    notify::notify(
+        app,
+        text(&settings.language, "app_title"),
+        &text_fmt(&settings.language, "sync_started_body", &pair.name, scan.items.len()),
+    );
+    let (result, updated_manifest) = {
+        let lr = scan.local_root;
+        let rr = scan.remote_root;
+        let items = scan.items;
+        let mut manifest = scan.manifest;
+        sync_flow::run_blocking(move || {
+            let res = backend::execute::apply(&lr, &rr, &items, &decisions, &mut manifest, &|_, _, _| {});
+            (res, manifest)
+        })
+        .await?
+    };
+    sync_flow::finish_sync(app, &core, &dir, &pair, &result, &updated_manifest, Trigger::Manual)?;
+    notify::notify(
+        app,
+        text(&settings.language, "app_title"),
+        &autosync_body(
+            &settings.language,
+            &pair.name,
+            (result.copied_to_remote + result.copied_to_local) as usize,
+            result.errors.len(),
+        ),
+    );
+    Ok(())
+}
+
 /// 扫描所有已连接且匹配的任务（托盘「立即扫描」与手动命令共用）
 pub async fn check_all_devices(app: &AppHandle) {
     let Some(volumes) = volumes_snapshot(app).await else {
@@ -173,7 +262,20 @@ async fn handle_volume_inserted(
         // 建议操作里没有 Skip（即全部可按建议方向复制）视为无冲突
         let safe = scan.items.iter().all(|i| i.suggested != SyncAction::Skip);
 
-        if safe && settings.auto_sync_no_conflict {
+        if settings.ask_before_sync {
+            // 同步前询问：不自动执行，发带「开始同步 / 取消任务」按钮的
+            // 持久通知（macOS），由用户在通知里决定后续
+            let review = PendingReview::new(&pair, scan.items);
+            let n = review.items.len();
+            core.put_pending(review.clone());
+            core.record_scan_history(
+                &pair,
+                &review.items,
+                if force_scan { Trigger::Manual } else { Trigger::Auto },
+            );
+            let _ = app.emit("review-available", &review);
+            notify_ask_for_review(app, &settings, &pair.name, &pair.id, n);
+        } else if safe && settings.auto_sync_no_conflict {
             // 无冲突：按建议方向自动执行
             notify_user(&text_fmt(
                 &settings.language,
