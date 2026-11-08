@@ -12,6 +12,7 @@ import Toggle from "../components/Toggle.vue";
 import Stepper from "../components/Stepper.vue";
 import Select from "../components/Select.vue";
 import ColorPicker from "../components/ColorPicker.vue";
+import NotifyTestDialog from "../components/NotifyTestDialog.vue";
 import type { SelectOption } from "../components/Select.vue";
 
 /** 强调色预设：key 与 tokens.css 的 data-accent 对应，color 用于色块展示 */
@@ -114,10 +115,8 @@ function openUpdatePage() {
   if (pendingUrl) void api.openExternal(pendingUrl).catch((e) => toast("error", String(e)));
 }
 
-/** 发送一条测试通知：走与自动同步相同的系统通知链路 */
-function onTestNotification() {
-  api.testNotification().catch((e) => toast("error", String(e)));
-}
+/** 测试通知窗口：标题 / 内容 / 按钮均可自定义后发送 */
+const notifyTestOpen = ref(false);
 
 // ---- 检查更新 ----
 const checking = ref(false);
@@ -427,7 +426,7 @@ function onLanguageSelect(v: string) {
             type="button"
             class="btn btn-sm"
             :title="t('settings.notify_test_title')"
-            @click="onTestNotification"
+            @click="notifyTestOpen = true"
           >
             {{ t("settings.notify_test") }}
           </button>
@@ -496,6 +495,8 @@ function onLanguageSelect(v: string) {
         <p class="dev-copyright">© 2026 MogroWang Studio</p>
       </div>
     </section>
+
+    <NotifyTestDialog v-if="notifyTestOpen" @close="notifyTestOpen = false" />
   </div>
 </template>
 

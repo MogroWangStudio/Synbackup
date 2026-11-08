@@ -34,5 +34,11 @@ export const api = {
   exitApp: () => invoke<void>("exit_app"),
   destroyMainWindow: () => invoke<void>("destroy_main_window"),
   checkUpdate: () => invoke<UpdateInfo>("check_update"),
-  testNotification: () => invoke<void>("test_notification"),
+  /** 测试通知：标题 / 内容 / 按钮可自定义，留空用后端默认文案 */
+  testNotification: (opts?: { title?: string; body?: string; buttons?: string[] }) =>
+    invoke<void>("test_notification", {
+      title: opts?.title ?? null,
+      body: opts?.body ?? null,
+      buttons: opts?.buttons ?? null,
+    }),
 };

@@ -46,6 +46,14 @@ async function registerListeners() {
   await listen("close-requested", () => {
     store.closeConfirm = true;
   });
+  // 测试通知的点击反馈：点了按钮 / 点了通知本体（仅测试类别会发此事件）
+  await listen<{ kind: string; action: string }>("notification-action", (e) => {
+    if (e.payload.kind === "open") {
+      toast("info", t("toast.notify_open"));
+    } else if (e.payload.kind === "button") {
+      toast("success", t("toast.notify_button", { action: e.payload.action }));
+    }
+  });
 }
 </script>
 

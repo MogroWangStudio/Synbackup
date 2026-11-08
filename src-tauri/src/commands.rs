@@ -215,14 +215,36 @@ pub fn destroy_main_window(app: AppHandle) -> CmdResult<()> {
     Ok(())
 }
 
-/// 发送一条测试通知（走与自动同步相同的系统通知链路）
+/// 发送一条测试通知（走与自动同步相同的系统通知链路）。
+/// 标题 / 内容为空时回退默认文案；按钮仅 macOS 生效，其他平台忽略。
 #[tauri::command]
-pub fn test_notification(app: AppHandle, core: State<'_, backend::Core>) -> CmdResult<()> {
+pub fn test_notification(
+    app: AppHandle,
+    core: State<'_, backend::Core>,
+    title: Option<String>,
+    body: Option<String>,
+    buttons: Option<Vec<String>>,
+) -> CmdResult<()> {
     let settings = core.settings();
-    crate::notify::notify(
-        &app,
-        crate::text(&settings.language, "app_title"),
-        crate::text(&settings.language, "test_notification_body"),
-    );
+    let title = title
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| crate::text(&settings.language, "app_title").to_string());
+    let body = body
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            crate::text_fmt(&settings.language, "test_notification_body", "", 0)
+        });
+    // 去空、去重、截断到 3 个（macOS 横幅上按钮过多也不可读）
+    let mut buttons: Vec<String> = buttons
+        .unwrap_or_default()
+        .into_iter()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    buttons.dedup();
+    buttons.truncate(3);
+    crate::notify::test_notify(&app, &title, &body, &buttons);
     Ok(())
 }

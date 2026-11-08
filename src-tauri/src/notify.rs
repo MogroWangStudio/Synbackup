@@ -16,12 +16,16 @@
 
 use std::sync::OnceLock;
 
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 /// 应用 identifier（init 时从 Tauri 配置读取，供 Windows AUMID 使用）
 static IDENTIFIER: OnceLock<String> = OnceLock::new();
 
+/// AppHandle（delegate 点击回调里向前端发事件用；init 在主线程最早调用）
+static APP: OnceLock<AppHandle> = OnceLock::new();
+
 pub fn init(app: &AppHandle) {
+    let _ = APP.set(app.clone());
     let _ = IDENTIFIER.set(app.config().identifier.clone());
     #[cfg(target_os = "windows")]
     register_aumid_windows();
@@ -45,18 +49,40 @@ pub fn notify(app: &AppHandle, title: &str, body: &str) {
     }
 }
 
+/// 测试通知：标题 / 内容 / 按钮全部由界面传入。按钮（通知动作）仅 macOS
+/// 生效——Win32 toast 的按钮需要 COM 激活链路，notify-rust 不支持，其他
+/// 平台忽略按钮只发标题与内容（界面侧已在非 macOS 隐藏按钮编辑）。
+pub fn test_notify(app: &AppHandle, title: &str, body: &str, buttons: &[String]) {
+    let (title, body, buttons) = (title.to_owned(), body.to_owned(), buttons.to_vec());
+    let send = move || {
+        if let Err(e) = imp::send_test(&title, &body, &buttons) {
+            eprintln!("[synbackup] 发送测试通知失败: {e}");
+        }
+    };
+    if let Err(e) = app.run_on_main_thread(send) {
+        eprintln!("[synbackup] 无法派发通知到主线程: {e}");
+    }
+}
+
 #[cfg(target_os = "macos")]
 mod imp {
+    use super::Emitter;
     use block2::{DynBlock, RcBlock};
     use objc2::rc::Retained;
     use objc2::runtime::{Bool, ProtocolObject};
     use objc2::{msg_send, MainThreadMarker, MainThreadOnly};
-    use objc2_foundation::{NSError, NSObject, NSObjectProtocol, NSString};
+    use objc2_foundation::{NSArray, NSError, NSObject, NSObjectProtocol, NSSet, NSString};
     use objc2_user_notifications::{
         UNAuthorizationOptions, UNMutableNotificationContent, UNNotification,
-        UNNotificationPresentationOptions, UNNotificationRequest, UNNotificationSound,
+        UNNotificationAction, UNNotificationActionOptionNone, UNNotificationCategory,
+        UNNotificationCategoryOptionNone, UNNotificationDefaultActionIdentifier,
+        UNNotificationDismissActionIdentifier, UNNotificationPresentationOptions,
+        UNNotificationRequest, UNNotificationResponse, UNNotificationSound,
         UNUserNotificationCenter, UNUserNotificationCenterDelegate,
     };
+
+    /// 测试通知类别：按钮按发送时的文字即时重建（类别集整体替换，幂等）
+    const TEST_CATEGORY: &str = "test-actions";
 
     objc2::define_class!(
         /// 前台横幅 delegate：应用在前台时默认只把通知放进通知中心，
@@ -79,6 +105,40 @@ mod imp {
                     UNNotificationPresentationOptions::Banner
                         | UNNotificationPresentationOptions::List,
                 ));
+            }
+
+            /// 点击通知本体或通知上的按钮。只对测试类别回传事件给界面
+            /// （按钮文字即 actionIdentifier，界面直接展示点击了哪个按钮）；
+            /// 自动同步通知的点击行为交给系统默认，不打扰。
+            #[unsafe(method(userNotificationCenter:didReceiveNotificationResponse:withCompletionHandler:))]
+            unsafe fn did_receive_response(
+                &self,
+                _center: &UNUserNotificationCenter,
+                response: &UNNotificationResponse,
+                completion_handler: &DynBlock<dyn Fn()>,
+            ) {
+                completion_handler.call(());
+                let category = response
+                    .notification()
+                    .request()
+                    .content()
+                    .categoryIdentifier();
+                if category.to_string() != TEST_CATEGORY {
+                    return;
+                }
+                let Some(app) = super::APP.get() else { return };
+                let action = response.actionIdentifier().to_string();
+                let kind = if action == UNNotificationDefaultActionIdentifier.to_string() {
+                    "open"
+                } else if action == UNNotificationDismissActionIdentifier.to_string() {
+                    return; // 关闭不打扰
+                } else {
+                    "button"
+                };
+                let _ = app.emit(
+                    "notification-action",
+                    serde_json::json!({ "kind": kind, "action": action }),
+                );
             }
         }
     );
@@ -133,6 +193,57 @@ mod imp {
         center.addNotificationRequest_withCompletionHandler(&request, Some(&done));
         Ok(())
     }
+
+    /// 测试通知：标题 / 内容自由，buttons 非空时注册测试类别挂动作按钮。
+    /// 请求 ID 唯一（时间戳），连续发多条测试通知不会被系统去重合并。
+    pub fn send_test(title: &str, body: &str, buttons: &[String]) -> Result<(), String> {
+        let center = UNUserNotificationCenter::currentNotificationCenter();
+
+        let content = UNMutableNotificationContent::new();
+        content.setTitle(&NSString::from_str(title));
+        content.setBody(&NSString::from_str(body));
+        content.setSound(Some(&UNNotificationSound::defaultSound()));
+
+        if !buttons.is_empty() {
+            // 按钮文字直接作为 actionIdentifier：点击回调里拿到的就是展示文案
+            let actions: Vec<Retained<UNNotificationAction>> = buttons
+                .iter()
+                .map(|b| {
+                    UNNotificationAction::actionWithIdentifier_title_options(
+                        &NSString::from_str(b),
+                        &NSString::from_str(b),
+                        UNNotificationActionOptionNone,
+                    )
+                })
+                .collect();
+            let category =
+                UNNotificationCategory::categoryWithIdentifier_actions_intentIdentifiers_options(
+                    &NSString::from_str(TEST_CATEGORY),
+                    &NSArray::from_retained_slice(&actions),
+                    &NSArray::from_retained_slice(&[]),
+                    UNNotificationCategoryOptionNone,
+                );
+            center.setNotificationCategories(&NSSet::from_retained_slice(&[category]));
+            content.setCategoryIdentifier(&NSString::from_str(TEST_CATEGORY));
+        }
+
+        let millis = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0);
+        let request = UNNotificationRequest::requestWithIdentifier_content_trigger(
+            &NSString::from_str(&format!("test-{millis}")),
+            &content,
+            None,
+        );
+        let done = RcBlock::new(|error: *mut NSError| {
+            if let Some(e) = unsafe { error.as_ref() } {
+                eprintln!("[synbackup] 通知投递失败: {}", e.localizedDescription());
+            }
+        });
+        center.addNotificationRequest_withCompletionHandler(&request, Some(&done));
+        Ok(())
+    }
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -155,6 +266,13 @@ mod imp {
 
         // notify-rust 的 show() 返回通知句柄，这里只关心是否投递成功
         n.show().map(|_| ()).map_err(|e| e.to_string())
+    }
+
+    /// 测试通知：按钮（通知动作）在 Windows 的 toast 上需要 COM 激活链路，
+    /// notify-rust 不支持——忽略按钮只发标题与内容（界面侧已隐藏按钮编辑）。
+    pub fn send_test(title: &str, body: &str, buttons: &[String]) -> Result<(), String> {
+        let _ = buttons;
+        send(title, body)
     }
 }
 
