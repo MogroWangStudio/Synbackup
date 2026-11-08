@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "../api";
 import { refreshConfig, refreshVolumes, store, toast } from "../store";
@@ -43,10 +43,95 @@ async function pickLocal() {
   if (typeof path === "string") form.localPath = path;
 }
 
+/* ---- 传输方向交换动画 ----
+   点击交换：两侧角色徽标（发送端 / 接收端）交叉划弧互换——真实徽标
+   即时换字，幽灵徽标从旧位起飞（一上一下避开重叠，中点微抬）落点
+   淡出揭示新字，缓动取弹窗家族曲线（快起缓收，流畅非线性）；交换
+   图标每次点击同向累计旋转 180°。飞行中再次点击会取消在飞幽灵、
+   从当前视觉位续走（可中断）；reduced-motion 直接换字不飞。 */
+const sideL = ref<HTMLElement | null>(null);
+const sideR = ref<HTMLElement | null>(null);
+const swapRot = ref(0);
+let ghosts: { el: HTMLElement; anim: Animation }[] = [];
+const reduceMotion =
+  typeof window !== "undefined" &&
+  !!window.matchMedia &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function zoomOf(el: HTMLElement): number {
+  return Number(getComputedStyle(el).zoom) || 1;
+}
+
 /** 交换发送端 / 接收端（本机 → 设备 或 设备 → 本机） */
 function swapDirection() {
+  const chipL = sideL.value;
+  const chipR = sideR.value;
+  // 起点：进行中的幽灵从当前视觉位续走（可中断），否则用真实徽标位置
+  const startL = ghosts.at(0)?.el.getBoundingClientRect() ?? chipL?.getBoundingClientRect();
+  const startR = ghosts.at(1)?.el.getBoundingClientRect() ?? chipR?.getBoundingClientRect();
+  ghosts.forEach((g) => {
+    g.anim.cancel();
+    g.el.remove();
+  });
+  ghosts = [];
+  const oldL = chipL?.textContent ?? "";
+  const oldR = chipR?.textContent ?? "";
+
   form.direction = form.direction === "push" ? "pull" : "push";
+  swapRot.value += 180;
+  if (!chipL || !chipR || !startL || !startR || reduceMotion) return;
+
+  void nextTick().then(() => {
+    const endL = chipL.getBoundingClientRect();
+    const endR = chipR.getBoundingClientRect();
+    const zL = zoomOf(chipL);
+
+    const mkGhost = (label: string, from: DOMRect, to: DOMRect, arcDir: number) => {
+      const g = chipL.cloneNode(true) as HTMLElement;
+      g.textContent = label;
+      g.style.position = "fixed";
+      g.style.left = `${from.left / zL}px`;
+      g.style.top = `${from.top / zL}px`;
+      g.style.width = `${from.width / zL}px`;
+      g.style.margin = "0";
+      g.style.pointerEvents = "none";
+      g.style.zIndex = "130"; // 弹出层(120)之上、标题栏(150)之下
+      document.body.appendChild(g);
+      const dx = (to.left - from.left) / zL;
+      const dy = (to.top - from.top) / zL;
+      const lift = Math.abs(dy) + 18;
+      const anim = g.animate(
+        [
+          { transform: "translate(0, 0) scale(1)", opacity: 1 },
+          {
+            transform: `translate(${dx * 0.5}px, ${dy * 0.5 - arcDir * lift}px) scale(1.06)`,
+            opacity: 1,
+            offset: 0.55,
+          },
+          { transform: `translate(${dx}px, ${dy}px) scale(1)`, opacity: 0 },
+        ],
+        { duration: 300, easing: "cubic-bezier(0.32, 0.72, 0, 1)", fill: "forwards" },
+      );
+      anim.onfinish = () => g.remove();
+      return { el: g, anim };
+    };
+
+    // 旧标签从原位飞向对侧新位：L 旧标签 → 右徽标新位（弧向上），
+    // R 旧标签 → 左徽标新位（弧向下），交叉而不重叠
+    ghosts = [
+      mkGhost(oldL, startL, endR, -1),
+      mkGhost(oldR, startR, endL, 1),
+    ];
+  });
 }
+
+onBeforeUnmount(() => {
+  ghosts.forEach((g) => {
+    g.anim.cancel();
+    g.el.remove();
+  });
+  ghosts = [];
+});
 
 /**
  * 浏览设备上的文件夹：系统目录对话框里选中设备卷内的文件夹，
@@ -133,7 +218,7 @@ function handleClose() {
           <div class="dir-end">
             <Icon name="folder" :size="16" class="dir-icon" />
             <div class="dir-text">
-              <span class="dir-side">
+              <span ref="sideL" class="dir-side">
                 {{ t(form.direction === "push" ? "editor.side_send" : "editor.side_recv") }}
               </span>
               <span class="dir-name">{{ t("editor.local") }}</span>
@@ -146,7 +231,13 @@ function handleClose() {
             :aria-label="t('editor.swap')"
             @click="swapDirection"
           >
-            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+            <svg
+              viewBox="0 0 20 20"
+              width="16"
+              height="16"
+              aria-hidden="true"
+              :style="{ transform: `rotate(${swapRot}deg)` }"
+            >
               <path
                 d="M4 7h11m0 0-3.2-3.2M15 7l-3.2 3.2M16 13H5m0 0 3.2 3.2M5 13l3.2-3.2"
                 fill="none"
@@ -160,7 +251,7 @@ function handleClose() {
           <div class="dir-end">
             <Icon name="drive" :size="16" class="dir-icon" />
             <div class="dir-text">
-              <span class="dir-side">
+              <span ref="sideR" class="dir-side">
                 {{ t(form.direction === "push" ? "editor.side_recv" : "editor.side_send") }}
               </span>
               <span class="dir-name">
@@ -298,6 +389,17 @@ function handleClose() {
   border: 1px solid var(--hairline-strong);
   border-radius: 50%;
   background: var(--bg-content);
+}
+/* 交换图标随方向同向累计旋转（与徽标飞行同曲线同时长） */
+.dir-swap svg {
+  transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dir-swap svg {
+    transition: none;
+  }
+}
+.dir-swap {
   color: var(--text-2);
   cursor: pointer;
   transition:
