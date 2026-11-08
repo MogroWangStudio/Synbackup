@@ -58,6 +58,9 @@ const pickerOpen = ref(false);
 const customHex = ref(store.settings.accentCustom || DEFAULT_ACCENT);
 const customSwatchEl = ref<HTMLElement | null>(null);
 const pickerPos = ref<{ left: string; top: string } | null>(null);
+// 调色板拖拽 / hex 输入期间的 saveSettings 防抖：此前每个 pointermove
+// 发一次 IPC、后端高频重写 config.json——拖拽掉帧且偶发连环报错 toast
+let saveTimer: number | undefined;
 
 function togglePicker() {
   if (pickerOpen.value) {
@@ -97,8 +100,17 @@ function below(r: DOMRect): boolean {
 function onCustomHex(v: string) {
   if (!isValidHex(v)) return;
   customHex.value = v;
-  // 立即生效：切到 custom 渠道并应用
-  void update({ accent: "custom", accentCustom: v });
+  // 拖拽 / 输入期间只应用界面与本地偏好（1:1 反馈不落盘），
+  // saveSettings 防抖到停止后写一次
+  const next = { ...store.settings, accent: "custom", accentCustom: v };
+  store.settings = next;
+  applyUiPrefs(next);
+  persistUiPrefs(next);
+  window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => {
+    saveTimer = undefined;
+    void api.saveSettings(store.settings).catch((e) => toast("error", String(e)));
+  }, 300);
 }
 
 function onCustomClose() {
@@ -146,6 +158,9 @@ async function onCheckUpdate() {
 }
 
 async function update(patch: Partial<AppSettings>) {
+  // 显式保存取代挂起的防抖保存，避免重复写盘
+  window.clearTimeout(saveTimer);
+  saveTimer = undefined;
   const next = { ...store.settings, ...patch };
   store.settings = next;
   // 外观 / 字体 / 缩放先落 DOM 再存后端，切换即时可见

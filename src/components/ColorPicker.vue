@@ -22,7 +22,11 @@ const emit = defineEmits<{
 // ---- HSV 状态（h: 0-360, s/v: 0-1）----
 const hsv = ref({ h: 260, s: 0.51, v: 0.81 });
 const hexInput = ref(props.modelValue);
+/** 弹层根（外部点击判定 / Esc 焦点用） */
 const panelRef = ref<HTMLElement | null>(null);
+/** SV 面板自身——选取坐标的基准必须是面板而不是弹层根，
+    否则比例映射被 padding 与 hex 行高度扭曲，旋钮不跟手 */
+const svEl = ref<HTMLElement | null>(null);
 const hueRef = ref<HTMLElement | null>(null);
 const hexValid = ref(true);
 
@@ -81,12 +85,39 @@ watch(currentHex, (hex) => {
   emit("update:modelValue", hex);
 });
 
-// ---- SV 面板拖拽 ----
-let svCleanup: (() => void) | null = null;
-let hueCleanup: (() => void) | null = null;
+// ---- SV 面板 / 色相滑条拖拽 ----
+// 捕获指针 + move / up / cancel 三路监听，抬指（或被系统打断）时统一拆除。
+// 选取用面板内比例坐标，天然与界面缩放无关；实时应用走 emit，持久化由
+// 设置页防抖（见 SettingsView.onCustomHex），拖拽过程不发 IPC。
+let svStop: (() => void) | null = null;
+let hueStop: (() => void) | null = null;
+
+/** 挂一次拖拽：捕获后 move 跟踪，up / cancel 统一拆除全部监听。
+    捕获失败（合成指针等边缘场景）降级为面板内跟踪，不影响真实指针 */
+function startDrag(
+  el: HTMLElement,
+  e: PointerEvent,
+  onMove: (ev: PointerEvent) => void,
+): () => void {
+  try {
+    el.setPointerCapture(e.pointerId);
+  } catch {
+    /* 指针未激活等场景：继续无捕获跟踪 */
+  }
+  const move = (ev: PointerEvent) => onMove(ev);
+  const stop = () => {
+    el.removeEventListener("pointermove", move);
+    el.removeEventListener("pointerup", stop);
+    el.removeEventListener("pointercancel", stop);
+  };
+  el.addEventListener("pointermove", move);
+  el.addEventListener("pointerup", stop);
+  el.addEventListener("pointercancel", stop);
+  return stop;
+}
 
 function svFromEvent(e: PointerEvent) {
-  const el = panelRef.value;
+  const el = svEl.value;
   if (!el) return;
   const r = el.getBoundingClientRect();
   hsv.value = {
@@ -97,16 +128,9 @@ function svFromEvent(e: PointerEvent) {
 }
 
 function onSvDown(e: PointerEvent) {
-  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  svStop?.();
+  svStop = startDrag(e.currentTarget as HTMLElement, e, svFromEvent);
   svFromEvent(e);
-  const move = (ev: PointerEvent) => svFromEvent(ev);
-  const up = () => {
-    svCleanup?.();
-    svCleanup = null;
-  };
-  svCleanup = up;
-  (e.currentTarget as HTMLElement).addEventListener("pointermove", move);
-  (e.currentTarget as HTMLElement).addEventListener("pointerup", up, { once: true });
 }
 
 function hueFromEvent(e: PointerEvent) {
@@ -120,16 +144,9 @@ function hueFromEvent(e: PointerEvent) {
 }
 
 function onHueDown(e: PointerEvent) {
-  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  hueStop?.();
+  hueStop = startDrag(e.currentTarget as HTMLElement, e, hueFromEvent);
   hueFromEvent(e);
-  const move = (ev: PointerEvent) => hueFromEvent(ev);
-  const up = () => {
-    hueCleanup?.();
-    hueCleanup = null;
-  };
-  hueCleanup = up;
-  (e.currentTarget as HTMLElement).addEventListener("pointermove", move);
-  (e.currentTarget as HTMLElement).addEventListener("pointerup", up, { once: true });
 }
 
 function onHexInput(e: Event) {
@@ -169,8 +186,8 @@ function onOutside(e: PointerEvent) {
 setTimeout(() => document.addEventListener("pointerdown", onOutside), 0);
 onBeforeUnmount(() => {
   document.removeEventListener("pointerdown", onOutside);
-  svCleanup?.();
-  hueCleanup?.();
+  svStop?.();
+  hueStop?.();
 });
 </script>
 
@@ -178,6 +195,7 @@ onBeforeUnmount(() => {
   <div ref="panelRef" class="cpop" role="dialog" :aria-label="ariaLabel" tabindex="-1" @keydown="onKey">
     <!-- SV 面板：底色为当前色相,横向饱和度纵向明度 -->
     <div
+      ref="svEl"
       class="cp-sv"
       :style="{ '--hue': `${hsv.h}deg` }"
       @pointerdown="onSvDown"
