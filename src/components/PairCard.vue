@@ -103,18 +103,54 @@ function onToggleEnabled() {
     </div>
 
     <div class="pair-actions">
-      <button v-if="pendingCount > 0" class="btn btn-sm btn-primary" @click="onReview">
-        {{ t("pairs.review") }}
+      <button
+        v-if="pendingCount > 0"
+        class="btn btn-sm btn-primary"
+        :title="t('pairs.review')"
+        :aria-label="t('pairs.review')"
+        @click="onReview"
+      >
+        <Icon name="alert" :size="14" />
+        <span class="btn-label">{{ t("pairs.review") }}</span>
       </button>
-      <button class="btn btn-sm btn-primary" :disabled="syncing" @click="onCheck">
-        {{ t("pairs.check") }}
+      <button
+        class="btn btn-sm btn-primary"
+        :disabled="syncing"
+        :title="t('pairs.check')"
+        :aria-label="t('pairs.check')"
+        @click="onCheck"
+      >
+        <Icon name="sync" :size="14" />
+        <span class="btn-label">{{ t("pairs.check") }}</span>
       </button>
-      <button class="btn btn-sm" @click="onToggleEnabled">
-        {{ pair.enabled ? t("pairs.disable") : t("pairs.enable") }}
+      <button
+        class="btn btn-sm"
+        :title="pair.enabled ? t('pairs.disable') : t('pairs.enable')"
+        :aria-label="pair.enabled ? t('pairs.disable') : t('pairs.enable')"
+        @click="onToggleEnabled"
+      >
+        <Icon :name="pair.enabled ? 'close' : 'check'" :size="14" />
+        <span class="btn-label">{{ pair.enabled ? t("pairs.disable") : t("pairs.enable") }}</span>
       </button>
-      <button class="btn btn-sm" @click="onEdit">{{ t("pairs.edit") }}</button>
-      <button class="btn btn-sm btn-danger" @click="onDelete">
-        {{ confirmingDelete ? t("pairs.delete_confirm") : t("pairs.delete") }}
+      <button
+        class="btn btn-sm"
+        :title="t('pairs.edit')"
+        :aria-label="t('pairs.edit')"
+        @click="onEdit"
+      >
+        <Icon name="edit" :size="14" />
+        <span class="btn-label">{{ t("pairs.edit") }}</span>
+      </button>
+      <button
+        class="btn btn-sm btn-danger"
+        :title="t('pairs.delete')"
+        :aria-label="t('pairs.delete')"
+        @click="onDelete"
+      >
+        <Icon name="trash" :size="14" />
+        <span class="btn-label" :class="{ 'keep-text': confirmingDelete }">
+          {{ confirmingDelete ? t("pairs.delete_confirm") : t("pairs.delete") }}
+        </span>
       </button>
     </div>
   </div>
@@ -181,5 +217,20 @@ function onToggleEnabled() {
   align-items: center;
   gap: 6px;
   flex: none;
+}
+.pair-actions .btn svg {
+  flex: none;
+}
+
+/* 按钮显示模式（data-task-btn 由 theme.ts 写入）：
+   仅图标隐藏文字，仅文字隐藏图标；删除确认态始终保留文字 */
+:root[data-task-btn="icon"] .pair-actions .btn-label {
+  display: none;
+}
+:root[data-task-btn="icon"] .pair-actions .btn-label.keep-text {
+  display: inline;
+}
+:root[data-task-btn="text"] .pair-actions .btn svg {
+  display: none;
 }
 </style>

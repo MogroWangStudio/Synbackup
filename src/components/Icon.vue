@@ -24,6 +24,10 @@ const icons: Record<string, string> = {
   arrow_down: '<path d="M12 19.5v-15"/><path d="m5.5 13 6.5 6.5L18.5 13"/>',
   arrow_r: '<path d="M4.5 12h15"/><path d="m13 5.5 6.5 6.5-6.5 6.5"/>',
   arrow_l: '<path d="M19.5 12h-15"/><path d="m11 5.5-6.5 6.5 6.5 6.5"/>',
+  edit:
+    '<path d="M17 3a2.828 2.828 0 1 1 4 4L7 21l-4 1 1-4Z"/><path d="m15 5 4 4"/>',
+  trash:
+    '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
   // 窗口按钮：细线、小尺寸，视觉重量低于内容图标
   "win-min": '<path d="M6.5 12h11"/>',
   "win-max": '<rect x="6" y="6" width="12" height="12" rx="1.6"/>',

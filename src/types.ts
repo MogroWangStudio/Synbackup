@@ -12,6 +12,8 @@ export interface AppSettings {
   appearance: string;
   /** 特殊主题 key（standard / paper / terminal / glass） */
   theme: string;
+  /** 同步任务卡片按钮显示：both = 图标+文字，icon = 仅图标，text = 仅文字 */
+  taskButtonStyle: string;
   /** 强调色预设 key（brand / blue / green / orange / pink / custom） */
   accent: string;
   /** 自定义强调色（#RRGGBB，accent = custom 时生效） */

@@ -38,6 +38,7 @@ export const store = reactive({
     notifyOnInsert: true,
     appearance: "follow",
     theme: "standard",
+    taskButtonStyle: "both",
     accent: "brand",
     accentCustom: DEFAULT_ACCENT,
     fontFamily: "system",

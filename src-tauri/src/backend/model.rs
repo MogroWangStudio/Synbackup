@@ -33,6 +33,9 @@ pub struct AppSettings {
     pub appearance: String,
     /// 特殊主题 key（standard / paper / terminal / glass）
     pub theme: String,
+    /// 同步任务卡片按钮显示：both = 图标+文字，icon = 仅图标，text = 仅文字
+    #[serde(default = "default_task_button_style")]
+    pub task_button_style: String,
     /// 强调色预设 key（brand / blue / green / orange / pink）
     pub accent: String,
     /// 自定义强调色（#RRGGBB，accent = custom 时生效）
@@ -76,6 +79,11 @@ fn default_blank_click() -> String {
     "never".into()
 }
 
+/// 同步任务卡片按钮的默认显示：图标 + 文字
+fn default_task_button_style() -> String {
+    "both".into()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -87,6 +95,7 @@ impl Default for AppSettings {
             notify_on_insert: true,
             appearance: "follow".into(),
             theme: "standard".into(),
+            task_button_style: default_task_button_style(),
             accent: "brand".into(),
             accent_custom: "#9b62cf".into(),
             font_family: "system".into(),

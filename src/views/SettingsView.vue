@@ -49,6 +49,10 @@ const appearanceOptions = computed<SelectOption[]>(() =>
 const themeOptions = computed<SelectOption[]>(() =>
   UI_THEMES.map((k) => ({ value: k, label: t(`theme.${k}`) })),
 );
+// 任务卡片按钮显示模式
+const taskBtnOptions = computed<SelectOption[]>(() =>
+  ["both", "icon", "text"].map((k) => ({ value: k, label: t(`taskbtn.${k}`) })),
+);
 const fontOptions = computed<SelectOption[]>(() =>
   fonts.map((f) => ({ value: f, label: t(`font.${f}`) })),
 );
@@ -410,6 +414,18 @@ function onLanguageSelect(v: string) {
           </button>
         </div>
       </template>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.task_btn") }}</span>
+          <span class="row-hint">{{ t("settings.task_btn_hint") }}</span>
+        </div>
+        <Select
+          :model-value="store.settings.taskButtonStyle"
+          :options="taskBtnOptions"
+          :aria-label="t('settings.task_btn')"
+          @update:model-value="(v) => update({ taskButtonStyle: v })"
+        />
+      </div>
     </section>
 
     <section class="card group">

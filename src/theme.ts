@@ -99,6 +99,9 @@ function injectCustomAccent(root: HTMLElement, hex: string) {
 /** 特殊主题集合（与 tokens.css 的 data-theme 块一一对应；standard = 默认无块） */
 export const UI_THEMES = ["standard", "paper", "terminal", "glass"] as const;
 
+/** 同步任务卡片按钮显示模式集合（both = 默认无块） */
+const TASK_BTN_STYLES = ["both", "icon", "text"];
+
 /** 把语言 / 外观 / 字体 / 缩放 / 启动动画同步到根元素 */
 export function applyUiPrefs(s: AppSettings) {
   const root = document.documentElement;
@@ -116,6 +119,13 @@ export function applyUiPrefs(s: AppSettings) {
     root.dataset.theme = s.theme;
   } else {
     delete root.dataset.theme;
+  }
+
+  // 任务卡片按钮显示模式：未知值退回默认（both，无块）
+  if (s.taskButtonStyle && TASK_BTN_STYLES.includes(s.taskButtonStyle) && s.taskButtonStyle !== "both") {
+    root.dataset.taskBtn = s.taskButtonStyle;
+  } else {
+    delete root.dataset.taskBtn;
   }
 
   // 自定义强调色 = 运行时变量覆盖（优先于 data-accent 预设）；否则清掉覆盖
