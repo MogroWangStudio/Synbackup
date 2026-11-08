@@ -2,7 +2,7 @@
 
 把 USB 移动存储设备插上电脑，同备就帮你把指定文件夹同步好——**差异先列出来给你确认，同步才动手**。
 
-`0.4.0-beta1` · Windows / macOS · Tauri 2 + Vue 3 + TypeScript + Rust
+`0.4.0-beta2` · Windows / macOS · Tauri 2 + Vue 3 + TypeScript + Rust
 
 ## 功能特性
 

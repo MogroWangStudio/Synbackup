@@ -1,6 +1,6 @@
 [package]
 name = "synbackup"
-version = "0.4.0-beta1"
+version = "0.4.0-beta2"
 description = "同备 Synbackup — USB 移动存储设备文件同步与备份"
 edition = "2021"
 rust-version = "1.77.2"
@@ -24,8 +24,9 @@ tokio = { version = "1", features = ["time", "sync", "macros"] }
 sysinfo = "0.33"
 filetime = "0.2"
 uuid = { version = "1", features = ["v4"] }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 semver = "1"
+quick-xml = "0.37"
 
 # 非 macOS 平台的系统通知（macOS 走 UNUserNotificationCenter，见 notify.rs）
 [target.'cfg(not(target_os = "macos"))'.dependencies]
