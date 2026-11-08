@@ -131,7 +131,7 @@ mod imp {
                 ));
             }
 
-            /// 点击任何来自同备的通知（本体或按钮）都打开前端窗口；
+            /// 点击任何来自 Synbackup 的通知（本体或按钮）都打开前端窗口；
             /// 仅从通知中心清除（dismiss）不弹窗。
             /// - 同步前询问类别（sync-review:<pairId>）：点「开始同步」由后端
             ///   直接按建议方向执行同步；点「取消任务」移除待处理差异。
@@ -217,7 +217,7 @@ mod imp {
                 let detail = unsafe {
                     error.as_ref().map(|e| e.localizedDescription().to_string())
                 };
-                eprintln!("[synbackup] macOS 通知授权未通过: {detail:?}（请在系统设置 → 通知中允许同备）");
+                eprintln!("[synbackup] macOS 通知授权未通过: {detail:?}（请在系统设置 → 通知中允许 Synbackup）");
             }
         });
         center.requestAuthorizationWithOptions_completionHandler(options, &handler);
@@ -356,7 +356,7 @@ mod imp {
         #[cfg(target_os = "windows")]
         {
             // 启动时已把自身 AUMID 注册到 HKCU（含 DisplayName 与 IconUri），
-            // 通知直接以应用身份发出：显示"同备 Synbackup"与软件图标，
+            // 通知直接以应用身份发出：显示"Synbackup"与软件图标，
             // 不再落到 PowerShell 的 AUMID 上。
             if let Some(id) = super::IDENTIFIER.get() {
                 n.app_id(id);
@@ -396,7 +396,7 @@ pub fn register_aumid_windows() {
 
     let key = format!(r"HKCU\Software\Classes\AppUserModelId\{id}");
     let mut entries: Vec<(&str, &str, String)> =
-        vec![("DisplayName", "REG_SZ", "同备 Synbackup".to_string())];
+        vec![("DisplayName", "REG_SZ", "Synbackup".to_string())];
 
     // 图标：优先用 exe 旁的 icons/ 目录；便携版与开发环境没有该目录，
     // 退回把内置图标落到 %LOCALAPPDATA% 下，保证 IconUri 指向真实文件。

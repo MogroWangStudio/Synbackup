@@ -47,14 +47,10 @@ fn lang_of(lang: &str) -> Lang {
 pub(crate) fn text(lang: &str, key: &str) -> &'static str {
     let l = lang_of(lang);
     match key {
-        "app_title" => match l {
-            Lang::ZhCn => "同备",
-            Lang::ZhTw => "同備",
-            _ => "Synbackup",
-        },
+        "app_title" => "Synbackup",
         "tray_open" => match l {
-            Lang::ZhCn => "打开同备",
-            Lang::ZhTw => "開啟同備",
+            Lang::ZhCn => "打开 Synbackup",
+            Lang::ZhTw => "開啟 Synbackup",
             Lang::En => "Open Synbackup",
             Lang::Ja => "Synbackup を開く",
             Lang::Ko => "Synbackup 열기",
@@ -122,8 +118,8 @@ pub(crate) fn text_fmt(lang: &str, key: &str, name: &str, n: usize) -> String {
     let l = lang_of(lang);
     match key {
         "diff_body" => match l {
-            Lang::ZhCn => format!("任务「{name}」发现 {n} 处差异，请打开同备处理。"),
-            Lang::ZhTw => format!("任務「{name}」發現 {n} 處差異，請開啟同備處理。"),
+            Lang::ZhCn => format!("任务「{name}」发现 {n} 处差异，请打开 Synbackup 处理。"),
+            Lang::ZhTw => format!("任務「{name}」發現 {n} 處差異，請開啟 Synbackup 處理。"),
             Lang::En => format!("{n} difference(s) found in \"{name}\". Open Synbackup to review."),
             Lang::Ja => format!("「{name}」で {n} 件の差分を検出しました。Synbackup を開いて確認してください。"),
             Lang::Ko => format!("“{name}” 작업에서 차이 {n}곳을 발견했습니다. Synbackup에서 확인하세요."),
@@ -286,7 +282,7 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 
     let builder = TrayIconBuilder::with_id("main-tray")
         .icon(icon)
-        .tooltip("同备 Synbackup")
+        .tooltip("Synbackup")
         .menu(&menu)
         .on_tray_icon_event(|tray, event| {
             // Windows 惯例：左键唤起主窗口，右键出菜单

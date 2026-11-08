@@ -27,7 +27,7 @@ export const zhTw: Dict = {
   "overview.stat_memory": "記憶體占用",
   "overview.empty_pairs_title": "還沒有同步任務",
   "overview.empty_pairs_desc":
-    "建立一個任務，選擇本機資料夾與行動裝置上對應的資料夾。裝置插入後，同備會自動檢查兩側差異。",
+    "建立一個任務，選擇本機資料夾與行動裝置上對應的資料夾。裝置插入後，Synbackup 會自動檢查兩側差異。",
   "overview.empty_pairs_cta": "新建同步任務",
   "overview.recent": "最近同步",
 
@@ -256,8 +256,8 @@ export const zhTw: Dict = {
   "update.available_toast": "發現新版本 v{v}！點版本行前往下載。",
   "settings.developer": "開發者",
   "settings.studio_hint": "點擊前往 MogroWang Studio 官方網站",
-  "close.title": "關閉同備",
-  "close.desc": "關閉視窗後，同備將繼續在系統列中運行，裝置插入時照常檢查與同步。",
+  "close.title": "關閉 Synbackup",
+  "close.desc": "關閉視窗後，Synbackup 將繼續在系統列中運行，裝置插入時照常檢查與同步。",
   "close.window": "僅退出視窗",
   "close.quit": "完全退出",
   "settings.tray_hint": "已儲存。系統列選單語言將在重啟後生效。",

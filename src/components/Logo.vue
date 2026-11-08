@@ -120,7 +120,7 @@ const showMark = computed(() => props.variant !== "text");
     :viewBox="vb"
     style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"
     role="img"
-    aria-label="同备 Synbackup"
+    aria-label="Synbackup"
   >
     <g transform="matrix(1,0,0,1,-6298.108496,-1567.224608)">
     <g transform="matrix(1,0,0,1,168.929625,0)">

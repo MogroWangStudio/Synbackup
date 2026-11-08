@@ -26,7 +26,7 @@ export const zh = {
   "overview.stat_memory": "内存占用",
   "overview.empty_pairs_title": "还没有同步任务",
   "overview.empty_pairs_desc":
-    "创建一个任务，选择本地文件夹和移动设备上的对应文件夹。设备插入后，同备会自动检查两侧差异。",
+    "创建一个任务，选择本地文件夹和移动设备上的对应文件夹。设备插入后，Synbackup 会自动检查两侧差异。",
   "overview.empty_pairs_cta": "新建同步任务",
   "overview.recent": "最近同步",
 
@@ -255,8 +255,8 @@ export const zh = {
   "update.available_toast": "发现新版本 v{v}！点击版本行前往下载。",
   "settings.developer": "开发者",
   "settings.studio_hint": "点击前往 MogroWang Studio 官方网站",
-  "close.title": "关闭同备",
-  "close.desc": "关闭窗口后，同备将继续在系统托盘中运行，设备插入时照常检查与同步。",
+  "close.title": "关闭 Synbackup",
+  "close.desc": "关闭窗口后，Synbackup 将继续在系统托盘中运行，设备插入时照常检查与同步。",
   "close.window": "仅退出窗口",
   "close.quit": "完全退出",
   "settings.tray_hint": "已保存。托盘菜单语言将在重启后生效。",
