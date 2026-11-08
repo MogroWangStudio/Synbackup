@@ -132,6 +132,12 @@ export const de: Dict = {
   "diff.summary_deleted_l": "Lokal gelöscht {n}",
   "diff.summary_skipped": "Übersprungen {n}",
   "diff.summary_failed": "Fehlgeschlagen {n}",
+  "diff.selected_count": "{n} ausgewählt",
+  "diff.selected_suggest": "Auswahl: nach Vorschlag",
+  "diff.selected_l2r": "Auswahl: lokal → Gerät",
+  "diff.selected_r2l": "Auswahl: Gerät → lokal",
+  "diff.selected_skip": "Auswahl: überspringen",
+  "diff.selected_clear": "Auswahl aufheben",
 
   "st.new_local": "Neu lokal",
   "st.new_remote": "Neu auf Gerät",

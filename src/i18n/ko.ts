@@ -132,6 +132,12 @@ export const ko: Dict = {
   "diff.summary_deleted_l": "로컬 측 삭제됨 {n}",
   "diff.summary_skipped": "건너뜀 {n}",
   "diff.summary_failed": "실패 {n}",
+  "diff.selected_count": "{n}개 선택됨",
+  "diff.selected_suggest": "선택 제안대로",
+  "diff.selected_l2r": "선택 로컬→기기",
+  "diff.selected_r2l": "선택 기기→로컬",
+  "diff.selected_skip": "선택 건너뛰기",
+  "diff.selected_clear": "선택 해제",
 
   "st.new_local": "로컬에 새 항목",
   "st.new_remote": "기기에 새 항목",

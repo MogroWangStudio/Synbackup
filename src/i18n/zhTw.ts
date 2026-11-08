@@ -132,6 +132,12 @@ export const zhTw: Dict = {
   "diff.summary_deleted_l": "已刪除本機側 {n}",
   "diff.summary_skipped": "已跳過 {n}",
   "diff.summary_failed": "失敗 {n}",
+  "diff.selected_count": "已選 {n} 項",
+  "diff.selected_suggest": "所選按建議",
+  "diff.selected_l2r": "所選本機→裝置",
+  "diff.selected_r2l": "所選裝置→本機",
+  "diff.selected_skip": "所選跳過",
+  "diff.selected_clear": "清除選擇",
 
   "st.new_local": "本機新增",
   "st.new_remote": "裝置新增",

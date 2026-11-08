@@ -132,6 +132,12 @@ export const ru: Dict = {
   "diff.summary_deleted_l": "Удалено на компьютере {n}",
   "diff.summary_skipped": "Пропущено {n}",
   "diff.summary_failed": "С ошибками {n}",
+  "diff.selected_count": "Выбрано: {n}",
+  "diff.selected_suggest": "Выбранное: по предложениям",
+  "diff.selected_l2r": "Выбранное: компьютер → устройство",
+  "diff.selected_r2l": "Выбранное: устройство → компьютер",
+  "diff.selected_skip": "Выбранное: пропустить",
+  "diff.selected_clear": "Снять выделение",
 
   "st.new_local": "Новый на компьютере",
   "st.new_remote": "Новый на устройстве",

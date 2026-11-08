@@ -132,6 +132,12 @@ export const it: Dict = {
   "diff.summary_deleted_l": "Eliminati in locale {n}",
   "diff.summary_skipped": "Saltati {n}",
   "diff.summary_failed": "Falliti {n}",
+  "diff.selected_count": "{n} selezionato/i",
+  "diff.selected_suggest": "Selezione: come suggerito",
+  "diff.selected_l2r": "Selezione: locale → unità",
+  "diff.selected_r2l": "Selezione: unità → locale",
+  "diff.selected_skip": "Selezione: salta",
+  "diff.selected_clear": "Cancella selezione",
 
   "st.new_local": "Nuovo in locale",
   "st.new_remote": "Nuovo sull'unità",

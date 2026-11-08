@@ -132,6 +132,12 @@ export const ja: Dict = {
   "diff.summary_deleted_l": "ローカル側を削除済み {n}",
   "diff.summary_skipped": "スキップ済み {n}",
   "diff.summary_failed": "失敗 {n}",
+  "diff.selected_count": "{n} 件を選択中",
+  "diff.selected_suggest": "選択を提案どおり",
+  "diff.selected_l2r": "選択をローカル→デバイス",
+  "diff.selected_r2l": "選択をデバイス→ローカル",
+  "diff.selected_skip": "選択をスキップ",
+  "diff.selected_clear": "選択を解除",
 
   "st.new_local": "ローカルで新規",
   "st.new_remote": "デバイスで新規",

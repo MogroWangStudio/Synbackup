@@ -131,6 +131,12 @@ export const zh = {
   "diff.summary_deleted_l": "已删除本地侧 {n}",
   "diff.summary_skipped": "已跳过 {n}",
   "diff.summary_failed": "失败 {n}",
+  "diff.selected_count": "已选 {n} 项",
+  "diff.selected_suggest": "所选按建议",
+  "diff.selected_l2r": "所选本地→设备",
+  "diff.selected_r2l": "所选设备→本地",
+  "diff.selected_skip": "所选跳过",
+  "diff.selected_clear": "清除选择",
 
   "st.new_local": "本地新增",
   "st.new_remote": "设备新增",

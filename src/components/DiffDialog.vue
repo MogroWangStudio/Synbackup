@@ -99,6 +99,99 @@ function actionsFor(status: DiffStatus): SelectOption[] {
   return actionsByStatus[status].map((a) => ({ value: a, label: t(`act.${a}`) }));
 }
 
+/* ---- 多选：左键按住框选 + 单击行切换选中，所选条目可批量改处理方式 ----
+   框选用 Pointer Capture 在列表上画选框（视口坐标），行矩形与选框相交
+   即选中（实时）；与行内处理方式下拉互不干扰（下拉上不启动框选）。 */
+const listEl = ref<HTMLElement | null>(null);
+const selected = ref<Set<string>>(new Set());
+const marquee = ref<{ x: number; y: number; w: number; h: number } | null>(null);
+
+function toggleSelect(path: string) {
+  const next = new Set(selected.value);
+  if (next.has(path)) next.delete(path);
+  else next.add(path);
+  selected.value = next;
+}
+
+function clearSelection() {
+  selected.value = new Set();
+}
+
+/** 把所选条目的处理方式批量改为指定类别（方向不适用时按既有口径落为跳过） */
+function applyToSelected(kind: "suggest" | "l2r" | "r2l" | "skip") {
+  for (const path of selected.value) {
+    const item = info.items.find((i) => i.path === path);
+    if (!item) continue;
+    const allowed = actionsByStatus[item.status];
+    let action: SyncAction = "skip";
+    if (kind === "suggest") action = item.suggested;
+    else if (kind === "l2r" && allowed.includes("local_to_remote")) action = "local_to_remote";
+    else if (kind === "r2l" && allowed.includes("remote_to_local")) action = "remote_to_local";
+    decisions.set(path, action);
+  }
+}
+
+function onListPointerDown(e: PointerEvent) {
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  if (phase.value !== "review") return;
+  const target = e.target as HTMLElement;
+  // 滚动条等非行区域不启动；处理方式下拉等控件不启动
+  if (!target.closest?.(".diff-row, .diff-head")) return;
+  if (target.closest?.(".mws-cbx, button")) return;
+  const list = listEl.value;
+  if (!list) return;
+  const startX = e.clientX;
+  const startY = e.clientY;
+  let started = false;
+  const el = e.currentTarget as HTMLElement;
+  try {
+    el.setPointerCapture(e.pointerId);
+  } catch {
+    /* 合成指针等场景 */
+  }
+  const move = (ev: PointerEvent) => {
+    if (!started) {
+      if (Math.abs(ev.clientX - startX) < 6 && Math.abs(ev.clientY - startY) < 6) return;
+      started = true;
+    }
+    const rect = {
+      x: Math.min(startX, ev.clientX),
+      y: Math.min(startY, ev.clientY),
+      w: Math.abs(ev.clientX - startX),
+      h: Math.abs(ev.clientY - startY),
+    };
+    marquee.value = rect;
+    // 框内命中行 = 选中（实时跟随选框）
+    const hit = new Set<string>();
+    for (const row of list.querySelectorAll<HTMLElement>(".diff-row[data-path]")) {
+      const r = row.getBoundingClientRect();
+      if (
+        r.right > rect.x &&
+        r.left < rect.x + rect.w &&
+        r.bottom > rect.y &&
+        r.top < rect.y + rect.h
+      ) {
+        hit.add(row.dataset.path!);
+      }
+    }
+    selected.value = hit;
+  };
+  const stop = () => {
+    el.removeEventListener("pointermove", move);
+    el.removeEventListener("pointerup", stop);
+    el.removeEventListener("pointercancel", stop);
+    marquee.value = null;
+    // 未成框的单击：切换所在行的选中
+    if (!started) {
+      const row = (e.target as HTMLElement).closest?.(".diff-row[data-path]");
+      if (row) toggleSelect(row.getAttribute("data-path")!);
+    }
+  };
+  el.addEventListener("pointermove", move);
+  el.addEventListener("pointerup", stop);
+  el.addEventListener("pointercancel", stop);
+}
+
 let unlisten: (() => void) | null = null;
 onMounted(async () => {
   unlisten = await listen<{ pairId: string; done: number; total: number; current: string }>(
@@ -180,7 +273,7 @@ function handleClose() {
 
     <!-- 审阅阶段 -->
     <template v-if="phase === 'review'">
-      <div class="diff-list">
+      <div ref="listEl" class="diff-list" @pointerdown="onListPointerDown">
         <div class="diff-head">
           <span>{{ t("diff.col_status") }}</span>
           <span>{{ t("diff.col_path") }}</span>
@@ -189,7 +282,13 @@ function handleClose() {
           <span class="cell-num">{{ t("diff.col_remote") }}</span>
           <span>{{ t("diff.col_action") }}</span>
         </div>
-        <div v-for="item in items" :key="item.path" class="diff-row">
+        <div
+          v-for="item in items"
+          :key="item.path"
+          class="diff-row"
+          :class="{ 'is-selected': selected.has(item.path) }"
+          :data-path="item.path"
+        >
           <span class="chip" :class="statusChipClass(item.status)">
             {{ t(`st.${item.status}`) }}
           </span>
@@ -218,6 +317,42 @@ function handleClose() {
             @update:model-value="(v) => setAction(item.path, v)"
           />
         </div>
+        <!-- 框选矩形（视口坐标，跟随指针 1:1） -->
+        <div
+          v-if="marquee"
+          class="marquee"
+          :style="{
+            left: `${marquee.x}px`,
+            top: `${marquee.y}px`,
+            width: `${marquee.w}px`,
+            height: `${marquee.h}px`,
+          }"
+        />
+      </div>
+      <!-- 所选条目批量处理 -->
+      <div v-if="selected.size" class="sel-bar">
+        <span class="sel-count">{{ t("diff.selected_count", { n: selected.size }) }}</span>
+        <button class="btn btn-sm" @click="applyToSelected('suggest')">
+          {{ t("diff.selected_suggest") }}
+        </button>
+        <button class="btn btn-sm" @click="applyToSelected('l2r')">
+          {{ t("diff.selected_l2r") }}
+        </button>
+        <button class="btn btn-sm" @click="applyToSelected('r2l')">
+          {{ t("diff.selected_r2l") }}
+        </button>
+        <button class="btn btn-sm" @click="applyToSelected('skip')">
+          {{ t("diff.selected_skip") }}
+        </button>
+        <button
+          type="button"
+          class="icon-btn"
+          :title="t('diff.selected_clear')"
+          :aria-label="t('diff.selected_clear')"
+          @click="clearSelection"
+        >
+          <Icon name="close" :size="13" />
+        </button>
       </div>
     </template>
 
@@ -386,6 +521,41 @@ function handleClose() {
 }
 .diff-row:hover {
   background: var(--bg-hover);
+}
+/* 多选选中态：置于悬停态之后，覆盖悬停背景 */
+.diff-row.is-selected,
+.diff-row.is-selected:hover {
+  background: var(--accent-soft);
+}
+
+/* 框选矩形：视口坐标跟随指针 1:1 */
+.marquee {
+  position: fixed;
+  z-index: 5;
+  pointer-events: none;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+}
+
+/* 所选条目批量处理条 */
+.sel-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-m);
+  background: var(--fill-softer);
+}
+.sel-count {
+  font-size: calc(12px * var(--font-scale, 1));
+  font-weight: 600;
+  color: var(--accent-text);
+  margin-right: 4px;
+  flex: none;
 }
 .diff-row .chip {
   justify-content: center;

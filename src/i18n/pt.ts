@@ -132,6 +132,12 @@ export const pt: Dict = {
   "diff.summary_deleted_l": "Excluído no local {n}",
   "diff.summary_skipped": "Ignorado {n}",
   "diff.summary_failed": "Falha {n}",
+  "diff.selected_count": "{n} selecionado(s)",
+  "diff.selected_suggest": "Seleção: conforme sugerido",
+  "diff.selected_l2r": "Seleção: local → dispositivo",
+  "diff.selected_r2l": "Seleção: dispositivo → local",
+  "diff.selected_skip": "Seleção: ignorar",
+  "diff.selected_clear": "Limpar seleção",
 
   "st.new_local": "Novo no local",
   "st.new_remote": "Novo no dispositivo",
