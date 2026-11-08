@@ -200,7 +200,7 @@ export const zhTw: Dict = {
   "curve.linear": "線性",
   "curve.swift": "迅捷",
   "settings.status_bar": "狀態列資訊",
-  "settings.status_bar_hint": "側欄左下角顯示的統計資訊。",
+  "settings.status_bar_hint": "側欄左下角顯示的統計資訊；在側欄按住項目上下拖動即可調整順序。",
   "settings.status_devices": "裝置狀態",
   "settings.status_pairs": "已開啟任務",
   "settings.status_sync": "同步次數",

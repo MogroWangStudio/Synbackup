@@ -30,6 +30,8 @@ export interface AppSettings {
   launchAnimCurve: string;
   /** 更新渠道：stable = 正式版（Release），beta = 预发布（Pre-Release） */
   updateChannel: string;
+  /** 状态栏信息显示顺序（devices / pairs / sync / version；隐藏项保留原位） */
+  statusOrder: string[];
   /** 侧栏状态区：显示设备状态 */
   statusDevices: boolean;
   /** 侧栏状态区：显示已开启任务数 */

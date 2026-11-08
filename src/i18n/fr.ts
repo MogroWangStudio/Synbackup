@@ -200,7 +200,7 @@ export const fr: Dict = {
   "curve.linear": "Linéaire",
   "curve.swift": "Rapide",
   "settings.status_bar": "Bandeau d'état",
-  "settings.status_bar_hint": "Ce que montre la zone d'état de la barre latérale.",
+  "settings.status_bar_hint": "Ce que montre la zone d'état de la barre latérale. Faites glisser les éléments dans la barre latérale pour les réordonner.",
   "settings.status_devices": "État des périphériques",
   "settings.status_pairs": "Paires actives",
   "settings.status_sync": "Nombre de synchros",

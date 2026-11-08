@@ -200,7 +200,7 @@ export const en: Dict = {
   "curve.linear": "Linear",
   "curve.swift": "Swift",
   "settings.status_bar": "Status bar",
-  "settings.status_bar_hint": "What to show in the sidebar status area.",
+  "settings.status_bar_hint": "What to show in the sidebar status area. Hold and drag the items in the sidebar to reorder them.",
   "settings.status_devices": "Device status",
   "settings.status_pairs": "Enabled pairs",
   "settings.status_sync": "Sync count",

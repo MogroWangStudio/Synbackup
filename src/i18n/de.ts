@@ -200,7 +200,7 @@ export const de: Dict = {
   "curve.linear": "Linear",
   "curve.swift": "Rasant",
   "settings.status_bar": "Statusbereich",
-  "settings.status_bar_hint": "Was die Statuszone in der Seitenleiste zeigt.",
+  "settings.status_bar_hint": "Was die Statuszone in der Seitenleiste zeigt. Elemente in der Seitenleiste ziehen, um sie umzusortieren.",
   "settings.status_devices": "Gerätestatus",
   "settings.status_pairs": "Aktive Paare",
   "settings.status_sync": "Sync-Anzahl",

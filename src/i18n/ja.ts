@@ -200,7 +200,7 @@ export const ja: Dict = {
   "curve.linear": "リニア",
   "curve.swift": "スウィフト",
   "settings.status_bar": "ステータスバー情報",
-  "settings.status_bar_hint": "サイドバー左下に表示する統計情報。",
+  "settings.status_bar_hint": "サイドバー左下に表示する統計情報。項目を上下にドラッグすると並べ替えられます。",
   "settings.status_devices": "デバイス状態",
   "settings.status_pairs": "有効なタスク",
   "settings.status_sync": "同期回数",

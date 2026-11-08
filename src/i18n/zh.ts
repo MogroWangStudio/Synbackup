@@ -199,7 +199,7 @@ export const zh = {
   "curve.linear": "线性",
   "curve.swift": "迅捷",
   "settings.status_bar": "状态栏信息",
-  "settings.status_bar_hint": "侧栏左下角显示的统计信息。",
+  "settings.status_bar_hint": "侧栏左下角显示的统计信息；在侧栏按住条目上下拖动即可调整顺序。",
   "settings.status_devices": "设备状态",
   "settings.status_pairs": "已开启任务",
   "settings.status_sync": "同步次数",

@@ -200,7 +200,7 @@ export const pt: Dict = {
   "curve.linear": "Linear",
   "curve.swift": "Rápida",
   "settings.status_bar": "Barra de status",
-  "settings.status_bar_hint": "O que a área de status da barra lateral mostra.",
+  "settings.status_bar_hint": "O que a área de status da barra lateral mostra. Arraste os itens na barra lateral para reordená-los.",
   "settings.status_devices": "Status dos dispositivos",
   "settings.status_pairs": "Tarefas ativadas",
   "settings.status_sync": "Número de syncs",

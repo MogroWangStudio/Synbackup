@@ -200,7 +200,7 @@ export const ru: Dict = {
   "curve.linear": "Линейная",
   "curve.swift": "Стремительная",
   "settings.status_bar": "Строка состояния",
-  "settings.status_bar_hint": "Что показывать в блоке статуса боковой панели.",
+  "settings.status_bar_hint": "Что показывать в блоке статуса боковой панели. Потяните элементы в боковой панели вверх или вниз, чтобы изменить их порядок.",
   "settings.status_devices": "Статус устройств",
   "settings.status_pairs": "Активные задачи",
   "settings.status_sync": "Число синхронизаций",

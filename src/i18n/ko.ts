@@ -200,7 +200,7 @@ export const ko: Dict = {
   "curve.linear": "선형",
   "curve.swift": "빠르게",
   "settings.status_bar": "상태 표시줄 정보",
-  "settings.status_bar_hint": "사이드바 왼쪽 아래에 표시되는 통계 정보입니다.",
+  "settings.status_bar_hint": "사이드바 왼쪽 아래에 표시되는 통계 정보입니다. 항목을 위아래로 드래그하면 순서를 바꿀 수 있습니다.",
   "settings.status_devices": "기기 상태",
   "settings.status_pairs": "켜진 작업",
   "settings.status_sync": "동기화 횟수",

@@ -47,6 +47,7 @@ export const store = reactive({
     launchAnimMs: 340,
     launchAnimCurve: "smooth",
     updateChannel: "stable",
+    statusOrder: ["devices", "pairs", "sync", "version"],
     statusDevices: true,
     statusPairs: true,
     statusSyncCount: true,
