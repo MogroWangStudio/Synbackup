@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo-with-text.svg" alt="Synbackup" width="340">
+</p>
+
 # 同备 Synbackup
 
 把 USB 移动存储设备插上电脑，同备就帮你把指定文件夹同步好——**差异先列出来给你确认，同步才动手**。
