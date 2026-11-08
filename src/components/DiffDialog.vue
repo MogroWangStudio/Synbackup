@@ -493,7 +493,7 @@ function handleClose() {
 .diff-head,
 .diff-row {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) 76px 24px 76px 128px;
+  grid-template-columns: 96px minmax(0, 1fr) 76px 24px 76px 158px;
   gap: 10px;
   align-items: center;
   padding: 0 12px;
@@ -582,6 +582,10 @@ function handleClose() {
   height: 26px;
   font-size: calc(12px * var(--font-scale, 1));
   width: 100%;
+}
+/* Select 内部触发器固定 38px 高，压到与槽位一致（原会纵向溢出 5px 被截） */
+.diff-action :deep(.mws-btn) {
+  height: 26px;
 }
 
 .syncing {
