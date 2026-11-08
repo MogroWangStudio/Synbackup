@@ -27,6 +27,9 @@ const UI_PREF_FIELDS = [
   "launchAnimPreset",
   "launchAnimMs",
   "launchAnimCurve",
+  "logoStyle",
+  "logoCustomText",
+  "logoImagePath",
 ] as const;
 
 export function loadUiPrefs(): Partial<AppSettings> {

@@ -3,28 +3,128 @@
 // 因此在任意缩放与高 DPI 下都按矢量绘制，边缘始终清晰。
 // 源文件：Synbackup Design/Synbackup Logo with text.svg
 // 着色走 var(--accent) / var(--accent-2)（实 / 虚两档），随个性化主题色联动
-import { computed } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
-const props = withDefaults(defineProps<{ size?: number }>(), { size: 18 });
+const props = withDefaults(
+  defineProps<{
+    size?: number;
+    /** 形态：full = 完整（图案 + 文字），text = 仅文字，mark = 仅图案，
+        custom_text = 自定义文字，custom_image = 自定义图片 */
+    variant?: "full" | "text" | "mark" | "custom_text" | "custom_image";
+    /** 自定义文字内容（variant = custom_text 时生效；空则回退应用名） */
+    customText?: string;
+    /** 自定义图片 data URI（variant = custom_image 时生效；空则回退完整） */
+    customImage?: string;
+  }>(),
+  { size: 18, variant: "full", customText: "", customImage: "" },
+);
 
-// 文字标原始比例 1144:206，宽度由高度推算，绝不拉伸
-const box = computed(() => ({
-  width: `${((props.size * 1144) / 206).toFixed(2)}px`,
-  height: `${props.size}px`,
-}));
+// 文字组 / 图案组的取景包围盒：以渲染矩形实测（getBoundingClientRect
+// 是唯一不受嵌套矩阵 / 缩放语义影响的真值源），换算回 viewBox 单位；
+// 随 variant 变化重测（可见部分随之切换，隐藏部分的矩形为零自动剔除）
+const textG = ref<SVGGElement | null>(null);
+const markG = ref<SVGGElement | null>(null);
+const textBBox = ref<DOMRect | null>(null);
+const markBBox = ref<DOMRect | null>(null);
+
+/** 可见 path 的渲染矩形并集 → 当前 viewBox 单位坐标 */
+function measureVisible(svg: SVGSVGElement): DOMRect | null {
+  const sr = svg.getBoundingClientRect();
+  if (!sr.width || !sr.height) return null;
+  const vb = (svg.getAttribute("viewBox") ?? "0 0 1144 206").split(" ").map(Number);
+  const unitX = vb[2] / sr.width;
+  const unitY = vb[3] / sr.height;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of svg.querySelectorAll("path")) {
+    // visibility:hidden（含继承）的路径仍有布局矩形，必须显式剔除
+    if (getComputedStyle(p).visibility === "hidden") continue;
+    const pr = p.getBoundingClientRect();
+    if (!pr.width && !pr.height) continue;
+    minX = Math.min(minX, vb[0] + (pr.left - sr.left) * unitX);
+    minY = Math.min(minY, vb[1] + (pr.top - sr.top) * unitY);
+    maxX = Math.max(maxX, vb[0] + (pr.right - sr.left) * unitX);
+    maxY = Math.max(maxY, vb[1] + (pr.bottom - sr.top) * unitY);
+  }
+  if (!Number.isFinite(minX)) return null;
+  return new DOMRect(minX, minY, maxX - minX, maxY - minY);
+}
+
+function measure() {
+  const svg = textG.value?.ownerSVGElement;
+  if (!svg) return;
+  try {
+    const b = measureVisible(svg);
+    if (!b) return;
+    if (props.variant === "text") textBBox.value = b;
+    else if (props.variant === "mark") markBBox.value = b;
+    else {
+      textBBox.value = b;
+      markBBox.value = b;
+    }
+  } catch {
+    /* 未渲染等极端场景：保持上一次取景 */
+  }
+}
+
+onMounted(() => measure());
+// flush post：等可见性 / 结构先落到 DOM，再取渲染矩形
+watch(
+  () => props.variant,
+  () => measure(),
+  { flush: "post" },
+);
+
+/** 取景：按变体裁到对应部分的包围盒（外扩 4px 留白） */
+const vb = computed(() => {
+  const frame = (b: DOMRect) =>
+    `${(b.x - 4).toFixed(2)} ${(b.y - 4).toFixed(2)} ${(b.width + 8).toFixed(2)} ${(b.height + 8).toFixed(2)}`;
+  if (props.variant === "text" && textBBox.value) return frame(textBBox.value);
+  if (props.variant === "mark" && markBBox.value) return frame(markBBox.value);
+  return "0 0 1144 206";
+});
+
+const box = computed(() => {
+  const [, , w, h] = vb.value.split(" ").map(Number);
+  return {
+    width: `${((props.size * w) / h).toFixed(2)}px`,
+    height: `${props.size}px`,
+  };
+});
+
+const showText = computed(() => props.variant !== "mark");
+const showMark = computed(() => props.variant !== "text");
 </script>
 
 <template>
+  <!-- 自定义文字：粗体 + 跟随强调色（与品牌字标同一着色体系） -->
+  <span
+    v-if="variant === 'custom_text'"
+    class="logo-custom-text"
+    :style="{ fontSize: `${size}px` }"
+  >{{ customText || "Synbackup" }}</span>
+  <!-- 自定义图片：data URI；未设置 / 读取失败时回退完整矢量 -->
+  <img
+    v-else-if="variant === 'custom_image' && customImage"
+    class="logo-custom-img"
+    :src="customImage"
+    :style="{ height: `${Math.round(size * 1.5)}px` }"
+    alt=""
+  />
   <svg
+    v-else
     class="logo"
     :style="box"
-    viewBox="0 0 1144 206"
+    :viewBox="vb"
     style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"
     role="img"
     aria-label="同备 Synbackup"
   >
     <g transform="matrix(1,0,0,1,-6298.108496,-1567.224608)">
     <g transform="matrix(1,0,0,1,168.929625,0)">
+    <g ref="textG" :style="{ visibility: showText ? 'visible' : 'hidden' }">
     <g transform="matrix(17.330046,0,0,13.373805,712.621243,-888.229475)">
     <path d="M320.242,188.395L322.642,188.395L324.21,192.835L325.798,188.395L328.198,188.395L324.236,198.542L324.898,198.971L321.764,198.971L323.146,195.655L320.242,188.395Z" style="fill:var(--accent);fill-rule:nonzero;"/>
     </g>
@@ -53,12 +153,15 @@ const box = computed(() => ({
     <path d="M321.274,187.879L321.274,189.403L315.538,189.403L315.538,187.879L321.274,187.879ZM320.938,190.039L320.938,194.251L315.874,194.251L315.874,190.039L320.938,190.039ZM317.494,192.775L319.318,192.775L319.318,191.539L317.494,191.539L317.494,192.775ZM323.41,194.503C323.41,194.951 323.348,195.297 323.224,195.541C323.1,195.785 322.906,195.955 322.642,196.051C322.378,196.147 322.014,196.195 321.55,196.195L320.146,196.195L319.81,194.635L320.998,194.635C321.174,194.635 321.304,194.619 321.388,194.587C321.472,194.555 321.528,194.499 321.556,194.419C321.584,194.339 321.598,194.219 321.598,194.059L321.598,187.303L315.202,187.303L315.202,195.581L317.056,196.303L313.378,196.303L313.378,185.671L323.41,185.671L323.41,194.503Z" style="fill:var(--accent);fill-rule:nonzero;"/>
     <path d="M325.066,187.795C325.722,187.411 326.328,186.955 326.884,186.427C327.44,185.899 327.866,185.403 328.162,184.939L330.046,185.335C329.614,186.039 329.064,186.725 328.396,187.393C327.728,188.061 326.97,188.659 326.122,189.187L325.066,187.795ZM324.91,189.775C326.582,189.575 328.02,189.269 329.224,188.857C330.428,188.445 331.434,187.963 332.242,187.411L327.778,187.411L328.066,185.971L334.738,185.971L334.738,187.663C333.53,188.599 332.186,189.375 330.706,189.991C329.226,190.607 327.454,191.071 325.39,191.383L324.91,189.775ZM328.318,186.847C328.83,187.383 329.412,187.819 330.064,188.155C330.716,188.491 331.504,188.765 332.428,188.977C333.352,189.189 334.51,189.363 335.902,189.499L335.422,191.227C333.902,191.019 332.632,190.771 331.612,190.483C330.592,190.195 329.7,189.823 328.936,189.367C328.172,188.911 327.466,188.319 326.818,187.591L328.318,186.847ZM334.75,190.819L334.75,195.934L335.702,196.375L333.046,196.375L333.046,192.151L327.826,192.151L327.826,196.143L328.531,196.375L326.146,196.375L326.146,190.819L334.75,190.819ZM333.862,192.775L333.862,193.975L327.01,193.975L327.01,192.775L333.862,192.775ZM333.862,194.575L333.862,195.955L327.01,195.955L327.01,194.575L333.862,194.575ZM331.234,191.503L331.234,195.259L329.578,195.259L329.578,191.503L331.234,191.503Z" style="fill:var(--accent);fill-rule:nonzero;"/>
     </g>
+    </g>
+    <g ref="markG" :style="{ visibility: showMark ? 'visible' : 'hidden' }">
     <g transform="matrix(0.788092,0,0,0.788092,4293.876895,238.418448)">
     <g transform="matrix(1,0,0,1,-239.907263,-77.802482)">
     <path d="M2579.95,1825.583L2579.795,1825.506C2584.977,1815.067 2591.726,1805.727 2599.676,1797.716L2636.465,1824.104L2771.483,1920.648C2766.349,1930.991 2759.677,1940.254 2751.822,1948.216L2579.854,1825.716L2579.95,1825.583Z" style="fill:var(--accent-2);"/>
     </g>
     <path d="M2435.732,1902.274L2328.79,1902.274L2389.013,1842.052L2389.013,1857.987L2435.732,1857.987C2450.297,1857.987 2464.093,1852.942 2475.036,1844.143L2511.914,1870.413C2492.123,1890.474 2464.827,1902.274 2435.732,1902.274Z" style="fill:var(--accent);"/>
     <path d="M2435.732,1732.561C2421.224,1732.561 2407.48,1737.567 2396.557,1746.302L2359.769,1719.913C2379.543,1699.987 2406.745,1688.274 2435.732,1688.274L2542.79,1688.274L2482.568,1748.497L2482.568,1732.561L2435.732,1732.561Z" style="fill:var(--accent);"/>
+    </g>
     </g>
     </g>
     </g>
@@ -70,6 +173,19 @@ const box = computed(() => ({
   display: block;
   flex: none;
   overflow: visible;
+}
+.logo-custom-text {
+  display: inline-block;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--accent-text);
+  white-space: nowrap;
+  line-height: 1;
+}
+.logo-custom-img {
+  display: block;
+  width: auto;
+  object-fit: contain;
 }
 .logo path {
   transition: fill 200ms ease;

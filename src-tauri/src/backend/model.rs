@@ -36,6 +36,15 @@ pub struct AppSettings {
     /// 同步任务卡片按钮显示：both = 图标+文字，icon = 仅图标，text = 仅文字
     #[serde(default = "default_task_button_style")]
     pub task_button_style: String,
+    /// 左上角 logo：full / text / mark / custom_text / custom_image
+    #[serde(default = "default_logo_style")]
+    pub logo_style: String,
+    /// 自定义文字 logo 内容
+    #[serde(default)]
+    pub logo_custom_text: String,
+    /// 自定义图片 logo 路径
+    #[serde(default)]
+    pub logo_image_path: String,
     /// 强调色预设 key（brand / blue / green / orange / pink）
     pub accent: String,
     /// 自定义强调色（#RRGGBB，accent = custom 时生效）
@@ -84,6 +93,11 @@ fn default_task_button_style() -> String {
     "both".into()
 }
 
+/// 左上角 logo 的默认形态：完整（图案 + 文字）
+fn default_logo_style() -> String {
+    "full".into()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -96,6 +110,9 @@ impl Default for AppSettings {
             appearance: "follow".into(),
             theme: "standard".into(),
             task_button_style: default_task_button_style(),
+            logo_style: default_logo_style(),
+            logo_custom_text: String::new(),
+            logo_image_path: String::new(),
             accent: "brand".into(),
             accent_custom: "#9b62cf".into(),
             font_family: "system".into(),

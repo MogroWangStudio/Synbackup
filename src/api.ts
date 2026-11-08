@@ -31,6 +31,8 @@ export const api = {
   getAppInfo: () => invoke<AppInfo>("get_app_info"),
   /** 本应用当前物理内存（RAM）占用，字节 */
   getAppMemory: () => invoke<number>("get_app_memory"),
+  /** 读取自定义图片 logo，返回 data URI（格式 / 大小校验在后端） */
+  readLogoImage: (path: string) => invoke<string>("read_logo_image", { path }),
   openExternal: (url: string) => invoke<void>("open_external", { url }),
   markUiReady: () => invoke<void>("mark_ui_ready"),
   exitApp: () => invoke<void>("exit_app"),

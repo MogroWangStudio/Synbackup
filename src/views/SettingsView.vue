@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { api } from "../api";
-import { store, toast } from "../store";
+import { refreshLogoImage, store, toast } from "../store";
+import { open } from "@tauri-apps/plugin-dialog";
 import { applyUiPrefs, DEFAULT_ACCENT, persistUiPrefs, replayBootAnim, UI_THEMES, isValidHex } from "../theme";
 import { titlebarHeight } from "../ui";
 import { LOCALES, t } from "../i18n";
@@ -53,6 +54,38 @@ const themeOptions = computed<SelectOption[]>(() =>
 const taskBtnOptions = computed<SelectOption[]>(() =>
   ["both", "icon", "text"].map((k) => ({ value: k, label: t(`taskbtn.${k}`) })),
 );
+// 左上角 logo 形态与自定义内容
+const logoStyleOptions = computed<SelectOption[]>(() =>
+  ["full", "text", "mark", "custom_text", "custom_image"].map((k) => ({
+    value: k,
+    label: t(`logostyle.${k}`),
+  })),
+);
+const logoFileName = computed(() => {
+  const p = store.settings.logoImagePath;
+  return p ? p.split(/[\\/]/).pop() ?? "" : "";
+});
+
+function onLogoTextInput(e: Event) {
+  // 输入过程实时预览（标题栏经 store 响应式刷新）；落盘在 change 时一次
+  store.settings = {
+    ...store.settings,
+    logoCustomText: (e.target as HTMLInputElement).value,
+  };
+}
+function onLogoTextCommit(e: Event) {
+  void update({ logoCustomText: (e.target as HTMLInputElement).value });
+}
+async function pickLogoImage() {
+  const path = await open({
+    multiple: false,
+    title: t("settings.logo_pick"),
+    filters: [{ name: t("settings.logo_pick"), extensions: ["png", "jpg", "jpeg", "webp", "gif", "svg"] }],
+  });
+  if (typeof path !== "string") return;
+  await update({ logoImagePath: path });
+  await refreshLogoImage();
+}
 const fontOptions = computed<SelectOption[]>(() =>
   fonts.map((f) => ({ value: f, label: t(`font.${f}`) })),
 );
@@ -426,6 +459,41 @@ function onLanguageSelect(v: string) {
           @update:model-value="(v) => update({ taskButtonStyle: v })"
         />
       </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.logo_label") }}</span>
+          <span class="row-hint">{{ t("settings.logo_hint") }}</span>
+        </div>
+        <Select
+          :model-value="store.settings.logoStyle"
+          :options="logoStyleOptions"
+          :aria-label="t('settings.logo_label')"
+          @update:model-value="(v) => update({ logoStyle: v })"
+        />
+      </div>
+      <div v-if="store.settings.logoStyle === 'custom_text'" class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.logo_text_label") }}</span>
+        </div>
+        <input
+          class="input"
+          :value="store.settings.logoCustomText"
+          maxlength="24"
+          :placeholder="t('settings.logo_text_placeholder')"
+          spellcheck="false"
+          @input="onLogoTextInput"
+          @change="onLogoTextCommit"
+        />
+      </div>
+      <div v-else-if="store.settings.logoStyle === 'custom_image'" class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.logo_image_label") }}</span>
+          <span class="row-hint">{{ logoFileName || t("settings.logo_image_none") }}</span>
+        </div>
+        <button type="button" class="btn btn-sm" @click="pickLogoImage">
+          {{ t("settings.logo_pick") }}
+        </button>
+      </div>
     </section>
 
     <section class="card group">
@@ -516,7 +584,14 @@ function onLanguageSelect(v: string) {
     <section class="card group">
       <h3 class="group-title">{{ t("settings.about") }}</h3>
       <div class="brand-mark">
-        <Logo :size="32" />
+        <Logo
+          :size="32"
+          :variant="store.settings.logoStyle === 'text' || store.settings.logoStyle === 'mark'
+            ? store.settings.logoStyle
+            : 'full'"
+          :custom-text="store.settings.logoCustomText"
+          :custom-image="store.logoImageUri"
+        />
       </div>
       <div class="row">
         <div class="row-label">

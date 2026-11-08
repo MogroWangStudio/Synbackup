@@ -14,6 +14,13 @@ export interface AppSettings {
   theme: string;
   /** 同步任务卡片按钮显示：both = 图标+文字，icon = 仅图标，text = 仅文字 */
   taskButtonStyle: string;
+  /** 左上角 logo：full = 默认完整，text = 仅文字，mark = 仅图案，
+      custom_text = 自定义文字，custom_image = 自定义图片 */
+  logoStyle: string;
+  /** 自定义文字 logo 的内容（logoStyle = custom_text 时生效） */
+  logoCustomText: string;
+  /** 自定义图片 logo 的文件路径（logoStyle = custom_image 时生效） */
+  logoImagePath: string;
   /** 强调色预设 key（brand / blue / green / orange / pink / custom） */
   accent: string;
   /** 自定义强调色（#RRGGBB，accent = custom 时生效） */

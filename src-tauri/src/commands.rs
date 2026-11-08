@@ -195,6 +195,40 @@ pub fn get_app_memory() -> CmdResult<u64> {
     Ok(guard.process(pid).map(|p| p.memory()).unwrap_or(0))
 }
 
+/// 读取自定义图片 logo：校验格式与大小（≤4MB），转 data URI 返回。
+/// 存路径不存内容（config.json 不膨胀），文件缺失 / 格式不符由前端回退默认 logo。
+#[tauri::command]
+pub fn read_logo_image(path: String) -> CmdResult<String> {
+    use base64::Engine as _;
+
+    const MAX_LEN: u64 = 4 * 1024 * 1024;
+    let p = std::path::Path::new(&path);
+    let mime = match p
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("webp") => "image/webp",
+        Some("gif") => "image/gif",
+        Some("svg") => "image/svg+xml",
+        _ => {
+            return Err("不支持的图片格式：请使用 PNG / JPG / WebP / GIF / SVG".into());
+        }
+    };
+    let meta = std::fs::metadata(p).map_err(|_| "图片文件不存在或无法读取".to_string())?;
+    if meta.len() > MAX_LEN {
+        return Err("图片过大：请使用 4 MB 以内的图片".into());
+    }
+    let data = std::fs::read(p).map_err(|e| e.to_string())?;
+    Ok(format!(
+        "data:{mime};base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(data)
+    ))
+}
+
 #[tauri::command]
 pub async fn get_app_info(app: AppHandle, core: State<'_, backend::Core>) -> CmdResult<AppInfo> {
     Ok(AppInfo {

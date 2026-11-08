@@ -3,14 +3,25 @@
 // macOS 保留系统红绿灯（透明叠加标题栏），只负责让出左侧空间；
 // Windows / Linux 无边框窗口，窗口按钮由这里绘制。
 // 左上角 logo 不在拖拽区内：单击有按压反馈，连按五下触发随机彩蛋。
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { t } from "../i18n";
-import { toast } from "../store";
+import { store, toast } from "../store";
 import Icon from "./Icon.vue";
 import Logo from "./Logo.vue";
 
 const isMac = document.documentElement.dataset.os === "mac";
+
+// logo 形态由个性化设置驱动；自定义图片未就绪（未设置 / 读取失败）时
+// Logo 组件内部回退完整矢量
+const logoVariant = computed(() => {
+  const st = store.settings;
+  return (["text", "mark", "custom_text", "custom_image"].includes(st.logoStyle)
+    ? st.logoStyle
+    : "full") as "full" | "text" | "mark" | "custom_text" | "custom_image";
+});
+const logoCustomText = computed(() => store.settings.logoCustomText.trim() || "Synbackup");
+const logoCustomImage = computed(() => store.logoImageUri);
 const win = getCurrentWindow();
 const maximized = ref(false);
 let stopResize: (() => void) | undefined;
@@ -88,7 +99,12 @@ onUnmounted(() => {
     <div class="identity" data-tauri-drag-region>
       <!-- 横向文字标：16px 高、按 1144:206 原始比例推算宽度；不带拖拽区，可点按 -->
       <span class="mark" :class="eggClass" @click="onLogoClick">
-        <Logo :size="16" />
+        <Logo
+          :size="16"
+          :variant="logoVariant"
+          :custom-text="logoCustomText"
+          :custom-image="logoCustomImage"
+        />
       </span>
     </div>
 

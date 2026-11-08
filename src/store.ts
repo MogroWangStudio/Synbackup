@@ -29,6 +29,8 @@ export type ViewKey = "overview" | "pairs" | "devices" | "history" | "settings";
 
 export const store = reactive({
   view: "overview" as ViewKey,
+  /** 自定义图片 logo 的 data URI（readLogoImage 换取；空 = 回退默认 logo） */
+  logoImageUri: "",
   settings: {
     language: "zh-CN",
     launchAtLogin: false,
@@ -39,6 +41,9 @@ export const store = reactive({
     appearance: "follow",
     theme: "standard",
     taskButtonStyle: "both",
+    logoStyle: "full",
+    logoCustomText: "",
+    logoImagePath: "",
     accent: "brand",
     accentCustom: DEFAULT_ACCENT,
     fontFamily: "system",
@@ -109,6 +114,21 @@ export async function refreshConfig() {
   const cfg = await api.getConfig();
   store.settings = cfg.settings;
   store.pairs = cfg.pairs;
+  void refreshLogoImage();
+}
+
+/** 拉取自定义图片 logo 的 data URI（路径由设置指定，文件缺失时回退默认 logo） */
+export async function refreshLogoImage() {
+  const { logoStyle, logoImagePath } = store.settings;
+  if (logoStyle !== "custom_image" || !logoImagePath) {
+    store.logoImageUri = "";
+    return;
+  }
+  try {
+    store.logoImageUri = await api.readLogoImage(logoImagePath);
+  } catch {
+    store.logoImageUri = ""; // 读取失败（文件被移动 / 格式不支持）：回退默认 logo
+  }
 }
 
 export async function refreshVolumes() {
