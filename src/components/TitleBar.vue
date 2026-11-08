@@ -149,9 +149,13 @@ onUnmounted(() => {
 .mark {
   display: flex;
   flex: none;
-  /* 单击反馈：按下即缩（反馈在 pointer-down，不等松手），松手弹回 */
+  /* 悬停自左端锚点轻微放大示意可点按；按下即压缩（反馈在 pointer-down，
+     不等松手），松手弹回——与彩蛋弹跳 / 旋转同一物理语言 */
   transform-origin: 12% center;
   transition: transform 130ms var(--ease);
+}
+.mark:hover {
+  transform: scale(1.05);
 }
 .mark:active {
   transform: scale(0.93);
