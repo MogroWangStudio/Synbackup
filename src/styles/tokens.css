@@ -349,8 +349,6 @@
   --font: var(--font-rounded);
 }
 
-/* 平台差异只影响窗口装饰：macOS 保留系统红绿灯，标题栏内容需避开其占位
-   （红绿灯 x=18 起、三颗共 52px 宽，留 12px 间距 → 82px）。 */
-html[data-os="mac"] {
-  --titlebar-inset: 82px;
-}
+/* 平台差异只影响窗口装饰：macOS 保留系统红绿灯（trafficLightPosition 已按
+   40px 标题栏纵向居中、x=18pt 左边距），logo 由 TitleBar.vue 的 mac 分支
+   移至右上，两侧共用 14px 边距（--titlebar-inset 默认值即可）。 */

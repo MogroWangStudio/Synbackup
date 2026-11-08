@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // 自绘标题栏：整条即拖拽区，窗口按钮按平台分工。
-// macOS 保留系统红绿灯（透明叠加标题栏），只负责让出左侧空间；
-// Windows / Linux 无边框窗口，窗口按钮由这里绘制。
-// 左上角 logo 不在拖拽区内：单击有按压反馈，连按五下触发随机彩蛋。
+// macOS 保留系统红绿灯（透明叠加标题栏，trafficLightPosition 已按 40px 标题栏
+// 纵向居中）：红绿灯占左上，logo 移到右上（右侧留与 Windows 左侧同档的 14px
+// 边距）；Windows / Linux 无边框窗口，窗口按钮由这里绘制，logo 居左上。
+// logo 不在拖拽区内：单击有按压反馈，连按五下触发随机彩蛋。
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { t } from "../i18n";
@@ -95,7 +96,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <header class="titlebar" data-tauri-drag-region>
+  <header class="titlebar" :class="{ mac: isMac }" data-tauri-drag-region>
     <div class="identity" data-tauri-drag-region>
       <!-- 横向文字标：16px 高、按 1144:206 原始比例推算宽度；不带拖拽区，可点按 -->
       <span class="mark" :class="eggClass" @click="onLogoClick">
@@ -155,6 +156,20 @@ onUnmounted(() => {
   position: relative;
   z-index: var(--z-titlebar);
   user-select: none;
+}
+
+/* ---- macOS 平台分支：系统红绿灯占左上，logo 移到右上 ----
+   右侧边距沿用 --titlebar-inset（14px，与 Windows 侧 logo 左边距同档）；
+   垂直居中由标题栏自身的 align-items 保证；悬停缩放锚点镜像到右端，
+   避免放大向窗口边缘外溢出 */
+.titlebar.mac {
+  padding-right: var(--titlebar-inset);
+}
+.titlebar.mac .identity {
+  margin-left: auto;
+}
+.titlebar.mac .mark {
+  transform-origin: 88% center;
 }
 
 .identity {
