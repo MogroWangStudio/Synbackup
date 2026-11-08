@@ -9,9 +9,12 @@
 //! 平台监听器只负责"可能有变化"这一个信号，信号统一进入
 //! [`DEVICE_EVENT`]，消费循环合并去抖后走与原来相同的快照对比逻辑。
 
-use std::collections::HashSet;
-use std::time::Duration;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
+use ::notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::backend;
@@ -30,6 +33,18 @@ pub static DEVICE_EVENT: tokio::sync::Notify = tokio::sync::Notify::const_new();
 const FALLBACK_INTERVAL: Duration = Duration::from_secs(60);
 /// 事件去抖 + 挂载就绪等待：合并插入瞬间的连续事件，也给文件系统一点就绪时间。
 const EVENT_SETTLE: Duration = Duration::from_millis(700);
+
+/// 文件监视事件去抖：批量写入（含同步自身的写入）落定后再复扫，
+/// 避免同步过程中对中间状态反复提醒
+const WATCH_DEBOUNCE: Duration = Duration::from_millis(1500);
+
+/// 文件监视器注册表：pair_id → 监视器（一个 watcher 同时监视本地与设备目录）。
+/// watcher 存活即监视有效；drop（设备拔出时移除）即解除监视。
+static PAIR_WATCHES: OnceLock<Mutex<HashMap<String, RecommendedWatcher>>> = OnceLock::new();
+/// 各任务上一次差异签名（路径 + 建议动作）：内容未变不重复提醒 / 不重复同步
+static LAST_SIGS: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
+/// 文件监视事件通道：watcher 回调把 pair_id 发给消费线程去抖
+static WATCH_TX: OnceLock<Mutex<std::sync::mpsc::Sender<String>>> = OnceLock::new();
 
 pub fn spawn(app: AppHandle) {
     start_platform_listener();
@@ -53,6 +68,7 @@ fn start_platform_listener() {
 
 async fn monitor_loop(app: AppHandle) {
     let mut prev_mounts: HashSet<String> = HashSet::new();
+    let mut prev_volumes: Vec<VolumeInfo> = Vec::new();
     let mut last_payload = String::new();
     let mut fallback = tokio::time::interval(FALLBACK_INTERVAL);
     fallback.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -75,11 +91,33 @@ async fn monitor_loop(app: AppHandle) {
         let mounts: HashSet<String> = volumes.iter().map(|v| v.mount.clone()).collect();
         let fresh: Vec<VolumeInfo> =
             volumes.iter().filter(|v| !prev_mounts.contains(&v.mount)).cloned().collect();
+        // 设备拔出：通知 + 停止对应任务的文件监视
+        let gone: Vec<VolumeInfo> = prev_volumes
+            .iter()
+            .filter(|v| !mounts.contains(&v.mount))
+            .cloned()
+            .collect();
         prev_mounts = mounts;
+        prev_volumes = volumes.clone();
 
+        for vol in &gone {
+            handle_device_removed(&app, vol);
+        }
         for vol in fresh {
             if let Err(e) = handle_volume_inserted(&app, &vol, false).await {
                 eprintln!("[synbackup] 处理设备 {} 失败: {e}", vol.label);
+            }
+        }
+        // 兜底：为所有在线任务补建文件监视（监视器丢失 / 目录晚建等场景）
+        let core = app.state::<backend::Core>();
+        for vol in &volumes {
+            let bound: Vec<SyncPair> = core
+                .pairs()
+                .into_iter()
+                .filter(|p| p.enabled && p.device_label == vol.label)
+                .collect();
+            for pair in bound {
+                ensure_pair_watchers(&app, &pair, vol);
             }
         }
         // 处理过程会写入配对标记、可能改变关联关系 → 再补一次快照
@@ -218,6 +256,189 @@ pub async fn check_all_devices(app: &AppHandle) {
     }
 }
 
+/// 设备侧被监视目录：卷挂载点 + 任务相对路径（相对路径为空即卷根目录）
+fn device_watch_dir(pair: &SyncPair, vol: &VolumeInfo) -> PathBuf {
+    let base = vol.mount.trim_end_matches(['/', '\\']);
+    let rel = pair.remote_path.trim_start_matches(['/', '\\']);
+    if rel.is_empty() {
+        PathBuf::from(base)
+    } else {
+        Path::new(base).join(rel)
+    }
+}
+
+/// 为任务建立文件监视（本地 + 设备目录，递归）。已建立则跳过。
+/// 监视失败（目录不存在等）不注册，由兜底循环择机重试。
+fn ensure_pair_watchers(app: &AppHandle, pair: &SyncPair, vol: &VolumeInfo) {
+    let pair_id = pair.id.clone();
+    let tx = WATCH_TX
+        .get_or_init(|| {
+            let (tx, rx) = std::sync::mpsc::channel::<String>();
+            start_watch_consumer(app.clone(), rx);
+            Mutex::new(tx)
+        })
+        .lock()
+        .unwrap()
+        .clone();
+    let map = PAIR_WATCHES.get_or_init(|| Mutex::new(HashMap::new()));
+    let Ok(mut reg) = map.lock() else { return };
+    if reg.contains_key(&pair.id) {
+        return;
+    }
+    let Ok(mut watcher) = ::notify::recommended_watcher(
+        move |res: ::notify::Result<::notify::Event>| {
+            if res.is_ok() {
+                let _ = tx.send(pair_id.clone());
+            }
+        },
+    ) else {
+        return;
+    };
+    let mut watched = 0;
+    let local = PathBuf::from(&pair.local_path);
+    if local.is_dir() {
+        if watcher.watch(&local, RecursiveMode::Recursive).is_ok() {
+            watched += 1;
+        }
+    }
+    let dev = device_watch_dir(pair, vol);
+    if dev.is_dir() {
+        if watcher.watch(&dev, RecursiveMode::Recursive).is_ok() {
+            watched += 1;
+        }
+    }
+    if watched > 0 {
+        reg.insert(pair.id.clone(), watcher);
+    }
+}
+
+/// 文件监视事件消费线程：按 pair 去抖后触发一次差异复扫
+fn start_watch_consumer(app: AppHandle, rx: std::sync::mpsc::Receiver<String>) {
+    std::thread::spawn(move || {
+        let mut pending: HashMap<String, Instant> = HashMap::new();
+        loop {
+            match rx.recv_timeout(Duration::from_millis(300)) {
+                Ok(pair_id) => {
+                    pending.insert(pair_id, Instant::now());
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+            }
+            let now = Instant::now();
+            let due: Vec<String> = pending
+                .iter()
+                .filter(|(_, t)| now.duration_since(**t) >= WATCH_DEBOUNCE)
+                .map(|(k, _)| k.clone())
+                .collect();
+            for pair_id in due {
+                pending.remove(&pair_id);
+                let app2 = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = rescan_watched_pair(&app2, &pair_id).await {
+                        eprintln!("[synbackup] 监视重扫 {pair_id} 失败: {e}");
+                    }
+                });
+            }
+        }
+    });
+}
+
+/// 监视重扫：差异签名（路径 + 建议动作）有变化时更新待处理并通知 /
+/// 按设置自动同步；签名未变只静默跳过（不重复提醒）；差异消失则移除待处理
+async fn rescan_watched_pair(app: &AppHandle, pair_id: &str) -> Result<(), String> {
+    let core = app.state::<backend::Core>();
+    let (dir, settings, pair) = {
+        let pair = core
+            .pairs()
+            .into_iter()
+            .find(|p| p.id == pair_id)
+            .ok_or_else(|| "任务不存在".to_string())?;
+        (core.dir.clone(), core.settings(), pair)
+    };
+    if !pair.enabled {
+        return Ok(());
+    }
+    let Some(volumes) = volumes_snapshot(app).await else {
+        return Ok(()); // 枚举失败：等下一轮
+    };
+    let Some(vol) = volumes.iter().find(|v| {
+        v.matched_pair_ids.iter().any(|id| id == &pair.id) || v.label == pair.device_label
+    }) else {
+        return Ok(()); // 设备已离线：交给拔出事件处理
+    };
+    let scan = match sync_flow::prepare_and_scan(&dir, &pair, std::slice::from_ref(vol)).await {
+        Err(ScanFailure::DeviceNotConnected) | Err(ScanFailure::LocalMissing) => return Ok(()),
+        Err(ScanFailure::Failed(e)) => return Err(e),
+        Ok(scan) => scan,
+    };
+    let sig = scan
+        .items
+        .iter()
+        .map(|i| format!("{}:{:?}", i.path, i.suggested))
+        .collect::<Vec<_>>()
+        .join("|");
+    {
+        let sigs = LAST_SIGS.get_or_init(|| Mutex::new(HashMap::new()));
+        let Ok(mut m) = sigs.lock() else { return Ok(()) };
+        if m.get(pair_id).map(String::as_str) == Some(sig.as_str()) {
+            return Ok(()); // 内容未变：不重复提醒
+        }
+        m.insert(pair_id.to_string(), sig);
+    }
+    if scan.items.is_empty() {
+        // 差异消失（同步完成 / 文件被删除）：静默移除待处理
+        core.remove_pending(pair_id);
+        return Ok(());
+    }
+    let review = PendingReview::new(&pair, scan.items);
+    let n = review.items.len();
+    core.put_pending(review.clone());
+    let _ = app.emit("review-available", &review);
+    if !settings.notify_on_insert {
+        return Ok(());
+    }
+    if settings.ask_before_sync {
+        notify_ask_for_review(app, &settings, &pair.name, &pair.id, n);
+    } else {
+        notify::notify(
+            app,
+            text(&settings.language, "app_title"),
+            &text_fmt(&settings.language, "watch_diff_body", &pair.name, n),
+        );
+    }
+    Ok(())
+}
+
+/// 设备拔出：通知用户 + 停止对应任务的文件监视
+fn handle_device_removed(app: &AppHandle, vol: &VolumeInfo) {
+    let core = app.state::<backend::Core>();
+    let settings = core.settings();
+    let all_pairs = core.pairs();
+    let bound: Vec<&SyncPair> = all_pairs
+        .iter()
+        .filter(|p| p.enabled && p.device_label == vol.label)
+        .collect();
+    if bound.is_empty() {
+        return;
+    }
+    if settings.notify_on_insert {
+        notify::notify(
+            app,
+            text(&settings.language, "app_title"),
+            &text_fmt(&settings.language, "device_offline_body", &vol.label, 0),
+        );
+    }
+    let map = PAIR_WATCHES.get_or_init(|| Mutex::new(HashMap::new()));
+    let Ok(mut reg) = map.lock() else { return };
+    let sigs = LAST_SIGS.get_or_init(|| Mutex::new(HashMap::new()));
+    for p in bound {
+        reg.remove(&p.id);
+        if let Ok(mut m) = sigs.lock() {
+            m.remove(&p.id);
+        }
+    }
+}
+
 /// 设备插入（或应用启动时已插入）后的处理：确保标记 → 差异扫描 → 通知/自动同步
 async fn handle_volume_inserted(
     app: &AppHandle,
@@ -252,6 +473,9 @@ async fn handle_volume_inserted(
             Err(ScanFailure::Failed(e)) => return Err(e),
             Ok(scan) => scan,
         };
+
+        // 扫描成功即设备在线：建立 / 确认该任务的文件监视
+        ensure_pair_watchers(app, &pair, vol);
 
         let core = app.state::<backend::Core>();
         if scan.items.is_empty() {
