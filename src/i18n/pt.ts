@@ -60,7 +60,7 @@ export const pt: Dict = {
   "editor.device": "Dispositivo de destino",
   "editor.device_hint": "Escolha um dispositivo removível conectado",
   "editor.device_none": "Nenhum dispositivo detectado. Conecte um e tente de novo.",
-  "editor.remote": "Pasta no dispositivo",
+  "editor.remote": "Pasta no dispositivo de destino",
   "editor.remote_pick": "Procurar…",
   "editor.remote_hint": "Caminho relativo à raiz do dispositivo; “Procurar…” escolhe uma pasta no dispositivo e converte automaticamente.",
   "editor.err_remote_volume": "A pasta escolhida não está no dispositivo de destino. Escolha uma dentro do volume.",

@@ -60,7 +60,7 @@ export const it: Dict = {
   "editor.device": "Dispositivo di destinazione",
   "editor.device_hint": "Scegli un'unità rimovibile connessa",
   "editor.device_none": "Nessun dispositivo rilevato. Collegalo e riprova.",
-  "editor.remote": "Cartella sul dispositivo",
+  "editor.remote": "Cartella sul dispositivo di destinazione",
   "editor.remote_pick": "Sfoglia…",
   "editor.remote_hint": "Percorso relativo alla radice dell'unità; «Sfoglia…» sceglie una cartella sull'unità e la converte automaticamente.",
   "editor.err_remote_volume": "La cartella scelta non è sul dispositivo di destinazione. Scegline una dentro l'unità.",

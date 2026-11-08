@@ -60,7 +60,7 @@ export const es: Dict = {
   "editor.device": "Dispositivo de destino",
   "editor.device_hint": "Elige una unidad extraíble conectada",
   "editor.device_none": "No se detectó ningún dispositivo. Conecta uno e inténtalo de nuevo.",
-  "editor.remote": "Carpeta en el dispositivo",
+  "editor.remote": "Carpeta en el dispositivo de destino",
   "editor.remote_pick": "Explorar…",
   "editor.remote_hint": "Ruta relativa a la raíz de la unidad; «Explorar…» elige una carpeta de la unidad y la convierte automáticamente.",
   "editor.err_remote_volume": "La carpeta elegida no está en el dispositivo de destino. Elige una dentro de la unidad.",

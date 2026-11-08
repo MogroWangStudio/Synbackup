@@ -60,7 +60,7 @@ export const en: Dict = {
   "editor.device": "Target device",
   "editor.device_hint": "Pick a connected removable drive",
   "editor.device_none": "No device detected. Plug one in and try again.",
-  "editor.remote": "Folder on device",
+  "editor.remote": "Folder on target device",
   "editor.remote_pick": "Browse…",
   "editor.remote_hint": "Relative to the drive root; Browse… picks a folder on the drive and converts it automatically.",
   "editor.err_remote_volume": "The selected folder is not on the target device. Pick one inside the drive.",

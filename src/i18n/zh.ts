@@ -59,7 +59,7 @@ export const zh = {
   "editor.device": "目标设备",
   "editor.device_hint": "选择已插入的移动存储设备",
   "editor.device_none": "未检测到可用设备，请插入设备后重试。",
-  "editor.remote": "设备上的文件夹",
+  "editor.remote": "目标设备上的文件夹",
   "editor.remote_pick": "浏览…",
   "editor.remote_hint": "相对设备根目录填写；点“浏览…”在设备上选择后自动换算。",
   "editor.err_remote_volume": "所选文件夹不在目标设备上，请进入设备卷内选择。",

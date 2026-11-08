@@ -60,7 +60,7 @@ export const fr: Dict = {
   "editor.device": "Périphérique cible",
   "editor.device_hint": "Choisir un périphérique amovible connecté",
   "editor.device_none": "Aucun périphérique détecté. Branchez-en un et réessayez.",
-  "editor.remote": "Dossier sur le périphérique",
+  "editor.remote": "Dossier sur le périphérique cible",
   "editor.remote_pick": "Parcourir…",
   "editor.remote_hint": "Chemin relatif à la racine du périphérique ; « Parcourir… » choisit un dossier sur le périphérique et le convertit automatiquement.",
   "editor.err_remote_volume": "Le dossier choisi n'est pas sur le périphérique cible. Choisissez-en un dans le volume du périphérique.",

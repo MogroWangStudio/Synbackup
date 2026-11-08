@@ -60,7 +60,7 @@ export const ja: Dict = {
   "editor.device": "同期先デバイス",
   "editor.device_hint": "接続済みの USB ドライブを選択",
   "editor.device_none": "利用可能なデバイスが検出されません。デバイスを挿入してから再試行してください。",
-  "editor.remote": "デバイス上のフォルダ",
+  "editor.remote": "同期先デバイス上のフォルダ",
   "editor.remote_pick": "参照…",
   "editor.remote_hint": "デバイスのルートからの相対パスで入力します。「参照…」でデバイス上のフォルダを選ぶと自動的に変換されます。",
   "editor.err_remote_volume": "選択したフォルダが同期先デバイス上にありません。デバイスのボリューム内で選択してください。",

@@ -60,7 +60,7 @@ export const zhTw: Dict = {
   "editor.device": "目標裝置",
   "editor.device_hint": "選擇已插入的行動儲存裝置",
   "editor.device_none": "未偵測到可用裝置，請插入裝置後重試。",
-  "editor.remote": "裝置上的資料夾",
+  "editor.remote": "目標裝置上的資料夾",
   "editor.remote_pick": "瀏覽…",
   "editor.remote_hint": "相對裝置根目錄填寫；點「瀏覽…」在裝置上選擇後自動換算。",
   "editor.err_remote_volume": "所選資料夾不在目標裝置上，請在裝置的磁碟區內選擇。",

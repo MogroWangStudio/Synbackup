@@ -60,7 +60,7 @@ export const ko: Dict = {
   "editor.device": "대상 기기",
   "editor.device_hint": "연결된 이동식 기기 선택",
   "editor.device_none": "사용 가능한 기기가 감지되지 않았습니다. 기기를 연결한 후 다시 시도하세요.",
-  "editor.remote": "기기 안의 폴더",
+  "editor.remote": "대상 기기 안의 폴더",
   "editor.remote_pick": "찾아보기…",
   "editor.remote_hint": "기기 루트 기준 상대 경로로 입력하세요. “찾아보기…”로 기기 안의 폴더를 고르면 자동 변환됩니다.",
   "editor.err_remote_volume": "선택한 폴더가 대상 기기에 없습니다. 기기 볼륨 안에서 선택하세요.",

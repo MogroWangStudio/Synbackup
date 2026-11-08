@@ -60,7 +60,7 @@ export const de: Dict = {
   "editor.device": "Zielgerät",
   "editor.device_hint": "Verbundenen Wechseldatenträger wählen",
   "editor.device_none": "Kein Gerät erkannt. Stecke eines an und versuche es erneut.",
-  "editor.remote": "Ordner auf dem Gerät",
+  "editor.remote": "Ordner auf dem Zielgerät",
   "editor.remote_pick": "Durchsuchen…",
   "editor.remote_hint": "Relativ zur Gerätewurzel angeben; „Durchsuchen…“ wählt einen Ordner auf dem Gerät und rechnet ihn automatisch um.",
   "editor.err_remote_volume": "Der gewählte Ordner liegt nicht auf dem Zielgerät. Wähle einen innerhalb des Datenträgers.",
