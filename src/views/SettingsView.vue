@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { api } from "../api";
 import { store, toast } from "../store";
 import { applyUiPrefs, DEFAULT_ACCENT, persistUiPrefs, isValidHex } from "../theme";
 import { titlebarHeight } from "../ui";
-import { t } from "../i18n";
+import { LOCALES, t } from "../i18n";
 import type { AppSettings, UpdateInfo } from "../types";
 import Icon from "../components/Icon.vue";
 import Logo from "../components/Logo.vue";
@@ -26,29 +26,31 @@ const accents = [
 const appearances = ["follow", "light", "dark"] as const;
 const fonts = ["system", "serif", "rounded"] as const;
 
-const languageOptions: SelectOption[] = [
-  { value: "zh-CN", label: "简体中文" },
-  { value: "en-US", label: "English" },
-];
-const channelOptions: SelectOption[] = [
+// 语言清单来自 i18n 注册表（LOCALES），标签一律母语自称
+const languageOptions: SelectOption[] = LOCALES.map((l) => ({
+  value: l.code,
+  label: l.label,
+}));
+// 选项标签经 t() 求值，必须包成 computed 跟随语言重算——
+// setup 期一次性求值会在切换语言后让下拉标签停留在旧语言
+const channelOptions = computed<SelectOption[]>(() => [
   { value: "stable", label: t("channel.stable") },
   { value: "beta", label: t("channel.beta") },
-];
-const appearanceOptions: SelectOption[] = appearances.map((a) => ({
-  value: a,
-  label: t(`appearance.${a}`),
-}));
-const fontOptions: SelectOption[] = fonts.map((f) => ({ value: f, label: t(`font.${f}`) }));
+]);
+const appearanceOptions = computed<SelectOption[]>(() =>
+  appearances.map((a) => ({ value: a, label: t(`appearance.${a}`) })),
+);
+const fontOptions = computed<SelectOption[]>(() =>
+  fonts.map((f) => ({ value: f, label: t(`font.${f}`) })),
+);
 
 // 启动动画预设与曲线选项
-const animPresetOptions: SelectOption[] = ["fade", "rise", "zoom", "slide"].map((p) => ({
-  value: p,
-  label: t(`anim.${p}`),
-}));
-const animCurveOptions: SelectOption[] = ["smooth", "spring", "linear", "swift"].map((c) => ({
-  value: c,
-  label: t(`curve.${c}`),
-}));
+const animPresetOptions = computed<SelectOption[]>(() =>
+  ["fade", "rise", "zoom", "slide"].map((p) => ({ value: p, label: t(`anim.${p}`) })),
+);
+const animCurveOptions = computed<SelectOption[]>(() =>
+  ["smooth", "spring", "linear", "swift"].map((c) => ({ value: c, label: t(`curve.${c}`) })),
+);
 
 // ---- 自定义主题色 ----
 const pickerOpen = ref(false);

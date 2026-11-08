@@ -8,6 +8,8 @@
 // 设置页变更与 refreshAll 的权威数据到达后再各应用一次。
 
 import type { AppSettings } from "./types";
+// 只引零依赖的语言注册表（./i18n/index 会带上 store，形成 store→theme→i18n→store 循环）
+import { localeTag } from "./i18n/locales";
 
 const UI_PREFS_KEY = "synbackup.ui-prefs";
 
@@ -97,7 +99,8 @@ function injectCustomAccent(root: HTMLElement, hex: string) {
 /** 把语言 / 外观 / 字体 / 缩放 / 启动动画同步到根元素 */
 export function applyUiPrefs(s: AppSettings) {
   const root = document.documentElement;
-  root.lang = s.language === "en-US" ? "en" : "zh-CN";
+  // 真实 BCP-47 传入：浏览器据此选择正确的字形变体（日文汉字 / 繁简字形）与断行规则
+  root.lang = localeTag(s.language);
 
   if (s.appearance === "light" || s.appearance === "dark") {
     root.dataset.appearance = s.appearance;
