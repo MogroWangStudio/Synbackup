@@ -56,14 +56,21 @@ async function pickLocal() {
 }
 
 /* ---- 传输方向交换动画 ----
-   点击交换：两侧角色徽标（发送端 / 接收端）交叉划弧互换——真实徽标
-   即时换字，幽灵徽标从旧位起飞（一上一下避开重叠，中点微抬）落点
-   淡出揭示新字，缓动取弹窗家族曲线（快起缓收，流畅非线性）；交换
-   图标每次点击同向累计旋转 180°。飞行中再次点击会取消在飞幽灵、
-   从当前视觉位续走（可中断）；reduced-motion 直接换字不飞。 */
+   一次交换是"两枚角色徽标换了位置"，所以动的是位置而不是文字：旧徽标
+   离开原位、沿方向条水平滑到对侧（左右各偏 7px 错开，交叉时不会叠在
+   一起），落点处旧字淡出、新字自下方 2px 淡入，两端卡片同时泛一层
+   强调色——你能看到"发送端去了右边"这件事本身。
+
+   轨迹只走水平轴：方向条是一条线，斜向飞越会把"左右关系"读成"上下
+   关系"。中间略微放大 + 加速再收住，是节制的动量暗示，不做回弹。
+   飞行中再次点击：从当前视觉位续走（可中断），不会跳回起点。
+   reduced-motion 下只换字，不飞。 */
 const sideL = ref<HTMLElement | null>(null);
 const sideR = ref<HTMLElement | null>(null);
 const swapRot = ref(0);
+/** 刚完成换位：驱动"新字落位"与端点提示，动画结束即撤 */
+const arriving = ref(false);
+let arriveTimer: number | undefined;
 let ghosts: { el: HTMLElement; anim: Animation }[] = [];
 const reduceMotion =
   typeof window !== "undefined" &&
@@ -72,6 +79,13 @@ const reduceMotion =
 
 function zoomOf(el: HTMLElement): number {
   return Number(getComputedStyle(el).zoom) || 1;
+}
+
+/** 换位提示：与徽标飞行同时起、稍晚收 */
+function flashRoles() {
+  arriving.value = true;
+  window.clearTimeout(arriveTimer);
+  arriveTimer = window.setTimeout(() => (arriving.value = false), 460);
 }
 
 /** 交换发送端 / 接收端（本机 → 设备 或 设备 → 本机） */
@@ -91,6 +105,7 @@ function swapDirection() {
 
   form.direction = form.direction === "push" ? "pull" : "push";
   swapRot.value += 180;
+  flashRoles();
   if (!chipL || !chipR || !startL || !startR || reduceMotion) return;
 
   void nextTick().then(() => {
@@ -98,7 +113,9 @@ function swapDirection() {
     const endR = chipR.getBoundingClientRect();
     const zL = zoomOf(chipL);
 
-    const mkGhost = (label: string, from: DOMRect, to: DOMRect, arcDir: number) => {
+    // 徽标在 zoom 容器内、幽灵挂在 body 上：给幽灵补上同一档 zoom，
+    // 坐标系一致（否则改了"界面大小"之后落点会整体偏移）
+    const mkGhost = (label: string, from: DOMRect, to: DOMRect, vert: number) => {
       const g = chipL.cloneNode(true) as HTMLElement;
       g.textContent = label;
       g.style.position = "fixed";
@@ -106,34 +123,32 @@ function swapDirection() {
       g.style.top = `${from.top / zL}px`;
       g.style.width = `${from.width / zL}px`;
       g.style.margin = "0";
+      g.style.zoom = String(zL);
+      g.style.transformOrigin = "top left";
       g.style.pointerEvents = "none";
       g.style.zIndex = "130"; // 弹出层(120)之上、标题栏(150)之下
       document.body.appendChild(g);
       const dx = (to.left - from.left) / zL;
       const dy = (to.top - from.top) / zL;
-      const lift = Math.abs(dy) + 18;
       const anim = g.animate(
         [
-          { transform: "translate(0, 0) scale(1)", opacity: 1 },
+          { transform: "translate(0, 0) scale(1)", opacity: 1, offset: 0 },
           {
-            transform: `translate(${dx * 0.5}px, ${dy * 0.5 - arcDir * lift}px) scale(1.06)`,
+            transform: `translate(${dx * 0.5}px, ${dy * 0.5 + vert / zL}px) scale(1.04)`,
             opacity: 1,
-            offset: 0.55,
+            offset: 0.52,
           },
-          { transform: `translate(${dx}px, ${dy}px) scale(1)`, opacity: 0 },
+          { transform: `translate(${dx}px, ${dy}px) scale(1)`, opacity: 1, offset: 0.86 },
+          { transform: `translate(${dx}px, ${dy}px) scale(1)`, opacity: 0, offset: 1 },
         ],
-        { duration: 300, easing: "cubic-bezier(0.32, 0.72, 0, 1)", fill: "forwards" },
+        { duration: 320, easing: "cubic-bezier(0.32, 0.72, 0, 1)", fill: "forwards" },
       );
       anim.onfinish = () => g.remove();
       return { el: g, anim };
     };
 
-    // 旧标签从原位飞向对侧新位：L 旧标签 → 右徽标新位（弧向上），
-    // R 旧标签 → 左徽标新位（弧向下），交叉而不重叠
-    ghosts = [
-      mkGhost(oldL, startL, endR, -1),
-      mkGhost(oldR, startR, endL, 1),
-    ];
+    // 左右各偏 7px：两条轨迹在中点擦肩而过，不重叠
+    ghosts = [mkGhost(oldL, startL, endR, -7), mkGhost(oldR, startR, endL, 7)];
   });
 }
 
@@ -143,6 +158,7 @@ onBeforeUnmount(() => {
     g.el.remove();
   });
   ghosts = [];
+  window.clearTimeout(arriveTimer);
 });
 
 /**
@@ -227,10 +243,10 @@ function handleClose() {
       <div class="field">
         <span class="field-label">{{ t("editor.direction") }}</span>
         <div class="direction-bar">
-          <div class="dir-end">
+          <div class="dir-end" :class="{ 'role-flip': arriving }">
             <Icon name="folder" :size="16" class="dir-icon" />
             <div class="dir-text">
-              <span ref="sideL" class="dir-side">
+              <span ref="sideL" class="dir-side" :class="{ arriving }">
                 {{ t(form.direction === "push" ? "editor.side_send" : "editor.side_recv") }}
               </span>
               <span class="dir-name">{{ t("editor.local") }}</span>
@@ -260,10 +276,10 @@ function handleClose() {
               />
             </svg>
           </button>
-          <div class="dir-end">
+          <div class="dir-end" :class="{ 'role-flip': arriving }">
             <Icon name="drive" :size="16" class="dir-icon" />
             <div class="dir-text">
-              <span ref="sideR" class="dir-side">
+              <span ref="sideR" class="dir-side" :class="{ arriving }">
                 {{ t(form.direction === "push" ? "editor.side_recv" : "editor.side_send") }}
               </span>
               <span class="dir-name">
@@ -382,6 +398,34 @@ function handleClose() {
   font-weight: 600;
   color: var(--accent-text);
 }
+/* 新角色落位：与幽灵抵达同一刻浮上来，不是瞬间换字 */
+.dir-side.arriving {
+  animation: dir-side-in 220ms var(--ease) 110ms both;
+}
+@keyframes dir-side-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* 端点提示：角色换位的那一侧泛一层强调色，随飞行结束退去 */
+.dir-end.role-flip {
+  animation: dir-flip 380ms var(--ease) both;
+}
+@keyframes dir-flip {
+  from {
+    background-color: var(--accent-soft);
+    border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+  }
+  to {
+    background-color: var(--fill-softer);
+    border-color: var(--hairline);
+  }
+}
 .dir-name {
   font-size: calc(12.5px * var(--font-scale, 1));
   color: var(--text);
@@ -404,7 +448,7 @@ function handleClose() {
 }
 /* 交换图标随方向同向累计旋转（与徽标飞行同曲线同时长） */
 .dir-swap svg {
-  transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 @media (prefers-reduced-motion: reduce) {
   .dir-swap svg {

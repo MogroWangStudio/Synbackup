@@ -7,6 +7,7 @@ import type {
   HistoryEntry,
   PendingReview,
   SyncPair,
+  UpdateInfo,
   VolumeInfo,
 } from "./types";
 
@@ -72,6 +73,10 @@ export const store = reactive({
   toasts: [] as Toast[],
   diffDialog: null as DiffDialogState | null,
   editor: null as null | { pair: SyncPair | null },
+  /** 更新向导：非空时显示；由设置页的"检查更新"写入 */
+  updateWizard: null as UpdateInfo | null,
+  /** 已选定、待重启生效的新数据目录（空 = 未切换） */
+  dataDirPending: "",
   syncingPairIds: [] as string[],
   /** 关闭窗口确认：true 时显示"仅退出窗口 / 完全退出"选择框 */
   closeConfirm: false,

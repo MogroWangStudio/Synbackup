@@ -5,6 +5,7 @@ mod backend;
 mod commands;
 mod monitor;
 mod notify;
+mod relaunch;
 mod sync_flow;
 mod update;
 
@@ -341,9 +342,14 @@ pub fn run() {
             commands::open_external,
             commands::mark_ui_ready,
             commands::exit_app,
+            commands::restart_app,
+            commands::set_data_dir,
             commands::test_notification,
             commands::destroy_main_window,
             update::check_update,
+            update::download_update,
+            update::cancel_update_download,
+            update::install_update,
         ])
         .setup(|app| {
             app.manage(backend::Core::new());

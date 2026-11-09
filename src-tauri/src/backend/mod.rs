@@ -42,7 +42,7 @@ pub struct Core {
 
 impl Core {
     pub fn new() -> Self {
-        let dir = config::default_dir();
+        let dir = config::resolve_dir();
         // 便携化后首次启动：把旧版本写在系统目录的数据搬过来
         config::migrate_from_legacy(&dir);
         let cfg = config::load_config(&dir);

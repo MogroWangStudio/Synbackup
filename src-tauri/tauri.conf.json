@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Synbackup",
-  "version": "0.4.0-beta3",
+  "version": "0.4.0-beta4",
   "identifier": "com.mws.synbackup",
   "build": {
     "beforeDevCommand": "npm run dev",

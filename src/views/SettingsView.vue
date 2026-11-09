@@ -225,9 +225,10 @@ async function onCheckUpdate() {
     const info: UpdateInfo = await api.checkUpdate();
     if (info.available) {
       updateHint.value = t("update.available", { v: info.version });
-      toast("success", t("update.available_toast", { v: info.version }));
       // 更新说明写入提示行；点击版本行可打开下载页
       pendingUrl = info.url;
+      // 向导接管后续：打开即开始下载，旧版留着"前往下载页"作为退路
+      store.updateWizard = info;
     } else {
       updateHint.value = t("update.up_to_date");
       toast("info", t("update.up_to_date_toast"));
@@ -237,6 +238,38 @@ async function onCheckUpdate() {
     toast("error", String(e));
   } finally {
     checking.value = false;
+  }
+}
+
+// ---- 数据目录 ----
+/** 重启前显示的目录：已切换时先展示待生效的新位置 */
+const shownDataDir = computed(() => store.dataDirPending || store.appInfo?.dataDir || "");
+const restarting = ref(false);
+
+async function pickDataDir() {
+  const path = await open({
+    directory: true,
+    multiple: false,
+    title: t("settings.data_pick"),
+  });
+  if (typeof path !== "string" || !path) return;
+  try {
+    store.dataDirPending = await api.setDataDir(path);
+    toast("success", t("settings.data_pending"));
+  } catch (e) {
+    toast("error", String(e));
+  }
+}
+
+async function restartApp() {
+  if (restarting.value) return;
+  restarting.value = true;
+  try {
+    // 正常路径：进程随即退出，由系统脚本拉起新实例
+    await api.restartApp();
+  } catch (e) {
+    restarting.value = false;
+    toast("error", String(e));
   }
 }
 
@@ -660,7 +693,7 @@ function onLanguageSelect(v: string) {
             {{ updateHint }}
           </span>
         </div>
-        <span class="row-value">{{ store.appInfo?.version ?? "0.4.0-beta3" }}</span>
+        <span class="row-value">{{ store.appInfo?.version ?? "0.4.0-beta4" }}</span>
       </div>
       <div class="row">
         <div class="row-label">
@@ -685,12 +718,28 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.data") }}</span>
-          <span class="row-hint">{{ t("settings.data_hint") }}</span>
+          <span class="row-hint">
+            {{ store.dataDirPending ? t("settings.data_pending") : t("settings.data_hint") }}
+          </span>
         </div>
-        <span class="row-value mono" :title="store.appInfo?.dataDir">
-          <Icon name="folder" :size="13" />
-          {{ store.appInfo?.dataDir }}
-        </span>
+        <div class="data-controls">
+          <span class="row-value mono" :title="shownDataDir">
+            <Icon name="folder" :size="13" />
+            {{ shownDataDir }}
+          </span>
+          <button type="button" class="btn btn-sm" @click="pickDataDir">
+            {{ t("settings.data_change") }}
+          </button>
+          <button
+            v-if="store.dataDirPending"
+            type="button"
+            class="btn btn-sm btn-primary"
+            :disabled="restarting"
+            @click="restartApp"
+          >
+            {{ t("settings.data_restart") }}
+          </button>
+        </div>
       </div>
       <div class="dev-section">
         <h3 class="group-title">{{ t("settings.developer") }}</h3>
@@ -860,6 +909,21 @@ function onLanguageSelect(v: string) {
 .row-value.mono {
   font-family: var(--mono);
   font-size: calc(11px * var(--font-scale, 1));
+}
+/* 数据目录行：路径会很长，先让它收缩，按钮保持原尺寸 */
+.data-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.data-controls .row-value {
+  max-width: none;
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-end;
 }
 
 /* ---- 开发者 ---- */

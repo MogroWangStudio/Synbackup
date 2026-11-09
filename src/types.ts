@@ -213,9 +213,19 @@ export interface AppInfo {
 export interface UpdateInfo {
   available: boolean;
   version: string;
-  /** 发布说明（markdown 原文，截断到 2000 字符） */
+  /** 发布说明（纯文本，截断到 3000 字符） */
   notes: string;
   /** 下载页地址（浏览器打开） */
   url: string;
   current: string;
+  /** 本平台安装包文件名，空 = 该平台不走自动更新 */
+  asset: string;
+  /** 是否支持自动下载并安装 */
+  auto: boolean;
+}
+
+/** 更新包下载进度（后端 update-progress 事件） */
+export interface UpdateProgress {
+  received: number;
+  total: number;
 }

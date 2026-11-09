@@ -43,6 +43,16 @@ export const api = {
   exitApp: () => invoke<void>("exit_app"),
   destroyMainWindow: () => invoke<void>("destroy_main_window"),
   checkUpdate: () => invoke<UpdateInfo>("check_update"),
+  /** 下载本平台更新包（进度经 update-progress 事件回传），返回落地路径 */
+  downloadUpdate: (version: string) => invoke<string>("download_update", { version }),
+  /** 取消进行中的下载 */
+  cancelUpdateDownload: () => invoke<void>("cancel_update_download"),
+  /** 安装已下载的更新包并退出，由后台脚本替换文件并拉起新版本 */
+  installUpdate: (version: string) => invoke<void>("install_update", { version }),
+  /** 切换数据目录（复制现有数据 + 记下指针），重启后生效 */
+  setDataDir: (path: string) => invoke<string>("set_data_dir", { path }),
+  /** 重启应用（前端与后台一并退出，随后自动拉起） */
+  restartApp: () => invoke<void>("restart_app"),
   /** 测试通知：标题 / 内容 / 按钮可自定义，留空用后端默认文案 */
   testNotification: (opts?: { title?: string; body?: string; buttons?: string[] }) =>
     invoke<void>("test_notification", {

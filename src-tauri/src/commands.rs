@@ -2,6 +2,7 @@
 //! 前端退出后这些命令不再被调用，后端照常运行。
 
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
 use serde::Serialize;
@@ -314,6 +315,35 @@ pub async fn get_app_info(app: AppHandle, core: State<'_, backend::Core>) -> Cmd
         data_dir: core.dir.to_string_lossy().to_string(),
         version: app.package_info().version.to_string(),
     })
+}
+
+/// 切换数据目录：把现有数据复制过去并记下指针，重启后生效。
+/// 返回新目录的绝对路径（界面在重启前显示"将切换到"）。
+#[tauri::command]
+pub async fn set_data_dir(core: State<'_, backend::Core>, path: String) -> CmdResult<String> {
+    // 同步进行中不动数据：正在写的清单 / 历史会被复制成半截
+    let _sync = core
+        .sync_lock
+        .try_lock()
+        .map_err(|_| "同步任务进行中，请完成后再更改数据目录".to_string())?;
+    let current = core.dir.clone();
+    let target = PathBuf::from(path);
+    let next = sync_flow::run_blocking(move || backend::config::switch_data_dir(&current, &target))
+        .await??;
+    Ok(next.to_string_lossy().to_string())
+}
+
+/// 重启应用：前端与后台一并退出，随后由系统脚本拉起新实例
+#[tauri::command]
+pub fn restart_app(app: AppHandle, core: State<'_, backend::Core>) -> CmdResult<()> {
+    // 与安装更新同一条纪律：同步进行中不退出进程
+    let _sync = core
+        .sync_lock
+        .try_lock()
+        .map_err(|_| "同步任务进行中，请完成后再重启".to_string())?;
+    crate::relaunch::spawn_relaunch_current()?;
+    app.exit(0);
+    Ok(())
 }
 
 /// 用系统默认浏览器打开外部链接（仅 http/https，防任意协议唤起）

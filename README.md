@@ -6,7 +6,7 @@
 
 把 USB 移动存储设备插上电脑，同备就帮你把指定文件夹同步好——**差异先列出来给你确认，同步才动手**。
 
-`0.4.0-beta3` · Windows / macOS · Tauri 2 + Vue 3 + TypeScript + Rust
+`0.4.0-beta4` · Windows / macOS · Tauri 2 + Vue 3 + TypeScript + Rust
 
 ## 功能特性
 
@@ -22,6 +22,8 @@
 - **多语言界面**（11 种，语言选择器以母语自称）、开机自启、插入设备时系统通知。
 - **个性化**：五档主题色与自定义调色板、纸墨 / 终端 / 玻璃三套特殊主题、浅色 / 深色 / 跟随系统外观、界面字体（预设三档，或经字体浏览弹窗枚举系统字体选自定义字族）、字体与界面大小（− / + 步进调节）、任务按钮显示模式（图标 + 文字 / 仅图标 / 仅文字）、品牌 logo 形态（默认完整字标 / 仅图案 / 自定义文字 / 自定义图片）、启动动画（六种预设可预览）；外观偏好即时生效，首帧不闪变。
 - **更新渠道**：稳定通道对应正式版（Release），测试通道对应预发布（Pre-Release）。
+- **自动更新**：检查到新版本后由向导接管——按当前平台下载对应产物（Windows 便携 exe / macOS DMG），显示进度，下载完成后倒计时重启安装。替换发生在进程退出之后：Windows 覆盖原 exe 并按新版本号重命名，macOS 用 DMG 里的 .app 替换旧包，两者都由系统脚本完成并自动拉起新版本；同步进行中会拒绝安装，下载完整性经过校验，替换失败时回退到旧版本而不是把程序弄丢。
+- **数据目录可更改**：设置 → 关于可把配置、同步清单与历史迁到任意可写目录（路径实测可写后才接受，现有数据一并复制），重启后生效；目录指针保存在便携目录的 `location.txt`，指针失效时自动回落到便携目录。
 
 ## 界面
 
@@ -83,14 +85,17 @@ npm run build         # vue-tsc 类型检查 + vite 构建
 cd src-tauri && cargo check
 ```
 
-## CI
+## CI 与发布
 
-每次推送都会通过 GitHub Actions 自动构建（`.github/workflows/ci.yml`），产物在 Actions 页面的 Artifacts 中下载：
+发版只有两步：把 `src-tauri/tauri.conf.json` 的版本号改掉、在 `CHANGELOG.md` 补上 `## [版本号]` 段，然后推送到 `main`。
 
-- `Synbackup-<版本>-windows-x64` — Windows x64 便携版（单文件 exe，目标机器需已安装 WebView2 Runtime，Win10/11 默认内置）
-- `Synbackup-<版本>-macos-arm64` — macOS Apple Silicon DMG（未签名，首次打开需右键 → 打开）
+- **Release（自动）** `.github/workflows/release.yml`：推送到 `main` 后按版本号发布。该版本号的 Release 已存在则直接跳过（版本没变的日常提交不会重复构建）；版本号是新的就打 tag、双平台构建并发布——含 `-` 的版本发 Pre-Release，纯 `x.x.x` 发 Release 并标记 latest。手动触发一律视为重发，按 tag 覆盖产物。
+- **CI（手动）** `.github/workflows/ci.yml`：Actions → CI → Run workflow，按需构建校验，产物在 Actions 页面的 Artifacts 中下载：
 
-版本号取自 `src-tauri/tauri.conf.json`。
+  - `Synbackup-<版本>-windows-x64` — Windows x64 便携版（单文件 exe，目标机器需已安装 WebView2 Runtime，Win10/11 默认内置）
+  - `Synbackup-<版本>-macos-arm64` — macOS Apple Silicon DMG（未签名，首次打开需右键 → 打开）
+
+产物文件名是自动更新的下载依据（`Synbackup-<版本>-windows-x64.exe` / `Synbackup-<版本>-macos-arm64.dmg`），改名会直接让自动更新找不到包。版本号取自 `src-tauri/tauri.conf.json`。
 
 窗口装饰按平台分文件配置：`tauri.conf.json` 面向 Windows（无边框 + 自绘按钮），`tauri.macos.conf.json` 覆写 macOS 窗口（透明叠加标题栏 + 原生红绿灯）。平台配置按 JSON Merge Patch 合并，**数组整体替换**，所以 macOS 里把整个窗口对象重写了一遍，新增窗口字段时两处都要改。
 
@@ -106,6 +111,8 @@ macOS 菜单栏另用 `src-tauri/icons/tray-template.png`（纯黑剪影、透�
 - macOS：`<app 内可执行文件目录>/data/`（若 `.app` 安装在 /Applications 等不可写位置，则回退到 `~/Library/Application Support/com.mws.synbackup/`）
 
 旧版本写在系统目录（`%APPDATA%` / `~/Library/Application Support`，包名 `com.mogrowang.synbackup` 或 `com.mws.synbackup`）的数据会在首次启动时自动搬迁到便携目录，此后不再读写系统目录。
+
+实际位置可以在**设置 → 关于 → 数据目录**中更改（重启后生效）：便携目录里的 `location.txt` 记录自定义目录的绝对路径，启动时优先读它；指针缺失、失效，或指向的目录已被删除 / 未挂载时，回落到上面的默认位置。更改时会把 `config.json`、`manifests/`、`history.jsonl` 复制到新目录（目标已有配置则视为复用该目录，不覆盖），更新包暂存目录 `updates/` 与指针文件本身不随迁。
 
 配对时会在设备侧目录写入一个 `.synbackup-device` 标记文件（含随机 UUID），用于跨卷标识别设备；不需要时删除该文件即可。
 
@@ -131,6 +138,8 @@ macOS 菜单栏另用 `src-tauri/icons/tray-template.png`（纯黑剪影、透�
 │       │   ├── execute.rs  #   同步执行
 │       │   └── ...
 │       ├── commands.rs     # IPC 命令（薄封装）
+│       ├── update.rs       #   检查更新 / 下载 / 安装
+│       ├── relaunch.rs     #   退出后替换文件并拉起新版本（PowerShell / sh）
 │       └── lib.rs          # 托盘 / 窗口生命周期 / 监控循环
 ```
 
@@ -138,6 +147,7 @@ macOS 菜单栏另用 `src-tauri/icons/tray-template.png`（纯黑剪影、透�
 
 - [x] 界面规范：自绘标题栏、主题色 / 辅助色、材质分层
 - [x] 品牌标识：矢量 logo（界面内联）+ 全平台应用图标
+- [x] 自动更新：下载对应平台产物、退出后替换、自动重启
 - [ ] 空目录同步、符号链接策略
 - [ ] 计划任务与定时备份
 - [ ] 冲突"保留两份"策略

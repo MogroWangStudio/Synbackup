@@ -16,6 +16,7 @@ import SettingsView from "./views/SettingsView.vue";
 import PairEditor from "./components/PairEditor.vue";
 import DiffDialog from "./components/DiffDialog.vue";
 import CloseConfirm from "./components/CloseConfirm.vue";
+import UpdateWizard from "./components/UpdateWizard.vue";
 import ToastHost from "./components/ToastHost.vue";
 import TitleBar from "./components/TitleBar.vue";
 
@@ -131,6 +132,7 @@ onBeforeUnmount(() => {
 
     <PairEditor v-if="store.editor" />
     <DiffDialog v-if="store.diffDialog" />
+    <UpdateWizard v-if="store.updateWizard" :info="store.updateWizard" @close="store.updateWizard = null" />
     <CloseConfirm v-if="store.closeConfirm" />
     <ToastHost />
   </div>
