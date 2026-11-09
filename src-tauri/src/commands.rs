@@ -197,6 +197,65 @@ pub fn get_app_memory() -> CmdResult<u64> {
     Ok(guard.process(pid).map(|p| p.memory()).unwrap_or(0))
 }
 
+/// CPU 采样用的独立 sysinfo 实例。与内存共用一个实例会打乱"两次刷新取增量"
+/// 的节奏——谁先刷新，谁的间隔就被别人吃掉。
+static CPU_SYS: OnceLock<Mutex<System>> = OnceLock::new();
+
+/// 本应用当前 CPU 占用（占整机算力的百分比，0–100）。
+///
+/// sysinfo 的进程占用是两次刷新之间的增量，因此取值依赖调用间隔：界面按设置的
+/// 刷新频率轮询（≥3 秒），首次采样没有可比的前值，必然返回 0。多核占用先按
+/// 核数折算再上报，界面上读作"这台机器的百分之几"，与内存占用同一口径。
+#[tauri::command]
+pub fn get_app_cpu() -> CmdResult<f32> {
+    let pid = Pid::from_u32(std::process::id());
+    let sys = CPU_SYS.get_or_init(|| Mutex::new(System::new()));
+    let Ok(mut guard) = sys.lock() else {
+        return Ok(0.0);
+    };
+    guard.refresh_processes(ProcessesToUpdate::Some(&[pid]), false);
+    let per_core = guard.process(pid).map(|p| p.cpu_usage()).unwrap_or(0.0);
+    let cores = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1) as f32;
+    Ok((per_core / cores).clamp(0.0, 100.0))
+}
+
+/// 系统整体 GPU 占用（百分比）；读不到时为 null（界面上显示占位符）
+#[tauri::command]
+pub async fn get_gpu_usage() -> CmdResult<Option<f32>> {
+    sync_flow::run_blocking(crate::gpu::system_usage).await
+}
+
+/// 所有同步任务的本地文件夹体积合计（字节）。
+///
+/// 遍历放在阻塞线程里做，几十万个文件也不会堵住 IPC；忽略规则与差异扫描一致，
+/// 且跳过符号链接（不跟进去，避免环与重复计数）。任务之间存在包含关系时
+/// （一个任务的目录是另一个的子目录）只算外层一次，否则会被统计两遍。
+#[tauri::command]
+pub async fn get_pairs_size(core: State<'_, backend::Core>) -> CmdResult<u64> {
+    let mut roots: Vec<PathBuf> = core
+        .pairs()
+        .iter()
+        .map(|p| PathBuf::from(&p.local_path))
+        .collect();
+    // 前缀排序保证父目录排在子目录之前，顺序扫一遍即可去掉被包含项
+    roots.sort();
+    let mut unique: Vec<PathBuf> = Vec::with_capacity(roots.len());
+    for path in roots {
+        if !unique.iter().any(|kept| path.starts_with(kept)) {
+            unique.push(path);
+        }
+    }
+    sync_flow::run_blocking(move || {
+        unique
+            .iter()
+            .map(|root| backend::scan::tree_size(root))
+            .sum::<u64>()
+    })
+    .await
+}
+
 /// 系统字体的语言标签（按本地化名称的语言归类）
 fn font_language_tag(lang: &fontdb::Language) -> &'static str {
     let name = format!("{lang:?}");

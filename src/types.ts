@@ -59,6 +59,12 @@ export interface AppSettings {
   overviewMemoryMs: number;
   /** 总览页设备状态刷新间隔（毫秒；0 = 仅随系统事件更新） */
   overviewDevicesMs: number;
+  /** 总览页 CPU 占用刷新间隔（毫秒；0 = 不自动刷新） */
+  overviewCpuMs: number;
+  /** 总览页 GPU 占用（系统整体）刷新间隔（毫秒；0 = 不自动刷新） */
+  overviewGpuMs: number;
+  /** 总览页"同步项目大小"刷新间隔（毫秒；0 = 不自动刷新） */
+  overviewSizeMs: number;
 }
 
 /** 任务的主传输方向:push = 本机发送(本地 → 设备),pull = 本机接收(设备 → 本地) */

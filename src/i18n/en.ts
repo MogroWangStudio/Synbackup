@@ -24,6 +24,9 @@ export const en: Dict = {
   "overview.stat_pairs": "Sync pairs",
   "overview.stat_devices": "Devices connected",
   "overview.stat_pending": "Pending differences",
+  "overview.stat_size": "Total size",
+  "overview.stat_cpu": "CPU usage",
+  "overview.stat_gpu": "GPU usage (system)",
   "overview.stat_memory": "Memory usage",
   "overview.empty_pairs_title": "No sync pairs yet",
   "overview.empty_pairs_desc":
@@ -37,6 +40,7 @@ export const en: Dict = {
   "overview.refresh_event": "Updates with events",
   "overview.refresh_off": "No auto-refresh",
   "overview.seconds": "{n}s",
+  "overview.minutes": "{n} min",
   "overview.all_hidden": "All statistics are hidden",
 
   "pairs.title": "Sync Pairs",

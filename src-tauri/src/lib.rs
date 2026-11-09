@@ -3,6 +3,7 @@
 
 mod backend;
 mod commands;
+mod gpu;
 mod monitor;
 mod notify;
 mod relaunch;
@@ -336,6 +337,9 @@ pub fn run() {
             commands::clear_history,
             commands::get_app_info,
             commands::get_app_memory,
+            commands::get_app_cpu,
+            commands::get_gpu_usage,
+            commands::get_pairs_size,
             commands::list_system_fonts,
             commands::read_logo_image,
             commands::open_path,

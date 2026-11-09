@@ -32,6 +32,12 @@ export const api = {
   getAppInfo: () => invoke<AppInfo>("get_app_info"),
   /** 本应用当前物理内存（RAM）占用，字节 */
   getAppMemory: () => invoke<number>("get_app_memory"),
+  /** 本应用当前 CPU 占用（占整机算力的百分比） */
+  getAppCpu: () => invoke<number>("get_app_cpu"),
+  /** 系统整体 GPU 占用百分比；平台不支持时为 null */
+  getGpuUsage: () => invoke<number | null>("get_gpu_usage"),
+  /** 全部同步任务的本地文件夹体积合计，字节 */
+  getPairsSize: () => invoke<number>("get_pairs_size"),
   /** 枚举系统已安装字体（按字族聚合，含本地化名称与语言标签） */
   listSystemFonts: () => invoke<FontFamilyInfo[]>("list_system_fonts"),
   /** 读取自定义图片 logo，返回 data URI（格式 / 大小校验在后端） */

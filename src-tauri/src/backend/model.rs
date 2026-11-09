@@ -87,6 +87,16 @@ pub struct AppSettings {
     /// 总览页设备状态的刷新间隔（毫秒；0 = 仅随系统事件更新）
     #[serde(default)]
     pub overview_devices_ms: u32,
+    /// 总览页 CPU 占用的刷新间隔（毫秒；0 = 不自动刷新）
+    #[serde(default = "default_overview_cpu_ms")]
+    pub overview_cpu_ms: u32,
+    /// 总览页 GPU 占用（系统整体，需拉起系统命令）的刷新间隔
+    #[serde(default = "default_overview_gpu_ms")]
+    pub overview_gpu_ms: u32,
+    /// 总览页"同步项目大小"的刷新间隔（毫秒；0 = 不自动刷新）。
+    /// 取一次要遍历全部本地目录，默认比其他项稀疏得多。
+    #[serde(default = "default_overview_size_ms")]
+    pub overview_size_ms: u32,
 }
 
 /// 总览页默认显示的数据项（与旧版固定四项一致）
@@ -97,6 +107,21 @@ fn default_overview_stats() -> Vec<String> {
 /// 内存占用默认 5 秒刷新一次（旧版硬编码的节奏）
 fn default_overview_memory_ms() -> u32 {
     5000
+}
+
+/// CPU 占用默认 5 秒（sysinfo 的进程占用依赖两次采样的间隔，太密反而失真）
+fn default_overview_cpu_ms() -> u32 {
+    5000
+}
+
+/// GPU 占用的默认间隔放宽到 10 秒：整机口径要拉起系统命令，不必跟内存同频
+fn default_overview_gpu_ms() -> u32 {
+    10_000
+}
+
+/// 项目总大小默认 5 分钟：一次统计要遍历全部本地目录，按需稀疏刷新
+fn default_overview_size_ms() -> u32 {
+    300_000
 }
 
 /// 状态栏信息的默认显示顺序
@@ -153,6 +178,9 @@ impl Default for AppSettings {
             overview_stats: default_overview_stats(),
             overview_memory_ms: default_overview_memory_ms(),
             overview_devices_ms: 0,
+            overview_cpu_ms: default_overview_cpu_ms(),
+            overview_gpu_ms: default_overview_gpu_ms(),
+            overview_size_ms: default_overview_size_ms(),
         }
     }
 }

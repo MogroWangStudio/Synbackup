@@ -24,6 +24,9 @@ export const ru: Dict = {
   "overview.stat_pairs": "Задачи",
   "overview.stat_devices": "Подключено устройств",
   "overview.stat_pending": "Различий к разбору",
+  "overview.stat_size": "Общий размер",
+  "overview.stat_cpu": "Загрузка CPU",
+  "overview.stat_gpu": "Загрузка GPU (система)",
   "overview.stat_memory": "Использование памяти",
   "overview.empty_pairs_title": "Задач пока нет",
   "overview.empty_pairs_desc":
@@ -37,6 +40,7 @@ export const ru: Dict = {
   "overview.refresh_event": "По событиям",
   "overview.refresh_off": "Без автообновления",
   "overview.seconds": "{n} с",
+  "overview.minutes": "{n} мин",
   "overview.all_hidden": "Вся статистика скрыта",
 
   "pairs.title": "Задачи синхронизации",

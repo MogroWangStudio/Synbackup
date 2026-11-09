@@ -24,6 +24,9 @@ export const es: Dict = {
   "overview.stat_pairs": "Tareas de sync",
   "overview.stat_devices": "Dispositivos conectados",
   "overview.stat_pending": "Diferencias pendientes",
+  "overview.stat_size": "Tamaño total",
+  "overview.stat_cpu": "Uso de CPU",
+  "overview.stat_gpu": "Uso de GPU (sistema)",
   "overview.stat_memory": "Uso de memoria",
   "overview.empty_pairs_title": "Aún no hay tareas de sync",
   "overview.empty_pairs_desc":
@@ -37,6 +40,7 @@ export const es: Dict = {
   "overview.refresh_event": "Con eventos",
   "overview.refresh_off": "Sin actualización automática",
   "overview.seconds": "{n} s",
+  "overview.minutes": "{n} min",
   "overview.all_hidden": "Todas las estadísticas están ocultas",
 
   "pairs.title": "Tareas de sincronización",

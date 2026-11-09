@@ -101,6 +101,11 @@ const fontOptions = computed<SelectOption[]>(() => {
   return base;
 });
 const fontBrowserOpen = ref(false);
+/** 当前是否已落在自定义字族上：只有这时才露出"浏览字体"按钮 */
+const isCustomFont = computed(() => {
+  const cur = store.settings.fontFamily;
+  return !!cur && !fonts.includes(cur as (typeof fonts)[number]);
+});
 const fontHint = computed(() => {
   const cur = store.settings.fontFamily;
   if (cur && !fonts.includes(cur as (typeof fonts)[number])) {
@@ -422,15 +427,22 @@ function onLanguageSelect(v: string) {
           <span class="row-hint">{{ fontHint }}</span>
         </div>
         <div class="font-controls">
+          <Transition name="font-browse">
+            <button
+              v-if="isCustomFont"
+              type="button"
+              class="btn btn-sm font-browse"
+              @click="fontBrowserOpen = true"
+            >
+              {{ t("settings.font_browse") }}
+            </button>
+          </Transition>
           <Select
             :model-value="fontSelectValue"
             :options="fontOptions"
             :aria-label="t('settings.font')"
             @update:model-value="onFontSelect"
           />
-          <button type="button" class="btn btn-sm" @click="fontBrowserOpen = true">
-            {{ t("settings.font_browse") }}
-          </button>
         </div>
       </div>
       <div class="row">
@@ -693,7 +705,7 @@ function onLanguageSelect(v: string) {
             {{ updateHint }}
           </span>
         </div>
-        <span class="row-value">{{ store.appInfo?.version ?? "0.4.0-beta5" }}</span>
+        <span class="row-value">{{ store.appInfo?.version ?? "1.0.0" }}</span>
       </div>
       <div class="row">
         <div class="row-label">
@@ -909,6 +921,41 @@ function onLanguageSelect(v: string) {
 .row-value.mono {
   font-family: var(--mono);
   font-size: calc(11px * var(--font-scale, 1));
+}
+/* 字体行：浏览按钮只在选中自定义字族时出现，且落在 combobox 左侧。
+   行宽由 space-between 决定，按钮出现只是占掉左侧的空档，combobox 不动。 */
+.font-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+/* 自定义字族名可能很长：给 combobox 一个上限，超出由它自己省略，
+   而不是把同一行的标签挤到换行 */
+.font-controls :deep(.mws-cbx) {
+  max-width: 240px;
+}
+.font-browse-enter-active,
+.font-browse-leave-active {
+  transition:
+    opacity 140ms var(--ease),
+    transform 140ms var(--ease);
+}
+.font-browse-enter-from,
+.font-browse-leave-to {
+  opacity: 0;
+  transform: translateX(4px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .font-browse-enter-active,
+  .font-browse-leave-active {
+    transition: opacity 140ms linear;
+    transform: none;
+  }
+  .font-browse-enter-from,
+  .font-browse-leave-to {
+    transform: none;
+  }
 }
 /* 数据目录行：路径会很长，先让它收缩，按钮保持原尺寸 */
 .data-controls {

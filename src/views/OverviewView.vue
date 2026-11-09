@@ -1,9 +1,16 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { refreshVolumes, store } from "../store";
 import { api } from "../api";
 import { fmtSize, fmtTime, t } from "../i18n";
-import { MIN_POLL_MS, OVERVIEW_STAT_LABEL, type OverviewStatKey } from "../overview";
+import {
+  MIN_POLL_MS,
+  OVERVIEW_INTERVAL_FIELD,
+  OVERVIEW_POLLED_KEYS,
+  OVERVIEW_STAT_LABEL,
+  type OverviewPolledKey,
+  type OverviewStatKey,
+} from "../overview";
 import Icon from "../components/Icon.vue";
 import EmptyState from "../components/EmptyState.vue";
 import OverviewEditDialog from "../components/OverviewEditDialog.vue";
@@ -13,61 +20,84 @@ const pendingTotal = computed(() =>
 );
 
 /* ---- 轮询：只给"可轮询且正在显示"的数据项开定时器 ----
-   内存走本地 ref（后端命令），设备直接刷新 store.volumes；
-   频率取自设置（0 / <3s 视为关闭），改设置即时重启定时器。 */
-const memoryText = ref("");
-let memTimer: number | undefined;
-let devTimer: number | undefined;
+   每项自己取数、自己格式化；频率取自设置（0 / <3s 视为关闭），
+   改设置即时重启定时器，隐藏某项即停掉它的定时器。 */
+const live = reactive({ memory: "", cpu: "", gpu: "", size: "" });
 
-async function refreshMemory() {
+/** 每一项怎么取数：取回后直接换成卡片上要显示的那句话 */
+const FETCH: Record<OverviewPolledKey, () => Promise<void>> = {
+  devices: async () => {
+    await refreshVolumes();
+  },
+  memory: async () => {
+    live.memory = fmtSize(await api.getAppMemory());
+  },
+  cpu: async () => {
+    live.cpu = `${(await api.getAppCpu()).toFixed(1)}%`;
+  },
+  gpu: async () => {
+    const v = await api.getGpuUsage();
+    live.gpu = v === null ? "–" : `${Math.round(v)}%`;
+  },
+  size: async () => {
+    live.size = fmtSize(await api.getPairsSize());
+  },
+};
+
+async function pull(key: OverviewPolledKey) {
   try {
-    memoryText.value = fmtSize(await api.getAppMemory());
+    await FETCH[key]();
   } catch {
-    /* 拉取失败保持上一次显示 */
+    /* 拉取失败保持上一次显示，不打断页面 */
   }
+}
+
+const timers = new Map<OverviewPolledKey, number>();
+let shownBefore = new Set<string>();
+
+function stopTimers() {
+  for (const id of timers.values()) window.clearInterval(id);
+  timers.clear();
 }
 
 function restartPolling() {
-  window.clearInterval(memTimer);
-  window.clearInterval(devTimer);
-  memTimer = undefined;
-  devTimer = undefined;
-
-  const shownKeys = new Set(store.settings.overviewStats);
-  const memMs = store.settings.overviewMemoryMs;
-  if (shownKeys.has("memory") && memMs >= MIN_POLL_MS) {
-    void refreshMemory();
-    memTimer = window.setInterval(refreshMemory, memMs);
+  stopTimers();
+  const shown = new Set(store.settings.overviewStats);
+  for (const key of OVERVIEW_POLLED_KEYS) {
+    if (!shown.has(key)) continue;
+    // 新露出的项先取一次值，别让卡片挂着占位符空等一个周期
+    if (!shownBefore.has(key)) void pull(key);
+    const ms = store.settings[OVERVIEW_INTERVAL_FIELD[key]];
+    if (ms < MIN_POLL_MS) continue;
+    timers.set(key, window.setInterval(() => void pull(key), ms));
   }
-  const devMs = store.settings.overviewDevicesMs;
-  if (shownKeys.has("devices") && devMs >= MIN_POLL_MS) {
-    devTimer = window.setInterval(() => {
-      void refreshVolumes().catch(() => {});
-    }, devMs);
-  }
+  shownBefore = shown;
 }
 
 onMounted(restartPolling);
-onBeforeUnmount(() => {
-  window.clearInterval(memTimer);
-  window.clearInterval(devTimer);
-});
+onBeforeUnmount(stopTimers);
 watch(
   () => [
     store.settings.overviewStats.join(","),
     store.settings.overviewMemoryMs,
     store.settings.overviewDevicesMs,
+    store.settings.overviewCpuMs,
+    store.settings.overviewGpuMs,
+    store.settings.overviewSizeMs,
   ],
   restartPolling,
 );
 
 /** 卡片内容：按设置里的顺序取显示项；未知键（旧配置 / 手改）忽略 */
 const stats = computed(() => {
-  const valueOf: Record<OverviewStatKey, string | number> = {
-    pairs: store.pairs.length,
-    devices: store.volumes.length,
-    pending: pendingTotal.value,
-    memory: memoryText.value || "–",
+  const valueOf: Record<OverviewStatKey, string> = {
+    pairs: String(store.pairs.length),
+    devices: String(store.volumes.length),
+    pending: String(pendingTotal.value),
+    size: live.size || "–",
+    cpu: live.cpu || "–",
+    gpu: live.gpu || "–",
+    memory: live.memory || "–",
   };
   return store.settings.overviewStats
     .filter((k): k is OverviewStatKey => k in OVERVIEW_STAT_LABEL)

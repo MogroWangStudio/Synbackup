@@ -24,6 +24,9 @@ export const ko: Dict = {
   "overview.stat_pairs": "동기화 작업",
   "overview.stat_devices": "연결된 기기",
   "overview.stat_pending": "대기 중인 차이",
+  "overview.stat_size": "전체 크기",
+  "overview.stat_cpu": "CPU 사용률",
+  "overview.stat_gpu": "GPU 사용률(시스템)",
   "overview.stat_memory": "메모리 사용량",
   "overview.empty_pairs_title": "아직 동기화 작업이 없습니다",
   "overview.empty_pairs_desc":
@@ -37,6 +40,7 @@ export const ko: Dict = {
   "overview.refresh_event": "이벤트로 갱신",
   "overview.refresh_off": "자동 새로 고침 안 함",
   "overview.seconds": "{n}초",
+  "overview.minutes": "{n}분",
   "overview.all_hidden": "통계가 모두 숨겨졌습니다",
 
   "pairs.title": "동기화 작업",

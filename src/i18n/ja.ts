@@ -24,6 +24,9 @@ export const ja: Dict = {
   "overview.stat_pairs": "同期タスク",
   "overview.stat_devices": "接続中のデバイス",
   "overview.stat_pending": "未処理の差分",
+  "overview.stat_size": "合計サイズ",
+  "overview.stat_cpu": "CPU 使用率",
+  "overview.stat_gpu": "GPU 使用率（システム）",
   "overview.stat_memory": "メモリ使用量",
   "overview.empty_pairs_title": "同期タスクがまだありません",
   "overview.empty_pairs_desc":
@@ -37,6 +40,7 @@ export const ja: Dict = {
   "overview.refresh_event": "イベントで更新",
   "overview.refresh_off": "自動更新しない",
   "overview.seconds": "{n} 秒",
+  "overview.minutes": "{n} 分",
   "overview.all_hidden": "統計はすべて非表示です",
 
   "pairs.title": "同期タスク",

@@ -23,6 +23,9 @@ export const zh = {
   "overview.stat_pairs": "同步任务",
   "overview.stat_devices": "已连接设备",
   "overview.stat_pending": "待处理差异",
+  "overview.stat_size": "同步项目大小",
+  "overview.stat_cpu": "CPU 占用",
+  "overview.stat_gpu": "GPU 占用（系统）",
   "overview.stat_memory": "内存占用",
   "overview.empty_pairs_title": "还没有同步任务",
   "overview.empty_pairs_desc":
@@ -36,6 +39,7 @@ export const zh = {
   "overview.refresh_event": "随事件更新",
   "overview.refresh_off": "不自动刷新",
   "overview.seconds": "{n} 秒",
+  "overview.minutes": "{n} 分钟",
   "overview.all_hidden": "统计数据已全部隐藏",
 
   "pairs.title": "同步任务",

@@ -61,6 +61,33 @@ fn walk(root: &Path, dir: &Path, map: &mut BTreeMap<String, FileStat>) {
     }
 }
 
+/// 目录树体积合计（字节）：忽略规则与差异扫描完全一致，符号链接只跳过不跟进
+/// （跟进既可能绕成环，也会把链接目标重复计进体积）。
+pub fn tree_size(root: &Path) -> u64 {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return 0;
+    };
+    let mut total = 0u64;
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if is_ignored(&name) {
+            continue;
+        }
+        let Ok(ft) = entry.file_type() else { continue };
+        if ft.is_symlink() {
+            continue;
+        }
+        if ft.is_dir() {
+            total += tree_size(&entry.path());
+        } else if let Ok(meta) = entry.metadata() {
+            if meta.is_file() {
+                total += meta.len();
+            }
+        }
+    }
+    total
+}
+
 fn same(a: FileStat, b: FileStat) -> bool {
     a.size == b.size && (a.mtime_ms - b.mtime_ms).abs() <= MTIME_TOLERANCE_MS
 }

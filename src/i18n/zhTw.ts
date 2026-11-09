@@ -24,6 +24,9 @@ export const zhTw: Dict = {
   "overview.stat_pairs": "同步任務",
   "overview.stat_devices": "已連接裝置",
   "overview.stat_pending": "待處理差異",
+  "overview.stat_size": "同步專案大小",
+  "overview.stat_cpu": "CPU 佔用",
+  "overview.stat_gpu": "GPU 佔用（系統）",
   "overview.stat_memory": "記憶體占用",
   "overview.empty_pairs_title": "還沒有同步任務",
   "overview.empty_pairs_desc":
@@ -37,6 +40,7 @@ export const zhTw: Dict = {
   "overview.refresh_event": "隨事件更新",
   "overview.refresh_off": "不自動重新整理",
   "overview.seconds": "{n} 秒",
+  "overview.minutes": "{n} 分鐘",
   "overview.all_hidden": "統計資料已全部隱藏",
 
   "pairs.title": "同步任務",
