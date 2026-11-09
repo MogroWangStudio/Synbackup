@@ -1,6 +1,6 @@
 [package]
 name = "synbackup"
-version = "0.4.0-beta2"
+version = "0.4.0-beta3"
 description = "Synbackup — USB 移动存储设备文件同步与备份"
 edition = "2021"
 rust-version = "1.77.2"
@@ -57,6 +57,9 @@ windows = { version = "0.62", features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_System_LibraryLoader",
 ] }
+# Windows toast 动作按钮：notify-rust 的后端不暴露 <action>，这条链路直接
+# 走 WinRT 构造 toast（与 tauri-plugin-notification 同一个底层 crate）
+tauri-winrt-notification = "0.8"
 
 [profile.release]
 codegen-units = 1

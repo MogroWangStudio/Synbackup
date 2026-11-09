@@ -55,9 +55,11 @@ const themeOptions = computed<SelectOption[]>(() =>
 const taskBtnOptions = computed<SelectOption[]>(() =>
   ["both", "icon", "text"].map((k) => ({ value: k, label: t(`taskbtn.${k}`) })),
 );
-// 左上角 logo 形态与自定义内容
+// 品牌 logo 形态：默认（完整字标）/ 仅图案 / 自定义文字 / 自定义图片。
+// "仅文字"与"默认完整"合并为一档——默认即完整字标（含文字），
+// 少一个看起来差不多、实际只裁掉图案的选项。
 const logoStyleOptions = computed<SelectOption[]>(() =>
-  ["full", "text", "mark", "custom_text", "custom_image"].map((k) => ({
+  ["full", "mark", "custom_text", "custom_image"].map((k) => ({
     value: k,
     label: t(`logostyle.${k}`),
   })),
@@ -646,9 +648,7 @@ function onLanguageSelect(v: string) {
       <div class="brand-mark">
         <Logo
           :size="32"
-          :variant="store.settings.logoStyle === 'text' || store.settings.logoStyle === 'mark'
-            ? store.settings.logoStyle
-            : 'full'"
+          :variant="store.settings.logoStyle === 'mark' ? 'mark' : 'full'"
           :custom-text="store.settings.logoCustomText"
           :custom-image="store.logoImageUri"
         />
@@ -660,7 +660,7 @@ function onLanguageSelect(v: string) {
             {{ updateHint }}
           </span>
         </div>
-        <span class="row-value">{{ store.appInfo?.version ?? "0.4.0-beta2" }}</span>
+        <span class="row-value">{{ store.appInfo?.version ?? "0.4.0-beta3" }}</span>
       </div>
       <div class="row">
         <div class="row-label">

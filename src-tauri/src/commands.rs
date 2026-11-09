@@ -368,7 +368,8 @@ pub fn destroy_main_window(app: AppHandle) -> CmdResult<()> {
 }
 
 /// 发送一条测试通知（走与自动同步相同的系统通知链路）。
-/// 标题 / 内容为空时回退默认文案；按钮仅 macOS 生效，其他平台忽略。
+/// 标题 / 内容为空时回退默认文案；macOS 与 Windows 支持通知按钮，
+/// 其他平台忽略按钮。授权被拒等可在发送前判定的失败直接回给界面。
 #[tauri::command]
 pub fn test_notification(
     app: AppHandle,
@@ -397,6 +398,5 @@ pub fn test_notification(
         .collect();
     buttons.dedup();
     buttons.truncate(3);
-    crate::notify::test_notify(&app, &title, &body, &buttons);
-    Ok(())
+    crate::notify::test_notify(&app, &title, &body, &buttons)
 }

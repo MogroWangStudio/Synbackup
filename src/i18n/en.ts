@@ -230,8 +230,7 @@ export const en: Dict = {
   "settings.task_btn_hint": "How the action buttons on sync pair cards are displayed.",
 "settings.logo_label": "Brand logo",
 "settings.logo_hint": "The brand mark in the title bar.",
-  "logostyle.full": "Full",
-  "logostyle.text": "Text only",
+  "logostyle.full": "Default",
   "logostyle.mark": "Mark only",
   "logostyle.custom_text": "Custom text",
   "logostyle.custom_image": "Custom image",
@@ -304,6 +303,7 @@ export const en: Dict = {
   "ntest.remove": "Remove this button",
   "ntest.buttons_hint": "Up to 3. Tapping a button on the notification shows feedback in the app.",
   "ntest.unsupported": "Notification buttons are not supported on this system; only the title and body will be sent.",
+  "ntest.permission_denied": "Notifications are turned off. Allow Synbackup in System Settings → Notifications.",
   "ntest.send": "Send",
   "ntest.sent": "Test notification sent",
 

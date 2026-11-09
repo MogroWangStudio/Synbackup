@@ -230,8 +230,7 @@ export const de: Dict = {
   "settings.task_btn_hint": "Anzeige der Aktionsschaltflächen auf Sync-Karten.",
 "settings.logo_label": "Markenlogo",
 "settings.logo_hint": "Das Markenlogo in der Titelleiste.",
-  "logostyle.full": "Vollständig",
-  "logostyle.text": "Nur Text",
+  "logostyle.full": "Standard",
   "logostyle.mark": "Nur Symbol",
   "logostyle.custom_text": "Eigener Text",
   "logostyle.custom_image": "Eigenes Bild",
@@ -303,6 +302,7 @@ export const de: Dict = {
   "ntest.remove": "Diese Schaltfläche entfernen",
   "ntest.buttons_hint": "Maximal 3. Tippt man eine Schaltfläche auf der Mitteilung an, gibt es eine Rückmeldung in der App.",
   "ntest.unsupported": "Benachrichtigungs-Schaltflächen werden auf diesem System nicht unterstützt; nur Titel und Inhalt werden gesendet.",
+  "ntest.permission_denied": "Mitteilungen sind deaktiviert. Erlauben Sie Synbackup in den Systemeinstellungen → Mitteilungen.",
   "ntest.send": "Senden",
   "ntest.sent": "Testmitteilung gesendet",
 

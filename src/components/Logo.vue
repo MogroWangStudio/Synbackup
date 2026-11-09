@@ -8,9 +8,9 @@ import { computed, onMounted, ref, watch } from "vue";
 const props = withDefaults(
   defineProps<{
     size?: number;
-    /** 形态：full = 完整（图案 + 文字），text = 仅文字，mark = 仅图案，
+    /** 形态：full = 默认完整字标（图案 + 文字），mark = 仅图案，
         custom_text = 自定义文字，custom_image = 自定义图片 */
-    variant?: "full" | "text" | "mark" | "custom_text" | "custom_image";
+    variant?: "full" | "mark" | "custom_text" | "custom_image";
     /** 自定义文字内容（variant = custom_text 时生效；空则回退应用名） */
     customText?: string;
     /** 自定义图片 data URI（variant = custom_image 时生效；空则回退完整） */
@@ -19,12 +19,10 @@ const props = withDefaults(
   { size: 18, variant: "full", customText: "", customImage: "" },
 );
 
-// 文字组 / 图案组的取景包围盒：以渲染矩形实测（getBoundingClientRect
-// 是唯一不受嵌套矩阵 / 缩放语义影响的真值源），换算回 viewBox 单位；
-// 随 variant 变化重测（可见部分随之切换，隐藏部分的矩形为零自动剔除）
+// 图案组的取景包围盒：以渲染矩形实测（getBoundingClientRect 是唯一不受
+// 嵌套矩阵 / 缩放语义影响的真值源），换算回 viewBox 单位；随 variant 变化
+// 重测（仅图案时文字组隐藏，隐藏部分的矩形为零自动剔除）
 const textG = ref<SVGGElement | null>(null);
-const markG = ref<SVGGElement | null>(null);
-const textBBox = ref<DOMRect | null>(null);
 const markBBox = ref<DOMRect | null>(null);
 
 /** 可见 path 的渲染矩形并集 → 当前 viewBox 单位坐标 */
@@ -58,12 +56,7 @@ function measure() {
   try {
     const b = measureVisible(svg);
     if (!b) return;
-    if (props.variant === "text") textBBox.value = b;
-    else if (props.variant === "mark") markBBox.value = b;
-    else {
-      textBBox.value = b;
-      markBBox.value = b;
-    }
+    if (props.variant === "mark") markBBox.value = b;
   } catch {
     /* 未渲染等极端场景：保持上一次取景 */
   }
@@ -81,7 +74,6 @@ watch(
 const vb = computed(() => {
   const frame = (b: DOMRect) =>
     `${(b.x - 4).toFixed(2)} ${(b.y - 4).toFixed(2)} ${(b.width + 8).toFixed(2)} ${(b.height + 8).toFixed(2)}`;
-  if (props.variant === "text" && textBBox.value) return frame(textBBox.value);
   if (props.variant === "mark" && markBBox.value) return frame(markBBox.value);
   return "0 0 1144 206";
 });
@@ -94,8 +86,9 @@ const box = computed(() => {
   };
 });
 
+/** 默认形态显示完整字标（图案 + 文字）；仅图案时把文字组隐藏，
+    取景与渲染都只留图案 */
 const showText = computed(() => props.variant !== "mark");
-const showMark = computed(() => props.variant !== "text");
 </script>
 
 <template>
@@ -154,7 +147,7 @@ const showMark = computed(() => props.variant !== "text");
     <path d="M325.066,187.795C325.722,187.411 326.328,186.955 326.884,186.427C327.44,185.899 327.866,185.403 328.162,184.939L330.046,185.335C329.614,186.039 329.064,186.725 328.396,187.393C327.728,188.061 326.97,188.659 326.122,189.187L325.066,187.795ZM324.91,189.775C326.582,189.575 328.02,189.269 329.224,188.857C330.428,188.445 331.434,187.963 332.242,187.411L327.778,187.411L328.066,185.971L334.738,185.971L334.738,187.663C333.53,188.599 332.186,189.375 330.706,189.991C329.226,190.607 327.454,191.071 325.39,191.383L324.91,189.775ZM328.318,186.847C328.83,187.383 329.412,187.819 330.064,188.155C330.716,188.491 331.504,188.765 332.428,188.977C333.352,189.189 334.51,189.363 335.902,189.499L335.422,191.227C333.902,191.019 332.632,190.771 331.612,190.483C330.592,190.195 329.7,189.823 328.936,189.367C328.172,188.911 327.466,188.319 326.818,187.591L328.318,186.847ZM334.75,190.819L334.75,195.934L335.702,196.375L333.046,196.375L333.046,192.151L327.826,192.151L327.826,196.143L328.531,196.375L326.146,196.375L326.146,190.819L334.75,190.819ZM333.862,192.775L333.862,193.975L327.01,193.975L327.01,192.775L333.862,192.775ZM333.862,194.575L333.862,195.955L327.01,195.955L327.01,194.575L333.862,194.575ZM331.234,191.503L331.234,195.259L329.578,195.259L329.578,191.503L331.234,191.503Z" style="fill:var(--accent);fill-rule:nonzero;"/>
     </g>
     </g>
-    <g ref="markG" :style="{ visibility: showMark ? 'visible' : 'hidden' }">
+    <g>
     <g transform="matrix(0.788092,0,0,0.788092,4293.876895,238.418448)">
     <g transform="matrix(1,0,0,1,-239.907263,-77.802482)">
     <path d="M2579.95,1825.583L2579.795,1825.506C2584.977,1815.067 2591.726,1805.727 2599.676,1797.716L2636.465,1824.104L2771.483,1920.648C2766.349,1930.991 2759.677,1940.254 2751.822,1948.216L2579.854,1825.716L2579.95,1825.583Z" style="fill:var(--accent-2);"/>

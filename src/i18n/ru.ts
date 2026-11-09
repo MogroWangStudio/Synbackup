@@ -230,8 +230,7 @@ export const ru: Dict = {
   "settings.task_btn_hint": "Отображение кнопок действий на карточках синхронизации.",
 "settings.logo_label": "Логотип бренда",
 "settings.logo_hint": "Логотип в строке заголовка.",
-  "logostyle.full": "Полный",
-  "logostyle.text": "Только текст",
+  "logostyle.full": "По умолчанию",
   "logostyle.mark": "Только символ",
   "logostyle.custom_text": "Свой текст",
   "logostyle.custom_image": "Своя картинка",
@@ -303,6 +302,7 @@ export const ru: Dict = {
   "ntest.remove": "Удалить эту кнопку",
   "ntest.buttons_hint": "Не более 3. При нажатии кнопки в уведомлении приложение покажет отклик.",
   "ntest.unsupported": "Кнопки в уведомлениях не поддерживаются в этой системе; будут отправлены только заголовок и текст.",
+  "ntest.permission_denied": "Уведомления отключены. Разрешите Synbackup в Системных настройках → Уведомления.",
   "ntest.send": "Отправить",
   "ntest.sent": "Тестовое уведомление отправлено",
 

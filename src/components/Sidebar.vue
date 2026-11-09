@@ -4,6 +4,7 @@ import { store } from "../store";
 import { api } from "../api";
 import { toast } from "../store";
 import { t } from "../i18n";
+import Icon from "./Icon.vue";
 
 const items = computed(() => [
   { key: "overview", icon: "overview", label: t("nav.overview"), badge: 0 },

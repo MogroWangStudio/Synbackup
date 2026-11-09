@@ -230,8 +230,7 @@ export const it: Dict = {
   "settings.task_btn_hint": "Come vengono mostrati i pulsanti d'azione nelle card di sincronizzazione.",
 "settings.logo_label": "Logo del marchio",
 "settings.logo_hint": "Il marchio nella barra del titolo.",
-  "logostyle.full": "Completo",
-  "logostyle.text": "Solo testo",
+  "logostyle.full": "Predefinito",
   "logostyle.mark": "Solo simbolo",
   "logostyle.custom_text": "Testo personalizzato",
   "logostyle.custom_image": "Immagine personalizzata",
@@ -303,6 +302,7 @@ export const it: Dict = {
   "ntest.remove": "Rimuovi questo pulsante",
   "ntest.buttons_hint": "Al massimo 3. Toccando un pulsante della notifica, l'app mostra una conferma.",
   "ntest.unsupported": "I pulsanti di notifica non sono supportati su questo sistema; verranno inviati solo titolo e contenuto.",
+  "ntest.permission_denied": "Le notifiche sono disattivate. Consenti Synbackup in Impostazioni di Sistema → Notifiche.",
   "ntest.send": "Invia",
   "ntest.sent": "Notifica di prova inviata",
 

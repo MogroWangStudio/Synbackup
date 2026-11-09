@@ -14,12 +14,12 @@ import Logo from "./Logo.vue";
 const isMac = document.documentElement.dataset.os === "mac";
 
 // logo 形态由个性化设置驱动；自定义图片未就绪（未设置 / 读取失败）时
-// Logo 组件内部回退完整矢量
+// Logo 组件内部回退完整矢量。旧配置的 "text" 已并入 "full"（默认完整字标）
 const logoVariant = computed(() => {
   const st = store.settings;
-  return (["text", "mark", "custom_text", "custom_image"].includes(st.logoStyle)
+  return (["mark", "custom_text", "custom_image"].includes(st.logoStyle)
     ? st.logoStyle
-    : "full") as "full" | "text" | "mark" | "custom_text" | "custom_image";
+    : "full") as "full" | "mark" | "custom_text" | "custom_image";
 });
 const logoCustomText = computed(() => store.settings.logoCustomText.trim() || "Synbackup");
 const logoCustomImage = computed(() => store.logoImageUri);

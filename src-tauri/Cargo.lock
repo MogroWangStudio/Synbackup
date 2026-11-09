@@ -3918,7 +3918,7 @@ dependencies = [
 
 [[package]]
 name = "synbackup"
-version = "0.4.0-beta2"
+version = "0.4.0-beta3"
 dependencies = [
  "base64 0.22.1",
  "block2",
@@ -3942,6 +3942,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
+ "tauri-winrt-notification",
  "tokio",
  "uuid",
  "windows 0.62.2",

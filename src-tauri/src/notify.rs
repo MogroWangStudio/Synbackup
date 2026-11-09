@@ -70,23 +70,35 @@ pub fn notify_ask(app: &AppHandle, lang: &str, title: &str, body: &str, pair_id:
     }
 }
 
-/// 测试通知：标题 / 内容 / 按钮全部由界面传入。按钮（通知动作）仅 macOS
-/// 生效——Win32 toast 的按钮需要 COM 激活链路，notify-rust 不支持，其他
-/// 平台忽略按钮只发标题与内容（界面侧已在非 macOS 隐藏按钮编辑）。
-pub fn test_notify(app: &AppHandle, title: &str, body: &str, buttons: &[String]) {
+/// 测试通知：标题 / 内容 / 按钮全部由界面传入。
+/// 按钮（通知动作）在 macOS（UNNotificationAction）与 Windows（toast 的
+/// `<action>`）上生效；Linux 的 Desktop Notifications 规范在 notify-rust
+/// 下没有动作能力，忽略按钮只发标题与内容（界面侧仅在 Linux 隐藏按钮编辑）。
+pub fn test_notify(app: &AppHandle, title: &str, body: &str, buttons: &[String]) -> Result<(), String> {
+    // 发送前先做可同步判定的检查（macOS：授权是否被拒）。授权被拒时把
+    // 错误码回给界面，而不是让用户面对"点了没反应"。
+    imp::precheck()?;
     let (title, body, buttons) = (title.to_owned(), body.to_owned(), buttons.to_vec());
+    let app2 = app.clone();
     let send = move || {
         if let Err(e) = imp::send_test(&title, &body, &buttons) {
             eprintln!("[synbackup] 发送测试通知失败: {e}");
+            // 投递阶段才暴露的失败（系统未注册 AUMID、权限在发送瞬间被撤销等）
+            let _ = app2.emit("notification-error", e);
         }
     };
     if let Err(e) = app.run_on_main_thread(send) {
-        eprintln!("[synbackup] 无法派发通知到主线程: {e}");
+        let msg = e.to_string();
+        eprintln!("[synbackup] 无法派发通知到主线程: {msg}");
+        return Err(msg);
     }
+    Ok(())
 }
 
 #[cfg(target_os = "macos")]
 mod imp {
+    use std::sync::atomic::{AtomicI8, Ordering};
+
     use super::Emitter;
     use tauri::Manager;
     use block2::{DynBlock, RcBlock};
@@ -108,6 +120,24 @@ mod imp {
     /// 同步前询问类别：固定两个动作（开始同步 / 取消任务）
     const ASK_CATEGORY: &str = "sync-review";
 
+    /// 通知授权状态：0 = 未决（尚未拿到回调）/ 1 = 已授权 / -1 = 被拒绝。
+    /// 启动时请求一次；发送前据此判断——未决就再请求一次（系统只在未决时
+    /// 弹窗，已决会立即回调），被拒绝则把原因回传界面，而不是"点了没反应"。
+    static AUTH: AtomicI8 = AtomicI8::new(0);
+
+    /// 授权被拒时回传给前端的稳定错误码（界面据此本地化提示文案）
+    pub const ERR_DENIED: &str = "notification-permission-denied";
+
+    /// 同步可判定的发送前检查：授权已被拒绝就不必再派发（否则系统静默丢弃，
+    /// 用户看到的只是"点了没反应"）
+    pub fn precheck() -> Result<(), String> {
+        if AUTH.load(Ordering::Relaxed) < 0 {
+            Err(ERR_DENIED.to_string())
+        } else {
+            Ok(())
+        }
+    }
+
     objc2::define_class!(
         /// 前台横幅 delegate：应用在前台时默认只把通知放进通知中心，
         /// 不弹横幅——自动同步的提醒恰恰是在窗口开着时发生的，必须补上。
@@ -127,7 +157,8 @@ mod imp {
             ) {
                 completion_handler.call((
                     UNNotificationPresentationOptions::Banner
-                        | UNNotificationPresentationOptions::List,
+                        | UNNotificationPresentationOptions::List
+                        | UNNotificationPresentationOptions::Sound,
                 ));
             }
 
@@ -202,6 +233,23 @@ mod imp {
         }
     }
 
+    /// 请求通知授权：系统只在"未决"时弹一次对话框，已决状态会立即回调。
+    /// 回调可能落在任意队列——需要触碰主线程对象的调用方自行切回主线程。
+    fn request_auth(done: impl Fn(bool) + 'static) {
+        let center = UNUserNotificationCenter::currentNotificationCenter();
+        let options = UNAuthorizationOptions::Alert | UNAuthorizationOptions::Sound;
+        let handler = RcBlock::new(move |granted: Bool, error: *mut NSError| {
+            let ok = granted.as_bool();
+            AUTH.store(if ok { 1 } else { -1 }, Ordering::Relaxed);
+            if !ok {
+                let detail = unsafe { error.as_ref().map(|e| e.localizedDescription().to_string()) };
+                eprintln!("[synbackup] macOS 通知授权未通过: {detail:?}（请在系统设置 → 通知中允许 Synbackup）");
+            }
+            done(ok);
+        });
+        center.requestAuthorizationWithOptions_completionHandler(options, &handler);
+    }
+
     /// 启动时调用：请求一次通知授权（系统只弹一次授权对话框）并挂上 delegate。
     pub fn init() {
         let mtm = MainThreadMarker::new().expect("notify::init 必须在主线程调用");
@@ -211,18 +259,11 @@ mod imp {
         // setDelegate 是弱引用，消费 Retained 泄漏保活（引用计数不减，指针有意丢弃）
         let _ = Retained::into_raw(delegate);
 
-        let options = UNAuthorizationOptions::Alert | UNAuthorizationOptions::Sound;
-        let handler = RcBlock::new(move |granted: Bool, error: *mut NSError| {
-            if !granted.as_bool() {
-                let detail = unsafe {
-                    error.as_ref().map(|e| e.localizedDescription().to_string())
-                };
-                eprintln!("[synbackup] macOS 通知授权未通过: {detail:?}（请在系统设置 → 通知中允许 Synbackup）");
-            }
-        });
-        center.requestAuthorizationWithOptions_completionHandler(options, &handler);
+        request_auth(|_| {});
     }
 
+    /// 投递一条普通通知。标识符带时间戳：同一标识符的请求会互相替换，
+    /// 固定 id 会让连续提醒在通知中心里只剩最后一条。
     pub fn send(title: &str, body: &str) -> Result<(), String> {
         let center = UNUserNotificationCenter::currentNotificationCenter();
 
@@ -233,17 +274,34 @@ mod imp {
 
         // trigger 传 None = 立即投递
         let request = UNNotificationRequest::requestWithIdentifier_content_trigger(
-            &NSString::from_str("synbackup"),
+            &NSString::from_str(&format!("synbackup-{}", millis())),
             &content,
             None,
         );
         let done = RcBlock::new(|error: *mut NSError| {
             if let Some(e) = unsafe { error.as_ref() } {
-                eprintln!("[synbackup] 通知投递失败: {}", e.localizedDescription());
+                report_delivery_error(e.localizedDescription().to_string());
             }
         });
         center.addNotificationRequest_withCompletionHandler(&request, Some(&done));
         Ok(())
+    }
+
+    /// 当前毫秒时间戳（通知标识符用）
+    fn millis() -> u128 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0)
+    }
+
+    /// 投递失败：既写日志，也把原因转给界面——点了"发送"却毫无反应，
+    /// 用户无从判断是权限、系统设置还是程序问题。
+    fn report_delivery_error(msg: String) {
+        eprintln!("[synbackup] 通知投递失败: {msg}");
+        if let Some(app) = super::APP.get() {
+            let _ = app.emit("notification-error", msg);
+        }
     }
 
     /// 同步前询问：注册 sync-review 类别（两个动作），请求 ID 携带
@@ -286,7 +344,7 @@ mod imp {
         );
         let done = RcBlock::new(|error: *mut NSError| {
             if let Some(e) = unsafe { error.as_ref() } {
-                eprintln!("[synbackup] 通知投递失败: {}", e.localizedDescription());
+                report_delivery_error(e.localizedDescription().to_string());
             }
         });
         center.addNotificationRequest_withCompletionHandler(&request, Some(&done));
@@ -295,7 +353,40 @@ mod imp {
 
     /// 测试通知：标题 / 内容自由，buttons 非空时注册测试类别挂动作按钮。
     /// 请求 ID 唯一（时间戳），连续发多条测试通知不会被系统去重合并。
+    ///
+    /// 发送前先看授权：被拒绝直接回错误码（界面据此提示去系统设置开启）；
+    /// 仍未决（启动时的请求可能早于系统就绪而静默失败）就再请求一次，
+    /// 授权通过后再补发——这是"点测试通知没反应"的根治点。
     pub fn send_test(title: &str, body: &str, buttons: &[String]) -> Result<(), String> {
+        match AUTH.load(Ordering::Relaxed) {
+            -1 => Err(ERR_DENIED.to_string()),
+            1 => {
+                deliver_test(title, body, buttons);
+                Ok(())
+            }
+            _ => {
+                let (t, b, btns) = (title.to_owned(), body.to_owned(), buttons.to_vec());
+                request_auth(move |ok| {
+                    if !ok {
+                        if let Some(app) = super::APP.get() {
+                            let _ = app.emit("notification-error", ERR_DENIED);
+                        }
+                        return;
+                    }
+                    if let Some(app) = super::APP.get() {
+                        let app = app.clone();
+                        // 授权回调是 Fn（可能被重复调用），闭包内只克隆、不搬走捕获值
+                        let (t, b, btns) = (t.clone(), b.clone(), btns.clone());
+                        let _ = app.run_on_main_thread(move || deliver_test(&t, &b, &btns));
+                    }
+                });
+                Ok(())
+            }
+        }
+    }
+
+    /// 组装并投递测试通知（须在主线程调用）
+    fn deliver_test(title: &str, body: &str, buttons: &[String]) {
         let center = UNUserNotificationCenter::currentNotificationCenter();
 
         let content = UNMutableNotificationContent::new();
@@ -326,28 +417,28 @@ mod imp {
             content.setCategoryIdentifier(&NSString::from_str(TEST_CATEGORY));
         }
 
-        let millis = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_millis())
-            .unwrap_or(0);
         let request = UNNotificationRequest::requestWithIdentifier_content_trigger(
-            &NSString::from_str(&format!("test-{millis}")),
+            &NSString::from_str(&format!("test-{}", millis())),
             &content,
             None,
         );
         let done = RcBlock::new(|error: *mut NSError| {
             if let Some(e) = unsafe { error.as_ref() } {
-                eprintln!("[synbackup] 通知投递失败: {}", e.localizedDescription());
+                report_delivery_error(e.localizedDescription().to_string());
             }
         });
         center.addNotificationRequest_withCompletionHandler(&request, Some(&done));
-        Ok(())
     }
 }
 
 #[cfg(not(target_os = "macos"))]
 mod imp {
     use notify_rust::Notification;
+
+    /// 非 macOS 平台没有需要提前拦截的授权状态
+    pub fn precheck() -> Result<(), String> {
+        Ok(())
+    }
 
     pub fn send(title: &str, body: &str) -> Result<(), String> {
         let mut n = Notification::new();
@@ -367,8 +458,62 @@ mod imp {
         n.show().map(|_| ()).map_err(|e| e.to_string())
     }
 
-    /// 测试通知：按钮（通知动作）在 Windows 的 toast 上需要 COM 激活链路，
-    /// notify-rust 不支持——忽略按钮只发标题与内容（界面侧已隐藏按钮编辑）。
+    /// 测试通知（Windows）：toast 原生支持动作按钮，直接用 WinRT 构造带
+    /// `<action>` 的 toast——notify-rust 的 Windows 后端不暴露按钮。
+    /// 按钮的 action 参数写序号，点击回调里再映射回展示文案；点通知本体
+    /// 视为"打开"，与 macOS 的事件口径一致。
+    #[cfg(target_os = "windows")]
+    pub fn send_test(title: &str, body: &str, buttons: &[String]) -> Result<(), String> {
+        use tauri::Emitter;
+        use tauri_winrt_notification::{Duration, Toast};
+
+        // AUMID 已在启动时注册到 HKCU；缺失时退回 PowerShell 的 AUMID，
+        // 宁可通知归属显示不对，也不能让 toast 被系统静默丢弃
+        let app_id = super::IDENTIFIER
+            .get()
+            .map(String::as_str)
+            .unwrap_or(Toast::POWERSHELL_APP_ID);
+
+        let mut toast = Toast::new(app_id)
+            .title(title)
+            .text1(body)
+            .duration(Duration::Short);
+
+        for (i, label) in buttons.iter().enumerate() {
+            toast = toast.add_button(label, &format!("test-button-{i}"));
+        }
+
+        if !buttons.is_empty() {
+            let labels = buttons.to_vec();
+            toast = toast.on_activated(move |action| {
+                let Some(app) = super::APP.get() else { return Ok(()) };
+                crate::show_main_window(app);
+                let (kind, label) = match action.as_deref() {
+                    Some(arg) => {
+                        let label = arg
+                            .strip_prefix("test-button-")
+                            .and_then(|i| i.parse::<usize>().ok())
+                            .and_then(|i| labels.get(i).cloned())
+                            .unwrap_or_else(|| arg.to_string());
+                        ("button", label)
+                    }
+                    // 点通知本体：无 action 参数
+                    None => ("open", String::new()),
+                };
+                let _ = app.emit(
+                    "notification-action",
+                    serde_json::json!({ "kind": kind, "action": label }),
+                );
+                Ok(())
+            });
+        }
+
+        toast.show().map_err(|e| e.to_string())
+    }
+
+    /// 测试通知（其他非 macOS 平台）：Desktop Notifications 规范在
+    /// notify-rust 下没有动作能力——忽略按钮只发标题与内容。
+    #[cfg(not(target_os = "windows"))]
     pub fn send_test(title: &str, body: &str, buttons: &[String]) -> Result<(), String> {
         let _ = buttons;
         send(title, body)

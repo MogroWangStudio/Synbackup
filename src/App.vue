@@ -5,7 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { api } from "./api";
 import { refreshAll, refreshConfig, refreshHistory, refreshPending, store, toast } from "./store";
 import { replayBootAnim } from "./theme";
-import { t } from "./i18n";
+import { notifyError, t } from "./i18n";
 import type { PendingReview, VolumeInfo } from "./types";
 import Sidebar from "./components/Sidebar.vue";
 import OverviewView from "./views/OverviewView.vue";
@@ -65,6 +65,10 @@ async function registerListeners() {
     } else if (e.payload.kind === "button") {
       toast("success", t("toast.notify_button", { action: e.payload.action }));
     }
+  });
+  // 通知投递失败（权限被拒 / 投递阶段出错）：提示用户，不再静默吞掉
+  await listen<string>("notification-error", (e) => {
+    toast("error", notifyError(e.payload));
   });
 }
 

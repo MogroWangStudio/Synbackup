@@ -230,8 +230,7 @@ export const es: Dict = {
   "settings.task_btn_hint": "Cómo se muestran los botones de acción en las tarjetas de sincronización.",
 "settings.logo_label": "Logo de marca",
 "settings.logo_hint": "El logotipo de la barra de título.",
-  "logostyle.full": "Completo",
-  "logostyle.text": "Solo texto",
+  "logostyle.full": "Predeterminado",
   "logostyle.mark": "Solo símbolo",
   "logostyle.custom_text": "Texto personalizado",
   "logostyle.custom_image": "Imagen personalizada",
@@ -303,6 +302,7 @@ export const es: Dict = {
   "ntest.remove": "Eliminar este botón",
   "ntest.buttons_hint": "Máximo 3. Al pulsar un botón de la notificación, la app muestra una confirmación.",
   "ntest.unsupported": "El sistema no admite botones en las notificaciones; solo se enviarán el título y el contenido.",
+  "ntest.permission_denied": "Las notificaciones están desactivadas. Permite Synbackup en Ajustes del Sistema → Notificaciones.",
   "ntest.send": "Enviar",
   "ntest.sent": "Notificación de prueba enviada",
 

@@ -230,8 +230,7 @@ export const ja: Dict = {
   "settings.task_btn_hint": "同期タスクカードの操作ボタンの表示方法。",
 "settings.logo_label": "ブランドロゴ",
 "settings.logo_hint": "タイトルバーのブランドロゴ。",
-  "logostyle.full": "デフォルト（完全）",
-  "logostyle.text": "文字のみ",
+  "logostyle.full": "デフォルト",
   "logostyle.mark": "シンボルのみ",
   "logostyle.custom_text": "カスタム文字",
   "logostyle.custom_image": "カスタム画像",
@@ -303,6 +302,7 @@ export const ja: Dict = {
   "ntest.remove": "このボタンを削除",
   "ntest.buttons_hint": "最大 3 個。通知のボタンをタップするとアプリ内にフィードバックが表示されます。",
   "ntest.unsupported": "このシステムでは通知ボタンに対応していません。タイトルと本文のみを送信します。",
+  "ntest.permission_denied": "通知が許可されていません。システム設定 → 通知で Synbackup を許可してください。",
   "ntest.send": "送信",
   "ntest.sent": "テスト通知を送信しました",
 

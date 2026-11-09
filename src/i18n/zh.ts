@@ -229,8 +229,7 @@ export const zh = {
   "settings.task_btn_hint": "同步任务卡片上操作按钮的显示方式。",
 "settings.logo_label": "品牌 logo",
 "settings.logo_hint": "标题栏的品牌标识。",
-  "logostyle.full": "默认完整",
-  "logostyle.text": "仅文字",
+  "logostyle.full": "默认",
   "logostyle.mark": "仅图案",
   "logostyle.custom_text": "自定义文字",
   "logostyle.custom_image": "自定义图片",
@@ -302,6 +301,7 @@ export const zh = {
   "ntest.remove": "移除此按钮",
   "ntest.buttons_hint": "最多 3 个。点击通知上的按钮后，应用内会收到反馈提示。",
   "ntest.unsupported": "当前系统不支持通知按钮，仅发送标题与内容。",
+  "ntest.permission_denied": "通知权限未开启：请在系统设置 → 通知中允许 Synbackup 发送通知。",
   "ntest.send": "发送",
   "ntest.sent": "测试通知已发送",
 

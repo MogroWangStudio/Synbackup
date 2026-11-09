@@ -50,6 +50,13 @@ export function t(key: string, params?: Record<string, string | number>): string
   return text;
 }
 
+/** 后端通知层的稳定错误码 → 本地化提示（其余错误原样展示） */
+export function notifyError(raw: string): string {
+  return raw.includes("notification-permission-denied")
+    ? t("ntest.permission_denied")
+    : raw;
+}
+
 export function fmtSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
   const units = ["B", "KB", "MB", "GB", "TB"];

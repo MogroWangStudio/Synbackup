@@ -684,4 +684,22 @@ watch(
   cursor: not-allowed;
   background: transparent;
 }
+
+/* ---- 玻璃主题：半透明底色必须咬合背景模糊 ----
+   玻璃主题的 --bg-content 是半透明表面；只透明不模糊，弹层下的内容会
+   直接透出来，文字与背景互相干扰。触发器与弹层同给 10px 磨砂，弹层才
+   像一块浮在内容之上的材质（Apple：材质承载层级，而不是单纯的透明）。
+   关闭透明度偏好时退回实色，不做磨砂。 */
+:root[data-theme="glass"] .mws-btn,
+:root[data-theme="glass"] .mws-frame {
+  backdrop-filter: blur(10px) saturate(1.25);
+  -webkit-backdrop-filter: blur(10px) saturate(1.25);
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-theme="glass"] .mws-btn,
+  :root[data-theme="glass"] .mws-frame {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
 </style>

@@ -86,14 +86,18 @@ watch(currentHex, (hex) => {
 });
 
 // ---- SV 面板 / 色相滑条拖拽 ----
-// 捕获指针 + move / up / cancel 三路监听，抬指（或被系统打断）时统一拆除。
+// 捕获指针 + window 级 move / up / cancel 三路监听：抬指（或被系统打断）时
+// 统一拆除。挂在 window 而非面板自身，指针拖出面板甚至拖出窗口边缘仍 1:1
+// 跟踪（捕获在某些嵌入环境下会失效，window 兜底保证拖拽不会中途"断线"）。
 // 选取用面板内比例坐标，天然与界面缩放无关；实时应用走 emit，持久化由
 // 设置页防抖（见 SettingsView.onCustomHex），拖拽过程不发 IPC。
 let svStop: (() => void) | null = null;
 let hueStop: (() => void) | null = null;
+/** 拖拽中：旋钮给一个轻微放大的按压反馈（按下即响应，抬指即回位） */
+const dragging = ref(false);
 
-/** 挂一次拖拽：捕获后 move 跟踪，up / cancel 统一拆除全部监听。
-    捕获失败（合成指针等边缘场景）降级为面板内跟踪，不影响真实指针 */
+/** 挂一次拖拽：捕获后跟踪，up / cancel 统一拆除全部监听。
+    捕获失败（合成指针等边缘场景）也不影响——监听在 window 上 */
 function startDrag(
   el: HTMLElement,
   e: PointerEvent,
@@ -102,17 +106,24 @@ function startDrag(
   try {
     el.setPointerCapture(e.pointerId);
   } catch {
-    /* 指针未激活等场景：继续无捕获跟踪 */
+    /* 指针未激活等场景：window 级监听继续跟踪 */
   }
+  dragging.value = true;
   const move = (ev: PointerEvent) => onMove(ev);
   const stop = () => {
-    el.removeEventListener("pointermove", move);
-    el.removeEventListener("pointerup", stop);
-    el.removeEventListener("pointercancel", stop);
+    window.removeEventListener("pointermove", move, true);
+    window.removeEventListener("pointerup", stop, true);
+    window.removeEventListener("pointercancel", stop, true);
+    dragging.value = false;
+    try {
+      el.releasePointerCapture(e.pointerId);
+    } catch {
+      /* 已释放 / 指针已失效：忽略 */
+    }
   };
-  el.addEventListener("pointermove", move);
-  el.addEventListener("pointerup", stop);
-  el.addEventListener("pointercancel", stop);
+  window.addEventListener("pointermove", move, true);
+  window.addEventListener("pointerup", stop, true);
+  window.addEventListener("pointercancel", stop, true);
   return stop;
 }
 
@@ -128,6 +139,7 @@ function svFromEvent(e: PointerEvent) {
 }
 
 function onSvDown(e: PointerEvent) {
+  e.preventDefault();
   svStop?.();
   svStop = startDrag(e.currentTarget as HTMLElement, e, svFromEvent);
   svFromEvent(e);
@@ -144,6 +156,7 @@ function hueFromEvent(e: PointerEvent) {
 }
 
 function onHueDown(e: PointerEvent) {
+  e.preventDefault();
   hueStop?.();
   hueStop = startDrag(e.currentTarget as HTMLElement, e, hueFromEvent);
   hueFromEvent(e);
@@ -197,6 +210,7 @@ onBeforeUnmount(() => {
     <div
       ref="svEl"
       class="cp-sv"
+      :class="{ dragging }"
       :style="{ '--hue': `${hsv.h}deg` }"
       @pointerdown="onSvDown"
     >
@@ -211,7 +225,7 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- 色相滑条 -->
-    <div class="cp-hue" @pointerdown="onHueDown">
+    <div ref="hueRef" class="cp-hue" :class="{ dragging }" @pointerdown="onHueDown">
       <div class="cp-hue-knob" :style="{ left: `${(hsv.h / 360) * 100}%` }" />
     </div>
 
@@ -265,6 +279,11 @@ onBeforeUnmount(() => {
   border: 2px solid #fff;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
   pointer-events: none;
+  transition: transform 120ms var(--ease);
+}
+/* 按压反馈：按下即放大（不等松手），抬指回位——手感锚定在指针上 */
+.cp-sv.dragging .cp-knob {
+  transform: translate(-50%, -50%) scale(1.18);
 }
 .cp-hue {
   position: relative;
@@ -295,6 +314,10 @@ onBeforeUnmount(() => {
   border: 2px solid #fff;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
   pointer-events: none;
+  transition: transform 120ms var(--ease);
+}
+.cp-hue.dragging .cp-hue-knob {
+  transform: translate(-50%, -50%) scale(1.18);
 }
 .cp-row {
   display: flex;

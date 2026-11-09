@@ -230,8 +230,7 @@ export const zhTw: Dict = {
   "settings.task_btn_hint": "同步任務卡片上操作按鈕的顯示方式。",
 "settings.logo_label": "品牌 logo",
 "settings.logo_hint": "標題列的品牌識別。",
-  "logostyle.full": "預設完整",
-  "logostyle.text": "僅文字",
+  "logostyle.full": "預設",
   "logostyle.mark": "僅圖案",
   "logostyle.custom_text": "自訂文字",
   "logostyle.custom_image": "自訂圖片",
@@ -303,6 +302,7 @@ export const zhTw: Dict = {
   "ntest.remove": "移除此按鈕",
   "ntest.buttons_hint": "最多 3 個。點擊通知上的按鈕後，應用程式內會收到回饋提示。",
   "ntest.unsupported": "目前系統不支援通知按鈕，僅傳送標題與內容。",
+  "ntest.permission_denied": "通知權限未開啟：請在系統設定 → 通知中允許 Synbackup 傳送通知。",
   "ntest.send": "傳送",
   "ntest.sent": "測試通知已傳送",
 

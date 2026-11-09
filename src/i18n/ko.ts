@@ -230,8 +230,7 @@ export const ko: Dict = {
   "settings.task_btn_hint": "동기화 작업 카드의 작업 버튼 표시 방식입니다.",
 "settings.logo_label": "브랜드 로고",
 "settings.logo_hint": "타이틀바의 브랜드 로고입니다.",
-  "logostyle.full": "기본 전체",
-  "logostyle.text": "텍스트만",
+  "logostyle.full": "기본",
   "logostyle.mark": "심볼만",
   "logostyle.custom_text": "사용자 지정 텍스트",
   "logostyle.custom_image": "사용자 지정 이미지",
@@ -303,6 +302,7 @@ export const ko: Dict = {
   "ntest.remove": "이 버튼 삭제",
   "ntest.buttons_hint": "최대 3개. 알림의 버튼을 누르면 앱 안에 피드백이 표시됩니다.",
   "ntest.unsupported": "이 시스템은 알림 버튼을 지원하지 않습니다. 제목과 내용만 보냅니다.",
+  "ntest.permission_denied": "알림이 허용되지 않았습니다. 시스템 설정 → 알림에서 Synbackup을 허용하세요.",
   "ntest.send": "보내기",
   "ntest.sent": "테스트 알림을 보냈습니다",
 

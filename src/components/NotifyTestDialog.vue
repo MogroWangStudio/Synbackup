@@ -1,17 +1,19 @@
 <script setup lang="ts">
 // 测试通知窗口：标题 / 内容 / 按钮全部可自定义后发送。
-// 按钮即系统通知的动作（macOS UNNotificationAction）；Windows toast 需要
-// COM 激活链路，不支持动作——非 macOS 隐藏按钮编辑，仅发标题与内容。
+// 按钮即系统通知的动作：macOS 走 UNNotificationAction，Windows 走 toast
+// 的 <action>（经 tauri-winrt-notification）；Linux 的 Desktop Notifications
+// 规范在 notify-rust 下没有动作能力——仅 Linux 隐藏按钮编辑，只发标题与内容。
 import { nextTick, ref } from "vue";
 import Modal from "./Modal.vue";
 import Icon from "./Icon.vue";
 import { api } from "../api";
-import { t } from "../i18n";
+import { notifyError, t } from "../i18n";
 import { toast } from "../store";
 
 const emit = defineEmits<{ (e: "close"): void }>();
 
-const isMac = document.documentElement.dataset.os === "mac";
+const os = document.documentElement.dataset.os;
+const supportsActions = os === "mac" || os === "windows";
 const MAX_BUTTONS = 3;
 
 const modalRef = ref<InstanceType<typeof Modal>>();
@@ -40,7 +42,7 @@ async function send() {
     toast("info", t("ntest.sent"));
     ok = true;
   } catch (e) {
-    toast("error", String(e));
+    toast("error", notifyError(String(e)));
   } finally {
     // 先解除 busy；busy prop 要等本次重渲染 flush 后才到达 Modal，
     // 所以关闭前先 nextTick 等它落地（与 PairEditor 同一坑）
@@ -77,7 +79,7 @@ async function send() {
         ></textarea>
       </label>
 
-      <div v-if="isMac" class="field">
+      <div v-if="supportsActions" class="field">
         <span class="field-label">{{ t("ntest.buttons") }}</span>
         <div class="btn-rows">
           <div v-for="(_, i) in rows" :key="i" class="btn-row">
