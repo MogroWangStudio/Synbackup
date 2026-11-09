@@ -78,6 +78,25 @@ pub struct AppSettings {
     pub status_sync_count: bool,
     /// 侧栏状态区：显示版本号
     pub status_version: bool,
+    /// 总览页显示的数据项（顺序即展示顺序；未知项忽略）
+    #[serde(default = "default_overview_stats")]
+    pub overview_stats: Vec<String>,
+    /// 总览页内存占用的刷新间隔（毫秒；0 = 不自动刷新）
+    #[serde(default = "default_overview_memory_ms")]
+    pub overview_memory_ms: u32,
+    /// 总览页设备状态的刷新间隔（毫秒；0 = 仅随系统事件更新）
+    #[serde(default)]
+    pub overview_devices_ms: u32,
+}
+
+/// 总览页默认显示的数据项（与旧版固定四项一致）
+fn default_overview_stats() -> Vec<String> {
+    vec!["pairs".into(), "devices".into(), "pending".into(), "memory".into()]
+}
+
+/// 内存占用默认 5 秒刷新一次（旧版硬编码的节奏）
+fn default_overview_memory_ms() -> u32 {
+    5000
 }
 
 /// 状态栏信息的默认显示顺序
@@ -131,6 +150,9 @@ impl Default for AppSettings {
             status_pairs: true,
             status_sync_count: true,
             status_version: false,
+            overview_stats: default_overview_stats(),
+            overview_memory_ms: default_overview_memory_ms(),
+            overview_devices_ms: 0,
         }
     }
 }

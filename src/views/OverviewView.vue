@@ -1,18 +1,24 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { store } from "../store";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { refreshVolumes, store } from "../store";
 import { api } from "../api";
 import { fmtSize, fmtTime, t } from "../i18n";
+import { MIN_POLL_MS, OVERVIEW_STAT_LABEL, type OverviewStatKey } from "../overview";
 import Icon from "../components/Icon.vue";
 import EmptyState from "../components/EmptyState.vue";
+import OverviewEditDialog from "../components/OverviewEditDialog.vue";
 
 const pendingTotal = computed(() =>
   store.pending.reduce((n, p) => n + p.items.length, 0),
 );
 
-/* 本应用内存（RAM）占用：5 秒轮询，离开总览页即停 */
+/* ---- 轮询：只给"可轮询且正在显示"的数据项开定时器 ----
+   内存走本地 ref（后端命令），设备直接刷新 store.volumes；
+   频率取自设置（0 / <3s 视为关闭），改设置即时重启定时器。 */
 const memoryText = ref("");
 let memTimer: number | undefined;
+let devTimer: number | undefined;
+
 async function refreshMemory() {
   try {
     memoryText.value = fmtSize(await api.getAppMemory());
@@ -20,18 +26,55 @@ async function refreshMemory() {
     /* 拉取失败保持上一次显示 */
   }
 }
-onMounted(() => {
-  void refreshMemory();
-  memTimer = window.setInterval(refreshMemory, 5000);
-});
-onBeforeUnmount(() => window.clearInterval(memTimer));
 
-const stats = computed(() => [
-  { n: store.pairs.length, label: t("overview.stat_pairs") },
-  { n: store.volumes.length, label: t("overview.stat_devices") },
-  { n: pendingTotal.value, label: t("overview.stat_pending") },
-  { n: memoryText.value || "–", label: t("overview.stat_memory") },
-]);
+function restartPolling() {
+  window.clearInterval(memTimer);
+  window.clearInterval(devTimer);
+  memTimer = undefined;
+  devTimer = undefined;
+
+  const shownKeys = new Set(store.settings.overviewStats);
+  const memMs = store.settings.overviewMemoryMs;
+  if (shownKeys.has("memory") && memMs >= MIN_POLL_MS) {
+    void refreshMemory();
+    memTimer = window.setInterval(refreshMemory, memMs);
+  }
+  const devMs = store.settings.overviewDevicesMs;
+  if (shownKeys.has("devices") && devMs >= MIN_POLL_MS) {
+    devTimer = window.setInterval(() => {
+      void refreshVolumes().catch(() => {});
+    }, devMs);
+  }
+}
+
+onMounted(restartPolling);
+onBeforeUnmount(() => {
+  window.clearInterval(memTimer);
+  window.clearInterval(devTimer);
+});
+watch(
+  () => [
+    store.settings.overviewStats.join(","),
+    store.settings.overviewMemoryMs,
+    store.settings.overviewDevicesMs,
+  ],
+  restartPolling,
+);
+
+/** 卡片内容：按设置里的顺序取显示项；未知键（旧配置 / 手改）忽略 */
+const stats = computed(() => {
+  const valueOf: Record<OverviewStatKey, string | number> = {
+    pairs: store.pairs.length,
+    devices: store.volumes.length,
+    pending: pendingTotal.value,
+    memory: memoryText.value || "–",
+  };
+  return store.settings.overviewStats
+    .filter((k): k is OverviewStatKey => k in OVERVIEW_STAT_LABEL)
+    .map((k) => ({ key: k, n: valueOf[k], label: t(OVERVIEW_STAT_LABEL[k]) }));
+});
+
+const editing = ref(false);
 
 function goPairs() {
   store.view = "pairs";
@@ -44,6 +87,10 @@ function goPairs() {
       <div>
         <h1 class="page-title">{{ t("overview.title") }}</h1>
       </div>
+      <button type="button" class="btn btn-sm" @click="editing = true">
+        <Icon name="edit" :size="13" />
+        {{ t("overview.edit") }}
+      </button>
     </div>
 
     <!-- 待处理差异横幅 -->
@@ -54,12 +101,19 @@ function goPairs() {
     </button>
 
     <!-- 统计 -->
-    <div class="stats">
-      <div v-for="s in stats" :key="s.label" class="stat">
+    <div v-if="stats.length" class="stats">
+      <div v-for="s in stats" :key="s.key" class="stat">
         <span class="stat-num">{{ s.n }}</span>
         <span class="stat-label">{{ s.label }}</span>
       </div>
     </div>
+    <!-- 全部隐藏时不占位，只留一句说明与回到编辑的入口 -->
+    <p v-else class="stats-empty">
+      {{ t("overview.all_hidden") }}
+      <button type="button" class="link-btn" @click="editing = true">
+        {{ t("overview.edit") }}
+      </button>
+    </p>
 
     <!-- 空状态 -->
     <EmptyState
@@ -91,6 +145,8 @@ function goPairs() {
         </div>
       </div>
     </section>
+
+    <OverviewEditDialog v-if="editing" @close="editing = false" />
   </div>
 </template>
 
@@ -146,6 +202,27 @@ function goPairs() {
 .stat-label {
   font-size: calc(12px * var(--font-scale, 1));
   color: var(--text-2);
+}
+/* 统计项全部隐藏后的一句说明：不下沉成空白，也不抢版面 */
+.stats-empty {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 22px;
+  font-size: calc(12px * var(--font-scale, 1));
+  color: var(--text-3);
+}
+.link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  color: var(--accent-text);
+  font-weight: 500;
+  cursor: pointer;
+}
+.link-btn:hover {
+  text-decoration: underline;
 }
 
 .section-title {

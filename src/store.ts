@@ -61,6 +61,9 @@ export const store = reactive({
     statusPairs: true,
     statusSyncCount: true,
     statusVersion: false,
+    overviewStats: ["pairs", "devices", "pending", "memory"],
+    overviewMemoryMs: 5000,
+    overviewDevicesMs: 0,
     // 外观偏好从 localStorage 同步读取，保证首帧（后端数据未返回前）无闪变
     ...loadUiPrefs(),
   } as AppSettings,

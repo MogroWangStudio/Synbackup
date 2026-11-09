@@ -169,9 +169,16 @@ export function applyUiPrefs(s: AppSettings) {
   root.style.setProperty("--on-accent", onAccentColor(accent));
 
   root.dataset.bootAnim = s.launchAnimation ? s.launchAnimPreset : "off";
+  // 启动幕布的开关与 bootAnim 分开：改预设 / 改时长只影响"下次启动怎么演"，
+  // 不该让已经演完的幕布在设置页里再盖一次
+  root.dataset.splash = s.launchAnimation ? "on" : "off";
   // 必须带单位：无单位的 "340" 会让 animation-duration 解析为 0s，
   // 动画瞬间放完——这是"启动动画不生效"的根因
   root.style.setProperty("--boot-ms", `${s.launchAnimMs}ms`);
+  // 启动幕布（logo）的时长：跟随动画时长，但设下限（太短只看到一闪）
+  // 与上限（托盘重开时不该被品牌幕布压住太久）
+  const splash = Math.min(Math.max(s.launchAnimMs, 480), 900);
+  root.style.setProperty("--splash-ms", `${splash}ms`);
   root.style.setProperty("--boot-ease", bootCurve(s.launchAnimCurve));
 }
 
@@ -179,10 +186,18 @@ export function applyUiPrefs(s: AppSettings) {
     挂载即播的动画在真实窗口首次绘制前就已放完，托盘重开的已挂载窗口
     更不会自己重播——统一以 off → 强制 reflow → 挂回预设 重启 */
 export function replayBootAnim(s: AppSettings) {
-  if (!s.launchAnimation) return;
   const root = document.documentElement;
+  if (!s.launchAnimation) {
+    root.dataset.bootAnim = "off";
+    root.dataset.splash = "off";
+    return;
+  }
+  // 三个属性一起归零再挂回：幕布与入场动画都必须重头播，
+  // 否则托盘重开时看到的是"已经演完"的终态
   root.dataset.bootAnim = "off";
+  root.dataset.splash = "off";
   void root.offsetWidth; // 强制 reflow：让 off 态落地后再挂回动画，动画才会重头播
+  root.dataset.splash = "on";
   root.dataset.bootAnim = s.launchAnimPreset;
 }
 

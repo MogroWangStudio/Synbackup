@@ -56,22 +56,21 @@ async function pickLocal() {
 }
 
 /* ---- 传输方向交换动画 ----
-   一次交换是"两枚角色徽标换了位置"，所以动的是位置而不是文字：旧徽标
-   离开原位、沿方向条水平滑到对侧（左右各偏 7px 错开，交叉时不会叠在
-   一起），落点处旧字淡出、新字自下方 2px 淡入，两端卡片同时泛一层
-   强调色——你能看到"发送端去了右边"这件事本身。
+   交换的是"卡片"而不是卡片里的字：方向条上两张端点卡片整体换位——本地
+   文件夹那张滑到右边、设备那张滑到左边，角色徽标跟着卡片走（它属于这张
+   卡片，不属于这个位置）。
 
-   轨迹只走水平轴：方向条是一条线，斜向飞越会把"左右关系"读成"上下
-   关系"。中间略微放大 + 加速再收住，是节制的动量暗示，不做回弹。
-   飞行中再次点击：从当前视觉位续走（可中断），不会跳回起点。
-   reduced-motion 下只换字，不飞。 */
-const sideL = ref<HTMLElement | null>(null);
-const sideR = ref<HTMLElement | null>(null);
+   实现是 FLIP：先记下两张卡片的当前视觉矩形，改完方向后让 Vue 重排 DOM
+   （:key 稳定，节点整体搬家），再用 WAAPI 从旧位置补间到新位置。因此动
+   的是真卡片，不是叠在上面的幽灵；飞行中再次点击会以"当前视觉位"作为新
+   起点（可中断），不会跳回原位。
+
+   两张卡片要穿过彼此，纯水平对撞会糊成一团：向右去的抬 9px、向左去的沉
+   9px 错开半个身位，中段再把不透明度压到 45%——读起来是"擦肩而过"。
+   reduced-motion 下直接换位，不补间。 */
 const swapRot = ref(0);
-/** 刚完成换位：驱动"新字落位"与端点提示，动画结束即撤 */
-const arriving = ref(false);
-let arriveTimer: number | undefined;
-let ghosts: { el: HTMLElement; anim: Animation }[] = [];
+const cardEls: Partial<Record<"local" | "device", HTMLElement>> = {};
+let flights: Animation[] = [];
 const reduceMotion =
   typeof window !== "undefined" &&
   !!window.matchMedia &&
@@ -81,84 +80,78 @@ function zoomOf(el: HTMLElement): number {
   return Number(getComputedStyle(el).zoom) || 1;
 }
 
-/** 换位提示：与徽标飞行同时起、稍晚收 */
-function flashRoles() {
-  arriving.value = true;
-  window.clearTimeout(arriveTimer);
-  arriveTimer = window.setTimeout(() => (arriving.value = false), 460);
+function setCardRef(key: string, el: unknown) {
+  const node = el as HTMLElement | null;
+  if (node) cardEls[key as "local" | "device"] = node;
+  else delete cardEls[key as "local" | "device"];
 }
+
+/** 方向条上的两张卡片：顺序随方向翻转，角色随卡片（= 端点）走 */
+const dirEnds = computed(() => {
+  const push = form.direction === "push";
+  const local = {
+    key: "local",
+    icon: "folder",
+    name: t("editor.local"),
+    role: t(push ? "editor.side_send" : "editor.side_recv"),
+  };
+  const device = {
+    key: "device",
+    icon: "drive",
+    name: form.deviceLabel || t("editor.device_hint"),
+    role: t(push ? "editor.side_recv" : "editor.side_send"),
+  };
+  return push ? [local, device] : [device, local];
+});
 
 /** 交换发送端 / 接收端（本机 → 设备 或 设备 → 本机） */
 function swapDirection() {
-  const chipL = sideL.value;
-  const chipR = sideR.value;
-  // 起点：进行中的幽灵从当前视觉位续走（可中断），否则用真实徽标位置
-  const startL = ghosts.at(0)?.el.getBoundingClientRect() ?? chipL?.getBoundingClientRect();
-  const startR = ghosts.at(1)?.el.getBoundingClientRect() ?? chipR?.getBoundingClientRect();
-  ghosts.forEach((g) => {
-    g.anim.cancel();
-    g.el.remove();
-  });
-  ghosts = [];
-  const oldL = chipL?.textContent ?? "";
-  const oldR = chipR?.textContent ?? "";
+  // 起点：当前视觉位置（含上一段补间的中途姿态），保证可中断
+  const before = new Map<string, DOMRect>();
+  for (const key of ["local", "device"] as const) {
+    const el = cardEls[key];
+    if (el) before.set(key, el.getBoundingClientRect());
+  }
+  flights.forEach((a) => a.cancel());
+  flights = [];
 
   form.direction = form.direction === "push" ? "pull" : "push";
   swapRot.value += 180;
-  flashRoles();
-  if (!chipL || !chipR || !startL || !startR || reduceMotion) return;
+  if (reduceMotion) return;
 
   void nextTick().then(() => {
-    const endL = chipL.getBoundingClientRect();
-    const endR = chipR.getBoundingClientRect();
-    const zL = zoomOf(chipL);
-
-    // 徽标在 zoom 容器内、幽灵挂在 body 上：给幽灵补上同一档 zoom，
-    // 坐标系一致（否则改了"界面大小"之后落点会整体偏移）
-    const mkGhost = (label: string, from: DOMRect, to: DOMRect, vert: number) => {
-      const g = chipL.cloneNode(true) as HTMLElement;
-      g.textContent = label;
-      g.style.position = "fixed";
-      g.style.left = `${from.left / zL}px`;
-      g.style.top = `${from.top / zL}px`;
-      g.style.width = `${from.width / zL}px`;
-      g.style.margin = "0";
-      g.style.zoom = String(zL);
-      g.style.transformOrigin = "top left";
-      g.style.pointerEvents = "none";
-      g.style.zIndex = "130"; // 弹出层(120)之上、标题栏(150)之下
-      document.body.appendChild(g);
-      const dx = (to.left - from.left) / zL;
-      const dy = (to.top - from.top) / zL;
-      const anim = g.animate(
+    for (const [key, from] of before) {
+      const el = cardEls[key as "local" | "device"];
+      if (!el) continue;
+      const to = el.getBoundingClientRect();
+      const zoom = zoomOf(el);
+      const dx = (from.left - to.left) / zoom;
+      const dy = (from.top - to.top) / zoom;
+      if (!dx && !dy) continue;
+      const vert = (dx < 0 ? -9 : 9) / zoom;
+      const anim = el.animate(
         [
-          { transform: "translate(0, 0) scale(1)", opacity: 1, offset: 0 },
+          { transform: `translate(${dx}px, ${dy}px)`, opacity: 1, offset: 0 },
           {
-            transform: `translate(${dx * 0.5}px, ${dy * 0.5 + vert / zL}px) scale(1.04)`,
-            opacity: 1,
-            offset: 0.52,
+            transform: `translate(${dx * 0.5}px, ${dy * 0.5 + vert}px) scale(0.98)`,
+            opacity: 0.45,
+            offset: 0.5,
           },
-          { transform: `translate(${dx}px, ${dy}px) scale(1)`, opacity: 1, offset: 0.86 },
-          { transform: `translate(${dx}px, ${dy}px) scale(1)`, opacity: 0, offset: 1 },
+          { transform: "translate(0, 0) scale(1)", opacity: 1, offset: 1 },
         ],
-        { duration: 320, easing: "cubic-bezier(0.32, 0.72, 0, 1)", fill: "forwards" },
+        { duration: 380, easing: "cubic-bezier(0.32, 0.72, 0, 1)" },
       );
-      anim.onfinish = () => g.remove();
-      return { el: g, anim };
-    };
-
-    // 左右各偏 7px：两条轨迹在中点擦肩而过，不重叠
-    ghosts = [mkGhost(oldL, startL, endR, -7), mkGhost(oldR, startR, endL, 7)];
+      anim.onfinish = () => {
+        flights = flights.filter((a) => a !== anim);
+      };
+      flights.push(anim);
+    }
   });
 }
 
 onBeforeUnmount(() => {
-  ghosts.forEach((g) => {
-    g.anim.cancel();
-    g.el.remove();
-  });
-  ghosts = [];
-  window.clearTimeout(arriveTimer);
+  flights.forEach((a) => a.cancel());
+  flights = [];
 });
 
 /**
@@ -243,13 +236,16 @@ function handleClose() {
       <div class="field">
         <span class="field-label">{{ t("editor.direction") }}</span>
         <div class="direction-bar">
-          <div class="dir-end" :class="{ 'role-flip': arriving }">
-            <Icon name="folder" :size="16" class="dir-icon" />
+          <div
+            v-for="end in dirEnds"
+            :key="end.key"
+            :ref="(el) => setCardRef(end.key, el)"
+            class="dir-end"
+          >
+            <Icon :name="end.icon" :size="16" class="dir-icon" />
             <div class="dir-text">
-              <span ref="sideL" class="dir-side" :class="{ arriving }">
-                {{ t(form.direction === "push" ? "editor.side_send" : "editor.side_recv") }}
-              </span>
-              <span class="dir-name">{{ t("editor.local") }}</span>
+              <span class="dir-side">{{ end.role }}</span>
+              <span class="dir-name">{{ end.name }}</span>
             </div>
           </div>
           <button
@@ -276,17 +272,6 @@ function handleClose() {
               />
             </svg>
           </button>
-          <div class="dir-end" :class="{ 'role-flip': arriving }">
-            <Icon name="drive" :size="16" class="dir-icon" />
-            <div class="dir-text">
-              <span ref="sideR" class="dir-side" :class="{ arriving }">
-                {{ t(form.direction === "push" ? "editor.side_recv" : "editor.side_send") }}
-              </span>
-              <span class="dir-name">
-                {{ form.deviceLabel || t("editor.device_hint") }}
-              </span>
-            </div>
-          </div>
         </div>
         <p class="field-hint">{{ t("editor.direction_hint") }}</p>
       </div>
@@ -366,11 +351,14 @@ function handleClose() {
   color: var(--text-3);
 }
 
-/* 方向条：发送端 ⇆ 接收端，中间为交换按钮 */
+/* 方向条：两张端点卡片 + 悬浮在正中的交换按钮。
+   按钮用绝对定位而不是占一格：卡片换位时两节点必须是相邻兄弟，
+   中间夹一个按钮会让它们无法整块搬家。46px = 30px 按钮 + 两侧各 8px */
 .direction-bar {
+  position: relative;
   display: flex;
   align-items: stretch;
-  gap: 8px;
+  gap: 46px;
 }
 .dir-end {
   display: flex;
@@ -393,38 +381,12 @@ function handleClose() {
   gap: 1px;
   min-width: 0;
 }
+/* 角色徽标跟着卡片走：它说明的是"这一端在传输里扮演什么角色"，
+   而不是"这个位置上是什么" */
 .dir-side {
   font-size: calc(10.5px * var(--font-scale, 1));
   font-weight: 600;
   color: var(--accent-text);
-}
-/* 新角色落位：与幽灵抵达同一刻浮上来，不是瞬间换字 */
-.dir-side.arriving {
-  animation: dir-side-in 220ms var(--ease) 110ms both;
-}
-@keyframes dir-side-in {
-  from {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-/* 端点提示：角色换位的那一侧泛一层强调色，随飞行结束退去 */
-.dir-end.role-flip {
-  animation: dir-flip 380ms var(--ease) both;
-}
-@keyframes dir-flip {
-  from {
-    background-color: var(--accent-soft);
-    border-color: color-mix(in srgb, var(--accent) 34%, transparent);
-  }
-  to {
-    background-color: var(--fill-softer);
-    border-color: var(--hairline);
-  }
 }
 .dir-name {
   font-size: calc(12.5px * var(--font-scale, 1));
@@ -434,7 +396,10 @@ function handleClose() {
   white-space: nowrap;
 }
 .dir-swap {
-  align-self: center;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -446,9 +411,9 @@ function handleClose() {
   border-radius: 50%;
   background: var(--bg-content);
 }
-/* 交换图标随方向同向累计旋转（与徽标飞行同曲线同时长） */
+/* 交换图标随方向同向累计旋转（与卡片换位同曲线同时长） */
 .dir-swap svg {
-  transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform 380ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 @media (prefers-reduced-motion: reduce) {
   .dir-swap svg {
@@ -468,7 +433,7 @@ function handleClose() {
   color: var(--text);
 }
 .dir-swap:active {
-  transform: scale(0.92);
+  transform: translate(-50%, -50%) scale(0.92);
 }
 .dir-swap:focus-visible {
   outline: 2px solid var(--accent);

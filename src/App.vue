@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from "vue";
+import { onBeforeUnmount, onMounted, computed } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { api } from "./api";
@@ -19,6 +19,16 @@ import CloseConfirm from "./components/CloseConfirm.vue";
 import UpdateWizard from "./components/UpdateWizard.vue";
 import ToastHost from "./components/ToastHost.vue";
 import TitleBar from "./components/TitleBar.vue";
+import Logo from "./components/Logo.vue";
+
+/* 启动幕布上的品牌标识：形态跟随"品牌 logo"设置（与标题栏同一口径） */
+const logoVariant = computed(
+  () =>
+    (["mark", "custom_text", "custom_image"].includes(store.settings.logoStyle)
+      ? store.settings.logoStyle
+      : "full") as "full" | "mark" | "custom_text" | "custom_image",
+);
+const logoCustomText = computed(() => store.settings.logoCustomText.trim() || "Synbackup");
 
 onMounted(async () => {
   // 冷启动：首帧后才重播启动动画——挂载即播的动画在真实窗口首次
@@ -136,6 +146,18 @@ onBeforeUnmount(() => {
     <CloseConfirm v-if="store.closeConfirm" />
     <ToastHost />
   </div>
+
+  <!-- 启动幕布：logo 按当前预设登场，落定后整幕淡出。不拦截指针——
+       幕布下的界面已经可交互，启动动画不该变成"等待" -->
+  <div class="boot-veil" aria-hidden="true">
+    <Logo
+      class="boot-logo"
+      :size="38"
+      :variant="logoVariant"
+      :custom-text="logoCustomText"
+      :custom-image="store.logoImageUri"
+    />
+  </div>
 </template>
 
 <style scoped>
@@ -236,5 +258,132 @@ html[data-boot-anim="pop"] .window {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+}
+
+/* ---- 启动幕布 ----
+   盖住窗口的一块底色 + 居中品牌标识：先亮相、再让位。幕布本身只做一次
+   透明度收束（64% 起淡出），logo 的入场交给预设——两者时长同源
+   （--splash-ms），节奏不会打架。开关走 data-splash（与 data-boot-anim
+   分开：改预设只定义"下次怎么演"，不该让演完的幕布再盖一次）。 */
+.boot-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  opacity: 0;
+  pointer-events: none;
+}
+html[data-splash="on"] .boot-veil {
+  animation: boot-veil var(--splash-ms, 520ms) var(--ease-modal-out) both;
+}
+@keyframes boot-veil {
+  0% {
+    opacity: 1;
+  }
+  64% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* logo 入场：每种预设只改"从哪来"，落定后保持不动，由幕布带着一起退场 */
+html[data-splash="on"][data-boot-anim="fade"] .boot-logo {
+  animation: splash-fade var(--splash-ms, 520ms) var(--boot-ease) both;
+}
+html[data-splash="on"][data-boot-anim="rise"] .boot-logo {
+  animation: splash-rise var(--splash-ms, 520ms) var(--boot-ease) both;
+}
+html[data-splash="on"][data-boot-anim="zoom"] .boot-logo {
+  animation: splash-zoom var(--splash-ms, 520ms) var(--boot-ease) both;
+}
+html[data-splash="on"][data-boot-anim="slide"] .boot-logo {
+  animation: splash-slide var(--splash-ms, 520ms) var(--boot-ease) both;
+}
+html[data-splash="on"][data-boot-anim="blur"] .boot-logo {
+  animation: splash-blur var(--splash-ms, 520ms) var(--boot-ease) both;
+}
+html[data-splash="on"][data-boot-anim="pop"] .boot-logo {
+  animation: splash-pop var(--splash-ms, 520ms) var(--boot-ease) both;
+}
+@keyframes splash-fade {
+  0% {
+    opacity: 0;
+  }
+  45%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes splash-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  50%,
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes splash-zoom {
+  0% {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  55%,
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes splash-slide {
+  0% {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  50%,
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes splash-blur {
+  0% {
+    opacity: 0;
+    filter: blur(14px);
+    transform: scale(0.98);
+  }
+  58%,
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+@keyframes splash-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-splash="on"] .boot-veil,
+  html[data-splash="on"] .boot-logo {
+    animation: none;
+    opacity: 0;
+  }
 }
 </style>

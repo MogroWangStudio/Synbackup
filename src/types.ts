@@ -53,6 +53,12 @@ export interface AppSettings {
   statusSyncCount: boolean;
   /** 侧栏状态区：版本号 */
   statusVersion: boolean;
+  /** 总览页显示的数据项（顺序即展示顺序） */
+  overviewStats: string[];
+  /** 总览页内存占用刷新间隔（毫秒；0 = 不自动刷新） */
+  overviewMemoryMs: number;
+  /** 总览页设备状态刷新间隔（毫秒；0 = 仅随系统事件更新） */
+  overviewDevicesMs: number;
 }
 
 /** 任务的主传输方向:push = 本机发送(本地 → 设备),pull = 本机接收(设备 → 本地) */
