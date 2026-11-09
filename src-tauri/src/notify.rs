@@ -373,6 +373,19 @@ mod imp {
         let _ = buttons;
         send(title, body)
     }
+
+    /// 同步前询问通知：同样受限于 notify-rust 不支持 toast 动作按钮，
+    /// 这里忽略两个动作与 pairId，只发标题与内容——用户点开应用自行处理。
+    /// 与 macOS 的 `send_ask` 保持同一签名，跨平台调用点无需条件编译。
+    pub fn send_ask(
+        title: &str,
+        body: &str,
+        actions: &[String],
+        pair_id: &str,
+    ) -> Result<(), String> {
+        let _ = (actions, pair_id);
+        send(title, body)
+    }
 }
 
 /// Windows：便携版 AUMID 自注册。
