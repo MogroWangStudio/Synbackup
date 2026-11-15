@@ -1,8 +1,7 @@
 <script setup lang="ts">
-/* 更新向导：检查到新版本后接管整条链路——下载、等待重启、安装。
-   打开即开始下载（用户刚点了"检查更新"，这一步本就是他想要的），
-   下载完成后给 6 秒倒计时自动重启；倒计时期间可以取消，也可以用
-   "稍后"直接关掉，选择权始终在用户手上。 */
+/* 更新向导：检查到新版本后先让用户看版本与更新说明，点「下载更新」才动手——
+   下载会占带宽，不该由"打开弹窗"替用户决定。下载完成后给 6 秒倒计时自动重启，
+   读秒可以随时取消（取消后停在"下载完成"态，随时手动安装），也可以选择稍后再装。 */
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { api } from "../api";
@@ -19,10 +18,11 @@ const modalRef = ref<InstanceType<typeof Modal>>();
 /** 下载完成后自动重启的等待秒数 */
 const AUTO_RESTART_SEC = 6;
 
-type Phase = "downloading" | "ready" | "installing" | "error" | "manual";
+type Phase = "idle" | "downloading" | "ready" | "installing" | "error" | "manual";
 
-// 平台没有对应产物（非 Windows x64 / macOS arm64）才落到 manual
-const phase = ref<Phase>(props.info.auto ? "downloading" : "manual");
+// 平台没有对应产物（非 Windows x64 / macOS arm64）才落到 manual；
+// 其余一律先停在 idle，等用户点下载
+const phase = ref<Phase>(props.info.auto ? "idle" : "manual");
 const received = ref(0);
 const total = ref(0);
 const error = ref("");
@@ -38,10 +38,10 @@ const percent = computed(() =>
 );
 /** 有同步在跑时暂停倒计时：替换会强杀进程，正在复制的文件会留半截 */
 const syncing = computed(() => store.syncingPairIds.length > 0);
+/** 读秒仍在走（取消读秒后为 false） */
+const counting = computed(() => countdown.value > 0);
 const readyText = computed(() =>
-  syncing.value || countdown.value <= 0
-    ? t("upd.ready_now")
-    : t("upd.ready", { n: countdown.value }),
+  syncing.value || !counting.value ? t("upd.ready_now") : t("upd.ready", { n: countdown.value }),
 );
 
 onMounted(async () => {
@@ -49,7 +49,6 @@ onMounted(async () => {
     received.value = e.payload.received;
     total.value = e.payload.total;
   });
-  if (props.info.auto) void startDownload();
 });
 
 onBeforeUnmount(() => {
@@ -88,6 +87,13 @@ function beginCountdown() {
       void install();
     }
   }, 1000);
+}
+
+/** 取消读秒：停在"已下载"态，装不装由用户决定 */
+function cancelCountdown() {
+  window.clearInterval(tick);
+  tick = undefined;
+  countdown.value = 0;
 }
 
 async function install() {
@@ -148,8 +154,13 @@ function handleClose() {
       </div>
 
       <Transition name="upd-step" mode="out-in">
+        <!-- 待开始：版本与更新说明先摆出来，下载动作留给用户点头 -->
+        <div v-if="phase === 'idle'" key="idle" class="upd-state">
+          <p class="upd-hint">{{ t("upd.start_hint") }}</p>
+        </div>
+
         <!-- 下载中：进度条是唯一的进度来源，不做不确定态的来回滚动 -->
-        <div v-if="phase === 'downloading'" key="downloading" class="upd-state">
+        <div v-else-if="phase === 'downloading'" key="downloading" class="upd-state">
           <div
             class="bar"
             role="progressbar"
@@ -208,11 +219,19 @@ function handleClose() {
     <template #footer>
       <span class="upd-file">{{ info.asset }}</span>
       <div class="foot-actions">
-        <template v-if="phase === 'downloading'">
+        <template v-if="phase === 'idle'">
+          <button class="btn btn-sm" @click="later">{{ t("upd.later") }}</button>
+          <button class="btn btn-sm btn-primary" @click="startDownload">
+            {{ t("upd.start") }}
+          </button>
+        </template>
+        <template v-else-if="phase === 'downloading'">
           <button class="btn btn-sm" @click="cancelDownload">{{ t("upd.cancel") }}</button>
         </template>
         <template v-else-if="phase === 'ready'">
-          <button class="btn btn-sm" @click="later">{{ t("upd.later") }}</button>
+          <button class="btn btn-sm" @click="counting ? cancelCountdown() : later()">
+            {{ counting ? t("upd.cancel_auto") : t("upd.later") }}
+          </button>
           <button class="btn btn-sm btn-primary" @click="install">
             {{ t("upd.install_now") }}
           </button>

@@ -58,15 +58,17 @@
 
 ## 二、版本与发布
 
-版本号三处同步，缺一处就会出现"关于页版本和更新包对不上"：
+版本号六处同步，缺一处就会出现"关于页版本和更新包对不上"：
 
-- `src-tauri/tauri.conf.json` → `version`（发布流水线只读这一处，其余两处是它的镜像）
+- `src-tauri/tauri.conf.json` → `version`（发布流水线只读这一处，其余是它的镜像）
 - `package.json` → `version`
-- `src-tauri/Cargo.toml` → `version`
+- `src-tauri/Cargo.toml` → `version`（及 `Cargo.lock` 里 `synbackup` 那条）
+- `src/views/SettingsView.vue` 的关于页版本回退值
+- `README.md` 顶部版本徽标
 
-发版两步：改上面三处版本号 + 在 `CHANGELOG.md` 补 `## [新版本号]` 段，推送到 `main`。流水线发现该版本 Release 已存在就跳过；版本是新的才打 tag、双平台构建并发布。含 `-` 的版本号发 Pre-Release，纯 `x.y.z` 发正式版并标记 latest。
+发版两步：改上面六处版本号 + 在 `CHANGELOG.md` 补 `## [新版本号]` 段，推送到 `main`。流水线发现该版本 Release 已存在就跳过；版本是新的才打 tag、双平台构建并发布。含 `-` 的版本号发 Pre-Release，纯 `x.y.z` 发正式版并标记 latest。
 
-**产物文件名不得改动**：`Synbackup-<版本>-windows-x64.exe` / `Synbackup-<版本>-macos-arm64.dmg` 是应用内自动更新的下载依据，改名会让更新直接失效。
+**产物文件名不得改动**：`Synbackup_windows-x64.zip` / `Synbackup_macos-arm64.zip` 是应用内自动更新的下载依据，改名会让更新直接失效。名字里不带版本号（版本由 tag 表达），包内文件名固定：Windows 是 `Synbackup.exe`，macOS 是 `Synbackup.app`。装回时也不改名——用户手里的程序文件名与升级次数无关。
 
 ---
 

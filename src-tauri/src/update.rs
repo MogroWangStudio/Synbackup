@@ -7,13 +7,19 @@
 //! 不走 api.github.com：匿名 API 按 IP 限流（共享出口网络下极易 403），
 //! 部分网络对 api 子域本身也不稳定；Atom 源由 github.com 主站提供，无此限制。
 //!
-//! 自动更新：便携版没有安装器，流程自己走完——下载对应平台的产物到
-//! `data/updates/`，再把"替换 + 重启"交给 `relaunch` 里的系统脚本。
+//! 自动更新：便携版没有安装器，流程自己走完——下载对应平台的 zip 包到
+//! `data/updates/`，解压校验后再把"替换 + 重启"交给 `relaunch` 里的系统脚本。
 //! 替换必须发生在进程退出之后：Windows 无法覆盖正在运行的 exe，
 //! macOS 的 .app 同理，所以安装命令只做暂存与派发，然后立即退出。
+//!
+//! 产物名不含版本号（`Synbackup_windows-x64.zip` / `Synbackup_macos-arm64.zip`）：
+//! 同一个 tag 下的包本就唯一，版本由 tag 表达；解压后装回去的是包内
+//! 固定名字的 `Synbackup.exe` / `Synbackup.app`，替换时也不改名——
+//! 用户手里的程序文件名从此与升级多少次无关。
 
 use std::fs;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
@@ -99,13 +105,13 @@ fn parse_tag(tag: &str) -> Option<(semver::Version, bool)> {
 }
 
 /// 当前平台对应的发布产物名（与 `.github/workflows/release.yml` 的
-/// 整理产物步骤一致）。只列 CI 实际构建的组合：其余架构/系统
-/// 退回手动下载页，不猜测产物名。
-fn asset_for(version: &str) -> Option<String> {
-    let arch = std::env::consts::ARCH;
-    match std::env::consts::OS {
-        "windows" if arch == "x86_64" => Some(format!("Synbackup-{version}-windows-x64.exe")),
-        "macos" if arch == "aarch64" => Some(format!("Synbackup-{version}-macos-arm64.dmg")),
+/// 整理产物步骤一致）。产物名不含版本号——版本由 tag 表达，包内文件
+/// 名固定，升级后用户手里的程序名不会跟着变。只列 CI 实际构建的
+/// 组合：其余架构/系统退回手动下载页，不猜测产物名。
+fn asset_for() -> Option<&'static str> {
+    match (std::env::consts::OS, std::env::consts::ARCH) {
+        ("windows", "x86_64") => Some("Synbackup_windows-x64.zip"),
+        ("macos", "aarch64") => Some("Synbackup_macos-arm64.zip"),
         _ => None,
     }
 }
@@ -293,7 +299,7 @@ pub async fn check_update(app: AppHandle) -> Result<UpdateInfo, String> {
     Ok(match target {
         Some((ver, entry)) => {
             let version = ver.to_string();
-            let asset = asset_for(&version).unwrap_or_default();
+            let asset = asset_for().unwrap_or_default().to_string();
             UpdateInfo {
                 available: true,
                 auto: !asset.is_empty(),
@@ -332,7 +338,130 @@ struct Progress {
     total: u64,
 }
 
-/// 下载本平台安装包到 `data/updates/`，返回落地路径。
+/// 清空目录（含子目录）：旧包与上一次的解压结果都要清掉，
+/// 同一目录只留当前这一份，避免占空间也避免用错文件
+fn clear_dir(dir: &Path) {
+    let Ok(entries) = fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        if is_dir {
+            let _ = fs::remove_dir_all(&path);
+        } else {
+            let _ = fs::remove_file(&path);
+        }
+    }
+}
+
+/// 在解压结果里按条件找第一个匹配项（先看顶层，再向下找一层以上）
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn find_entry(dir: &Path, pred: &dyn Fn(&Path) -> bool) -> Option<PathBuf> {
+    for entry in fs::read_dir(dir).ok()?.flatten() {
+        let path = entry.path();
+        if pred(&path) {
+            return Some(path);
+        }
+        if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+            if let Some(found) = find_entry(&path, pred) {
+                return Some(found);
+            }
+        }
+    }
+    None
+}
+
+/// 解压更新包，返回包内本平台程序的路径。
+///
+/// 每次重建解压目录：上一轮安装可能已经把包里的文件移走，残留半套
+/// 东西比重新解压更危险。
+fn unpack_update(zip: &Path, dir: &Path) -> Result<PathBuf, String> {
+    let unpacked = dir.join("unpacked");
+    let _ = fs::remove_dir_all(&unpacked);
+    fs::create_dir_all(&unpacked).map_err(|e| format!("无法创建解压目录: {e}"))?;
+
+    extract_archive(zip, &unpacked)?;
+    staged_program(&unpacked)
+}
+
+/// Windows：逐条写入，`enclosed_name` 拒绝 `..` 与绝对路径，
+/// 恶意构造的包写不到 `updates/` 之外
+#[cfg(target_os = "windows")]
+fn extract_archive(zip: &Path, dest: &Path) -> Result<(), String> {
+    let file = fs::File::open(zip).map_err(|e| format!("无法读取更新包: {e}"))?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("更新包已损坏: {e}"))?;
+    for i in 0..archive.len() {
+        let mut entry = archive
+            .by_index(i)
+            .map_err(|e| format!("更新包已损坏: {e}"))?;
+        let Some(rel) = entry.enclosed_name() else {
+            continue;
+        };
+        let out = dest.join(&rel);
+        if entry.is_dir() {
+            fs::create_dir_all(&out).map_err(|e| format!("无法解压更新包: {e}"))?;
+            continue;
+        }
+        if let Some(parent) = out.parent() {
+            fs::create_dir_all(parent).map_err(|e| format!("无法解压更新包: {e}"))?;
+        }
+        let mut dst = fs::File::create(&out).map_err(|e| format!("无法解压更新包: {e}"))?;
+        std::io::copy(&mut entry, &mut dst).map_err(|e| format!("无法解压更新包: {e}"))?;
+    }
+    Ok(())
+}
+
+/// macOS：交给 ditto。.app 里可能有符号链接，自行逐个写文件会把它变成
+/// 普通文件（解出来的包结构就坏了）；ditto 按 zip 内的元数据还原链接、
+/// 权限与扩展属性，签名信息与首次启动行为才和手动解压一致。
+#[cfg(target_os = "macos")]
+fn extract_archive(zip: &Path, dest: &Path) -> Result<(), String> {
+    use std::process::Command;
+
+    let out = Command::new("ditto")
+        .args(["-x", "-k"])
+        .arg(zip)
+        .arg(dest)
+        .output()
+        .map_err(|e| format!("无法解压更新包: {e}"))?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        let msg = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        Err(format!("更新包已损坏: {msg}"))
+    }
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn extract_archive(_zip: &Path, _dest: &Path) -> Result<(), String> {
+    Err("当前平台不支持自动更新".into())
+}
+
+/// 包里本平台程序的位置（包内文件名固定，与版本无关）
+#[cfg(target_os = "windows")]
+fn staged_program(unpacked: &Path) -> Result<PathBuf, String> {
+    find_entry(unpacked, &|p| {
+        p.extension()
+            .map(|x| x.eq_ignore_ascii_case("exe"))
+            .unwrap_or(false)
+    })
+    .ok_or_else(|| "更新包里没有程序，请到发布页手动下载".to_string())
+}
+
+/// 包里本平台程序的位置（.app 是目录，按扩展名匹配）
+#[cfg(target_os = "macos")]
+fn staged_program(unpacked: &Path) -> Result<PathBuf, String> {
+    find_entry(unpacked, &|p| {
+        p.extension().map(|x| x == "app").unwrap_or(false)
+    })
+    .ok_or_else(|| "更新包里没有应用，请到发布页手动下载".to_string())
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn staged_program(_unpacked: &Path) -> Result<PathBuf, String> {
+    Err("当前平台不支持自动更新".into())
+}
+
+/// 下载并解压本平台更新包，返回解压出的程序路径。
 /// 进度经 `update-progress` 事件推给界面（约 256 KB 一次，避免刷爆 IPC）。
 #[tauri::command]
 pub async fn download_update(app: AppHandle, version: String) -> Result<String, String> {
@@ -345,15 +474,10 @@ pub async fn download_update(app: AppHandle, version: String) -> Result<String, 
 
     let core = app.state::<backend::Core>();
     let settings = core.settings();
-    let asset = asset_for(&version).ok_or_else(|| "当前平台不支持自动更新".to_string())?;
+    let asset = asset_for().ok_or_else(|| "当前平台不支持自动更新".to_string())?;
     let dir = core.dir.join(backend::config::UPDATES_DIR);
     fs::create_dir_all(&dir).map_err(|e| format!("无法创建下载目录: {e}"))?;
-    // 旧包一并清掉：同一目录只留当前这一份，避免占空间也避免用错文件
-    if let Ok(entries) = fs::read_dir(&dir) {
-        for entry in entries.flatten() {
-            let _ = fs::remove_file(entry.path());
-        }
-    }
+    clear_dir(&dir);
 
     let target = dir.join(&asset);
     let part = dir.join(format!("{asset}.part"));
@@ -425,7 +549,11 @@ pub async fn download_update(app: AppHandle, version: String) -> Result<String, 
         return Err("下载内容异常，请到发布页手动下载".into());
     }
     fs::rename(&part, &target).map_err(|e| format!("无法保存安装包: {e}"))?;
-    Ok(target.to_string_lossy().to_string())
+
+    // 下载完就解压并校验：包能不能用要在用户点"安装"之前就知道，
+    // 而不是等退出进程后由替换脚本才发现包里没有程序
+    let staged = unpack_update(&target, &dir)?;
+    Ok(staged.to_string_lossy().to_string())
 }
 
 /// 下载来源测速结果：reachable = 请求成功且读到数据，不可达时 error 携带原因
@@ -542,12 +670,19 @@ pub fn cancel_update_download() {
 /// 安装已下载的包并退出，由后台脚本完成替换与重启。
 #[tauri::command]
 pub async fn install_update(app: AppHandle, version: String) -> Result<(), String> {
+    // 产物名不含版本号，安装包在下载阶段就以 tag 对应的版本落地并解压过；
+    // 这里不再需要 version，保留参数只为与前端调用签名对齐
+    let _ = version;
+
     let core = app.state::<backend::Core>();
-    let asset = asset_for(&version).ok_or_else(|| "当前平台不支持自动更新".to_string())?;
-    let staged = core.dir.join(backend::config::UPDATES_DIR).join(&asset);
-    if !staged.is_file() {
+    let asset = asset_for().ok_or_else(|| "当前平台不支持自动更新".to_string())?;
+    let dir = core.dir.join(backend::config::UPDATES_DIR);
+    let archive = dir.join(asset);
+    if !archive.is_file() {
         return Err("安装包不存在，请重新下载".into());
     }
+    // 重新解压一遍：上一轮若已把包内文件移走，目录里可能只剩半套
+    let staged = unpack_update(&archive, &dir)?;
     let current = std::env::current_exe().map_err(|e| format!("无法定位当前程序: {e}"))?;
 
     // 同步进行中不动进程：安装会强制退出，正在复制的文件会留下半截。
@@ -557,7 +692,7 @@ pub async fn install_update(app: AppHandle, version: String) -> Result<(), Strin
         .try_lock()
         .map_err(|_| "同步任务进行中，请完成后再更新".to_string())?;
 
-    prepare_install(&app, &current, &staged, &version)?;
+    prepare_install(&current, &staged)?;
 
     // 脚本已在等本进程退出；立刻退出，把替换窗口留给它
     app.exit(0);
@@ -566,112 +701,50 @@ pub async fn install_update(app: AppHandle, version: String) -> Result<(), Strin
 
 // ---- 平台安装动作 ----
 // 三个同名函数按平台各写一份：调用点不必被 cfg 切成三块，
-// 各平台的差异（exe 还是 .app、要不要重命名）留在各自的实现里。
+// 各平台的差异（exe 还是 .app，暂存到哪里）留在各自的实现里。
 
-/// Windows：把下载好的 exe 覆盖到原位并按新版本号重命名
+/// Windows：包里的 exe 覆盖到当前程序的位置。不按版本号改名——
+/// 装完还是同一个文件名，用户桌面上的快捷方式、任务栏固定项都不会失效。
 #[cfg(target_os = "windows")]
-fn prepare_install(
-    app: &AppHandle,
-    current: &std::path::Path,
-    staged: &std::path::Path,
-    version: &str,
-) -> Result<(), String> {
-    let from = app.package_info().version.to_string();
-    let target = current.with_file_name(versioned_exe_name(current, &from, version));
-    crate::relaunch::spawn_replace_exe(current, staged, &target)
+fn prepare_install(current: &std::path::Path, staged: &std::path::Path) -> Result<(), String> {
+    crate::relaunch::spawn_replace_exe(current, staged, current)
 }
 
-/// macOS：从 DMG 里取出 .app 暂存到旧包旁边，退出后整体替换
+/// macOS：把包里的 .app 暂存到旧包旁边，退出后整体替换
 #[cfg(target_os = "macos")]
-fn prepare_install(
-    _app: &AppHandle,
-    current: &std::path::Path,
-    staged: &std::path::Path,
-    _version: &str,
-) -> Result<(), String> {
+fn prepare_install(current: &std::path::Path, staged: &std::path::Path) -> Result<(), String> {
     let app_root = crate::relaunch::bundle_root(current)
         .ok_or_else(|| "当前不是 .app 包，无法自动替换".to_string())?;
     // 暂存在同一个父目录：跨卷 mv 会退化成"复制 + 删除"，
     // 而此刻旧包已被移除，复制中途失败就没有退路了
     let staged_app = app_root.with_file_name(".Synbackup-update.app");
-    stage_from_dmg(staged, &staged_app)?;
+    stage_from_app(staged, &staged_app)?;
     crate::relaunch::spawn_replace_bundle(&app_root, &staged_app)
 }
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-fn prepare_install(
-    _app: &AppHandle,
-    _current: &std::path::Path,
-    _staged: &std::path::Path,
-    _version: &str,
-) -> Result<(), String> {
+fn prepare_install(_current: &std::path::Path, _staged: &std::path::Path) -> Result<(), String> {
     Err("当前平台不支持自动更新".into())
 }
 
-/// 新 exe 的文件名：把旧版本号换成新版本号（文件名即版本，便于用户分辨）；
-/// 用户改过名字（如 `Synbackup.exe`）时补上版本号，避免覆盖同名文件后
-/// 无从判断手里是哪个版本。
-#[cfg(target_os = "windows")]
-fn versioned_exe_name(current: &std::path::Path, from: &str, to: &str) -> String {
-    let stem = current
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("Synbackup");
-    let ext = current.extension().and_then(|s| s.to_str()).unwrap_or("exe");
-    let renamed = if stem.contains(from) {
-        stem.replacen(from, to, 1)
-    } else {
-        format!("{stem}-{to}")
-    };
-    format!("{renamed}.{ext}")
-}
-
-/// 挂载 DMG，把里面的 .app 复制到 `stage`，随即卸载。
+/// 把解压出来的 .app 用 ditto 复制到 `stage`（不是 zip 内的简单拷贝：
+/// ditto 保留资源分支、扩展属性与权限，签名与首次启动行为才和手动安装一致）。
 /// 只复制不替换：替换要等本进程退出，见 `relaunch::spawn_replace_bundle`。
 #[cfg(target_os = "macos")]
-fn stage_from_dmg(dmg: &std::path::Path, stage: &std::path::Path) -> Result<(), String> {
+fn stage_from_app(src: &std::path::Path, stage: &std::path::Path) -> Result<(), String> {
     use std::process::Command;
 
-    let mount = std::env::temp_dir().join(format!("synbackup-update-{}", std::process::id()));
-    let _ = fs::remove_dir_all(&mount);
-    fs::create_dir_all(&mount).map_err(|e| format!("无法创建挂载点: {e}"))?;
-
-    let attach = Command::new("hdiutil")
-        .args(["attach", "-nobrowse", "-readonly", "-noautoopen", "-mountpoint"])
-        .arg(&mount)
-        .arg(dmg)
+    let _ = fs::remove_dir_all(stage);
+    let out = Command::new("ditto")
+        .arg(src)
+        .arg(stage)
         .output()
-        .map_err(|e| format!("无法挂载安装包: {e}"))?;
-    if !attach.status.success() {
-        let _ = fs::remove_dir_all(&mount);
-        let msg = String::from_utf8_lossy(&attach.stderr).trim().to_string();
-        return Err(format!("无法挂载安装包: {msg}"));
+        .map_err(|e| format!("无法展开新版本: {e}"))?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err("无法展开新版本".into())
     }
-
-    let staged = (|| -> Result<(), String> {
-        let app = fs::read_dir(&mount)
-            .map_err(|e| format!("无法读取安装包内容: {e}"))?
-            .flatten()
-            .map(|e| e.path())
-            .find(|p| p.extension().map(|x| x == "app").unwrap_or(false))
-            .ok_or_else(|| "安装包里没有应用".to_string())?;
-        let _ = fs::remove_dir_all(stage);
-        let out = Command::new("ditto")
-            .arg(&app)
-            .arg(stage)
-            .output()
-            .map_err(|e| format!("无法展开新版本: {e}"))?;
-        if out.status.success() {
-            Ok(())
-        } else {
-            Err("无法展开新版本".into())
-        }
-    })();
-
-    let _ = Command::new("hdiutil")
-        .args(["detach", "-quiet"])
-        .arg(&mount)
-        .status();
-    let _ = fs::remove_dir_all(&mount);
-    staged
 }
+
+

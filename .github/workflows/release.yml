@@ -15,6 +15,10 @@ name: Release
 # 幂等性：tag 已存在则跳过创建（不移动 tag），Release 已存在则把产物
 # 塞进去（--clobber 覆盖同名文件）并按 tag 纠正渠道标记。
 #
+# 产物命名：`Synbackup_windows-x64.zip` / `Synbackup_macos-arm64.zip`，不含版本号
+# （版本由 tag 表达）；包内文件名固定（Windows 是 Synbackup.exe，macOS 是
+# Synbackup.app）。应用内自动更新的下载地址就按这套名字拼，改名会让更新失效。
+#
 # 与 ci.yml 的关系：ci.yml 已改为纯手动构建校验，不再监听任何推送，
 # 因此这里用内置 GITHUB_TOKEN 推 tag 不会触发第二条流水线。
 
@@ -169,7 +173,12 @@ jobs:
           if (-not (Test-Path $exe)) {
             $exe = (Get-ChildItem src-tauri/target/release -Filter *.exe | Select-Object -First 1).FullName
           }
-          Copy-Item $exe "artifacts/Synbackup-${{ needs.prepare.outputs.version }}-windows-x64.exe"
+          # 产物名不带版本号：版本由 Release 的 tag 表达。包内文件名固定为
+          # Synbackup.exe——装回去时也不改名，桌面快捷方式与任务栏固定项都不会失效
+          New-Item -ItemType Directory -Force package | Out-Null
+          Copy-Item $exe "package/Synbackup.exe"
+          Compress-Archive -Path "package/Synbackup.exe" `
+            -DestinationPath "artifacts/Synbackup_windows-x64.zip" -CompressionLevel Optimal
 
       - name: 上传产物
         uses: actions/upload-artifact@v7
@@ -179,7 +188,7 @@ jobs:
           if-no-files-found: error
 
   build-macos:
-    name: macOS arm64 DMG
+    name: macOS arm64 应用包
     needs: prepare
     if: needs.prepare.outputs.skip != 'true'
     runs-on: macos-latest
@@ -207,14 +216,17 @@ jobs:
       - name: 安装前端依赖
         run: npm ci
 
-      - name: 构建 DMG
-        run: npm run tauri build -- --bundles dmg
+      - name: 构建应用包
+        run: npm run tauri build -- --bundles app
 
       - name: 整理产物
         run: |
           mkdir -p artifacts
-          cp src-tauri/target/release/bundle/dmg/*.dmg \
-            "artifacts/Synbackup-${{ needs.prepare.outputs.version }}-macos-arm64.dmg"
+          app=$(ls -d src-tauri/target/release/bundle/macos/*.app | head -1)
+          # 产物名不带版本号，版本由 Release 的 tag 表达；包内是应用包本身
+          # （--keepParent 让它位于 zip 顶层，解压即得 Synbackup.app）。
+          # ditto 而非 zip：保留资源分支与扩展属性，签名信息不丢
+          ditto -c -k --sequesterRsrc --keepParent "$app" artifacts/Synbackup_macos-arm64.zip
 
       - name: 上传产物
         uses: actions/upload-artifact@v7
