@@ -15,9 +15,10 @@ name: Release
 # 幂等性：tag 已存在则跳过创建（不移动 tag），Release 已存在则把产物
 # 塞进去（--clobber 覆盖同名文件）并按 tag 纠正渠道标记。
 #
-# 产物命名：`Synbackup_windows-x64.zip` / `Synbackup_macos-arm64.zip`，不含版本号
-# （版本由 tag 表达）；包内文件名固定（Windows 是 Synbackup.exe，macOS 是
-# Synbackup.app）。应用内自动更新的下载地址就按这套名字拼，改名会让更新失效。
+# 产物命名：`Synbackup_<版本>_windows-x64.zip` / `Synbackup_<版本>_macos-arm64.zip`
+# （包名带版本号，便于手动下载时分辨）；包内文件名固定（Windows 是
+# Synbackup.exe，macOS 是 Synbackup.app），升级时不改名。应用内自动更新的
+# 下载地址就按这套名字拼，改名会让更新失效。
 #
 # 与 ci.yml 的关系：ci.yml 已改为纯手动构建校验，不再监听任何推送，
 # 因此这里用内置 GITHUB_TOKEN 推 tag 不会触发第二条流水线。
@@ -178,7 +179,7 @@ jobs:
           New-Item -ItemType Directory -Force package | Out-Null
           Copy-Item $exe "package/Synbackup.exe"
           Compress-Archive -Path "package/Synbackup.exe" `
-            -DestinationPath "artifacts/Synbackup_windows-x64.zip" -CompressionLevel Optimal
+            -DestinationPath "artifacts/Synbackup_${{ needs.prepare.outputs.version }}_windows-x64.zip" -CompressionLevel Optimal
 
       - name: 上传产物
         uses: actions/upload-artifact@v7
@@ -223,10 +224,11 @@ jobs:
         run: |
           mkdir -p artifacts
           app=$(ls -d src-tauri/target/release/bundle/macos/*.app | head -1)
-          # 产物名不带版本号，版本由 Release 的 tag 表达；包内是应用包本身
+          # 包名带版本号（取自 tag）；包内是应用包本身
           # （--keepParent 让它位于 zip 顶层，解压即得 Synbackup.app）。
           # ditto 而非 zip：保留资源分支与扩展属性，签名信息不丢
-          ditto -c -k --sequesterRsrc --keepParent "$app" artifacts/Synbackup_macos-arm64.zip
+          ditto -c -k --sequesterRsrc --keepParent "$app" \
+            "artifacts/Synbackup_${{ needs.prepare.outputs.version }}_macos-arm64.zip"
 
       - name: 上传产物
         uses: actions/upload-artifact@v7

@@ -7,6 +7,7 @@ import type {
   Config,
   Decision,
   HistoryEntry,
+  MemoryUsage,
   PendingReview,
   SpeedProbe,
   SyncPair,
@@ -31,8 +32,8 @@ export const api = {
   clearHistory: () => invoke<void>("clear_history"),
   getSyncCount: () => invoke<number>("get_sync_count"),
   getAppInfo: () => invoke<AppInfo>("get_app_info"),
-  /** 本应用当前物理内存（RAM）占用，字节 */
-  getAppMemory: () => invoke<number>("get_app_memory"),
+  /** 拆分后的内存占用：后端常驻进程 + 前端 WebView 进程，字节 */
+  getMemoryUsage: () => invoke<MemoryUsage>("get_memory_usage"),
   /** 本应用当前 CPU 占用（占整机算力的百分比） */
   getAppCpu: () => invoke<number>("get_app_cpu"),
   /** 系统整体 GPU 占用百分比；平台不支持时为 null */

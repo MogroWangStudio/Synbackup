@@ -27,7 +27,8 @@ export const ru: Dict = {
   "overview.stat_size": "Общий размер",
   "overview.stat_cpu": "Загрузка CPU",
   "overview.stat_gpu": "Загрузка GPU (система)",
-  "overview.stat_memory": "Использование памяти",
+  "overview.stat_memory_backend": "Память (бэкенд)",
+  "overview.stat_memory_frontend": "Память (фронтенд)",
   "overview.empty_pairs_title": "Задач пока нет",
   "overview.empty_pairs_desc":
     "Создайте задачу: выберите локальную папку и папку на съёмном накопителе. Когда устройство подключено, Synbackup сам сравнит обе стороны.",

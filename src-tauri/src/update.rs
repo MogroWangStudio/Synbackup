@@ -12,9 +12,9 @@
 //! 替换必须发生在进程退出之后：Windows 无法覆盖正在运行的 exe，
 //! macOS 的 .app 同理，所以安装命令只做暂存与派发，然后立即退出。
 //!
-//! 产物名不含版本号（`Synbackup_windows-x64.zip` / `Synbackup_macos-arm64.zip`）：
-//! 同一个 tag 下的包本就唯一，版本由 tag 表达；解压后装回去的是包内
-//! 固定名字的 `Synbackup.exe` / `Synbackup.app`，替换时也不改名——
+//! 产物名带版本号（`Synbackup_<版本>_windows-x64.zip` /
+//! `Synbackup_<版本>_macos-arm64.zip`），按 tag 拼出唯一下载路径；
+//! 包内文件名固定（`Synbackup.exe` / `Synbackup.app`），替换时也不改名——
 //! 用户手里的程序文件名从此与升级多少次无关。
 
 use std::fs;
@@ -32,7 +32,7 @@ use crate::backend;
 
 const ATOM_URL: &str = "https://github.com/MogroWangStudio/Synbackup/releases.atom";
 const DOWNLOAD_PAGE: &str = "https://github.com/MogroWangStudio/Synbackup/releases/latest";
-/// 产物下载前缀（tag 带 v，产物名不带）
+/// 产物下载前缀（tag 带 v；包名带版本号，包内文件名固定）
 const RELEASE_ASSET: &str = "https://github.com/MogroWangStudio/Synbackup/releases/download";
 
 /// gh-proxy 加速前缀：任意 GitHub 直链前拼此域名即经代理下载
@@ -105,13 +105,13 @@ fn parse_tag(tag: &str) -> Option<(semver::Version, bool)> {
 }
 
 /// 当前平台对应的发布产物名（与 `.github/workflows/release.yml` 的
-/// 整理产物步骤一致）。产物名不含版本号——版本由 tag 表达，包内文件
-/// 名固定，升级后用户手里的程序名不会跟着变。只列 CI 实际构建的
+/// 整理产物步骤一致）。压缩包名带版本号，包内文件名固定——升级后用户
+/// 手里的程序名不会跟着变。只列 CI 实际构建的
 /// 组合：其余架构/系统退回手动下载页，不猜测产物名。
-fn asset_for() -> Option<&'static str> {
+fn asset_for(version: &str) -> Option<String> {
     match (std::env::consts::OS, std::env::consts::ARCH) {
-        ("windows", "x86_64") => Some("Synbackup_windows-x64.zip"),
-        ("macos", "aarch64") => Some("Synbackup_macos-arm64.zip"),
+        ("windows", "x86_64") => Some(format!("Synbackup_{version}_windows-x64.zip")),
+        ("macos", "aarch64") => Some(format!("Synbackup_{version}_macos-arm64.zip")),
         _ => None,
     }
 }
@@ -299,7 +299,7 @@ pub async fn check_update(app: AppHandle) -> Result<UpdateInfo, String> {
     Ok(match target {
         Some((ver, entry)) => {
             let version = ver.to_string();
-            let asset = asset_for().unwrap_or_default().to_string();
+            let asset = asset_for(&version).unwrap_or_default();
             UpdateInfo {
                 available: true,
                 auto: !asset.is_empty(),
@@ -474,7 +474,7 @@ pub async fn download_update(app: AppHandle, version: String) -> Result<String, 
 
     let core = app.state::<backend::Core>();
     let settings = core.settings();
-    let asset = asset_for().ok_or_else(|| "当前平台不支持自动更新".to_string())?;
+    let asset = asset_for(&version).ok_or_else(|| "当前平台不支持自动更新".to_string())?;
     let dir = core.dir.join(backend::config::UPDATES_DIR);
     fs::create_dir_all(&dir).map_err(|e| format!("无法创建下载目录: {e}"))?;
     clear_dir(&dir);
@@ -670,12 +670,8 @@ pub fn cancel_update_download() {
 /// 安装已下载的包并退出，由后台脚本完成替换与重启。
 #[tauri::command]
 pub async fn install_update(app: AppHandle, version: String) -> Result<(), String> {
-    // 产物名不含版本号，安装包在下载阶段就以 tag 对应的版本落地并解压过；
-    // 这里不再需要 version，保留参数只为与前端调用签名对齐
-    let _ = version;
-
     let core = app.state::<backend::Core>();
-    let asset = asset_for().ok_or_else(|| "当前平台不支持自动更新".to_string())?;
+    let asset = asset_for(&version).ok_or_else(|| "当前平台不支持自动更新".to_string())?;
     let dir = core.dir.join(backend::config::UPDATES_DIR);
     let archive = dir.join(asset);
     if !archive.is_file() {

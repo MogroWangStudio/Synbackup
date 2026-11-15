@@ -27,7 +27,8 @@ export const en: Dict = {
   "overview.stat_size": "Total size",
   "overview.stat_cpu": "CPU usage",
   "overview.stat_gpu": "GPU usage (system)",
-  "overview.stat_memory": "Memory usage",
+  "overview.stat_memory_backend": "Backend memory",
+  "overview.stat_memory_frontend": "Frontend memory",
   "overview.empty_pairs_title": "No sync pairs yet",
   "overview.empty_pairs_desc":
     "Create a pair between a local folder and a folder on your removable drive. When the drive is plugged in, Synbackup checks both sides for you.",

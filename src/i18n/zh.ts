@@ -26,7 +26,8 @@ export const zh = {
   "overview.stat_size": "同步项目大小",
   "overview.stat_cpu": "CPU 占用",
   "overview.stat_gpu": "GPU 占用（系统）",
-  "overview.stat_memory": "内存占用",
+  "overview.stat_memory_backend": "后端内存占用",
+  "overview.stat_memory_frontend": "前端内存占用",
   "overview.empty_pairs_title": "还没有同步任务",
   "overview.empty_pairs_desc":
     "创建一个任务，选择本地文件夹和移动设备上的对应文件夹。设备插入后，Synbackup 会自动检查两侧差异。",

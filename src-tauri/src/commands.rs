@@ -178,23 +178,98 @@ pub async fn clear_history(core: State<'_, backend::Core>) -> CmdResult<()> {
     Ok(())
 }
 
-/// 本进程内存查询用的 sysinfo 实例（仅刷新自身进程，代价极小）
-static MEM_SYS: OnceLock<Mutex<System>> = OnceLock::new();
+/// 前端（WebView）与后端（常驻进程）各自的内存占用，字节。
+/// 0 表示该项读不到（例如窗口已关闭、前端进程不存在），界面显示占位符。
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MemoryUsage {
+    pub backend: u64,
+    pub frontend: u64,
+}
 
-/// 本应用当前物理内存（RAM）占用，字节
+/// 进程树查询用的独立 sysinfo 实例：要看子进程，不能像单进程查询那样只刷自身
+static MEM_TREE_SYS: OnceLock<Mutex<System>> = OnceLock::new();
+
+/// 拆分后的内存占用：后端 = 本进程，前端 = WebView 进程。
+/// 一次全量刷新拿到两者，避免界面为两个卡片各发一次 IPC。
 #[tauri::command]
-pub fn get_app_memory() -> CmdResult<u64> {
-    let pid = Pid::from_u32(std::process::id());
-    let sys = MEM_SYS.get_or_init(|| {
+pub fn get_memory_usage(core: State<'_, backend::Core>) -> CmdResult<MemoryUsage> {
+    let me = Pid::from_u32(std::process::id());
+    let sys = MEM_TREE_SYS.get_or_init(|| {
         let mut s = System::new();
-        s.refresh_processes(ProcessesToUpdate::Some(&[pid]), true);
+        s.refresh_processes(ProcessesToUpdate::All, true);
         Mutex::new(s)
     });
     let Ok(mut guard) = sys.lock() else {
-        return Ok(0);
+        return Ok(MemoryUsage { backend: 0, frontend: 0 });
     };
-    guard.refresh_processes(ProcessesToUpdate::Some(&[pid]), false);
-    Ok(guard.process(pid).map(|p| p.memory()).unwrap_or(0))
+    guard.refresh_processes(ProcessesToUpdate::All, false);
+    let backend = guard.process(me).map(|p| p.memory()).unwrap_or(0);
+    let frontend = frontend_memory(&guard, me, core.started_at);
+    Ok(MemoryUsage { backend, frontend })
+}
+
+/// 进程树里 root 的全部子孙（WebView2 / WebKitGTK 都挂在应用进程下）
+#[cfg(not(target_os = "macos"))]
+fn descendants(sys: &System, root: Pid) -> Vec<Pid> {
+    let mut out = Vec::new();
+    let mut queue = vec![root];
+    while let Some(pid) = queue.pop() {
+        for (p, proc) in sys.processes() {
+            if proc.parent() == Some(pid) {
+                out.push(*p);
+                queue.push(*p);
+            }
+        }
+    }
+    out
+}
+
+/// Windows：WebView2 的各进程（browser / renderer / GPU / utility）都在
+/// 主进程的子树里，按名字筛出来即可，归属精确。
+#[cfg(target_os = "windows")]
+fn frontend_memory(sys: &System, me: Pid, _started_at: u64) -> u64 {
+    descendants(sys, me)
+        .iter()
+        .filter_map(|p| sys.process(*p))
+        .filter(|p| {
+            p.name()
+                .to_string_lossy()
+                .to_ascii_lowercase()
+                .contains("msedgewebview2")
+        })
+        .map(|p| p.memory())
+        .sum()
+}
+
+/// macOS：WKWebView 的 WebContent 进程由 launchd 启动（ppid = 1），
+/// 和应用没有子树关系，系统里同时还有别的 WKWebView 应用的同名进程；
+/// 没有公开 API 能查"这个 WebContent 为谁工作"（responsibility 接口
+/// 未导出）。只能按"启动时间不早于本应用"归属——同一时段其他应用
+/// 新开的界面进程也会被计入，是这个口径的已知误差。
+#[cfg(target_os = "macos")]
+fn frontend_memory(sys: &System, _me: Pid, started_at: u64) -> u64 {
+    sys.processes()
+        .values()
+        .filter(|p| p.start_time() >= started_at)
+        .filter(|p| {
+            p.name()
+                .to_string_lossy()
+                .to_ascii_lowercase()
+                .contains("webcontent")
+        })
+        .map(|p| p.memory())
+        .sum()
+}
+
+/// 其他平台（Linux 的 WebKitGTK 在应用进程内或子树里）：按子树合计
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+fn frontend_memory(sys: &System, me: Pid, _started_at: u64) -> u64 {
+    descendants(sys, me)
+        .iter()
+        .filter_map(|p| sys.process(*p))
+        .map(|p| p.memory())
+        .sum()
 }
 
 /// CPU 采样用的独立 sysinfo 实例。与内存共用一个实例会打乱"两次刷新取增量"

@@ -27,7 +27,8 @@ export const it: Dict = {
   "overview.stat_size": "Dimensione totale",
   "overview.stat_cpu": "Utilizzo CPU",
   "overview.stat_gpu": "Utilizzo GPU (sistema)",
-  "overview.stat_memory": "Uso di memoria",
+  "overview.stat_memory_backend": "Memoria (backend)",
+  "overview.stat_memory_frontend": "Memoria (frontend)",
   "overview.empty_pairs_title": "Nessuna sincronizzazione ancora",
   "overview.empty_pairs_desc":
     "Crea un'attività tra una cartella locale e una cartella dell'unità rimovibile. All'inserimento, Synbackup confronta entrambi i lati per te.",

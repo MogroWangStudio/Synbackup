@@ -32,6 +32,9 @@ struct Inner {
 pub struct Core {
     /// 数据目录（config.json / manifests/ / history.jsonl）
     pub dir: PathBuf,
+    /// 进程启动时刻（Unix 秒）。macOS 的 WebView 进程挂在 launchd 下、
+    /// 没有子树关系，只能按"启动时间不早于本应用"归属前端内存。
+    pub started_at: u64,
     inner: RwLock<Inner>,
     pending: Mutex<Vec<PendingReview>>,
     /// 全局同步互斥锁：同一时刻只执行一个同步任务
@@ -45,9 +48,28 @@ impl Core {
         let dir = config::resolve_dir();
         // 便携化后首次启动：把旧版本写在系统目录的数据搬过来
         config::migrate_from_legacy(&dir);
-        let cfg = config::load_config(&dir);
+        let mut cfg = config::load_config(&dir);
+
+        // 旧配置的总览内存是"整个应用"一项，现在拆成后端 / 前端两项。
+        // 旧键映射到后端（用户原来看到的就是它），卡片不会凭空消失。
+        let before = cfg.settings.overview_stats.clone();
+        cfg.settings.overview_stats = before
+            .iter()
+            .map(|k| {
+                if k == "memory" {
+                    "memory_backend".to_string()
+                } else {
+                    k.clone()
+                }
+            })
+            .collect();
+        if cfg.settings.overview_stats != before {
+            let _ = config::save_config(&dir, &cfg);
+        }
+
         Self {
             dir,
+            started_at: (now_ms() / 1000) as u64,
             inner: RwLock::new(Inner { settings: cfg.settings, pairs: cfg.pairs }),
             pending: Mutex::new(Vec::new()),
             sync_lock: tokio::sync::Mutex::new(()),

@@ -27,7 +27,8 @@ export const pt: Dict = {
   "overview.stat_size": "Tamanho total",
   "overview.stat_cpu": "Uso de CPU",
   "overview.stat_gpu": "Uso de GPU (sistema)",
-  "overview.stat_memory": "Uso de memória",
+  "overview.stat_memory_backend": "Memória (backend)",
+  "overview.stat_memory_frontend": "Memória (frontend)",
   "overview.empty_pairs_title": "Nenhuma tarefa de sync ainda",
   "overview.empty_pairs_desc":
     "Crie uma tarefa entre uma pasta local e uma pasta do seu dispositivo removível. Ao conectá-lo, o Synbackup compara os dois lados para você.",

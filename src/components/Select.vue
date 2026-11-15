@@ -1,3 +1,8 @@
+<script lang="ts">
+// 模块级共享：所有 Select 实例的弹层打开序号（新打开的总在最上，见 raiseLayer）
+let stackTick = 0;
+</script>
+
 <script setup lang="ts">
 // MWS ComboBox —— 按 MWS UI 设计稿（mws-combobox）严格移植：
 //   · 三层结构：pop（视口锚定）/ frame（圆角弹层框）/ plate（行板，靠位移对行）；
@@ -205,6 +210,23 @@ function closedFrame() {
   void frame.offsetWidth;
 }
 
+/* ---- 弹层层级：同一时刻可能开着多个（每个 Select 各自 Teleport 到 body）。
+   静态 --z-popup 让它们同层，同层级时 DOM 靠后的压住靠前的——顺序由挂载
+   时机决定，不是用户感知的"后开的在上"。打开时按模块级递增序号抬高一层，
+   后打开的永远盖住先打开的；上限留在 --z-titlebar 之下，弹层不越标题栏。 */
+function raiseLayer() {
+  const pop = popEl.value;
+  if (!pop) return;
+  const root = document.documentElement;
+  const base = Number(getComputedStyle(root).getPropertyValue("--z-popup")) || 120;
+  const top = Number(getComputedStyle(root).getPropertyValue("--z-titlebar")) || 150;
+  // 序号在 1..上限-1 之间循环兜底：同时开几十个下拉的场景不存在，
+  // 循环只是避免长时间使用后层级数值越堆越高
+  const span = Math.max(1, top - base - 1);
+  stackTick = (stackTick % span) + 1;
+  pop.style.zIndex = String(base + stackTick);
+}
+
 function show() {
   if (props.disabled) return;
   clearTimeout(timer);
@@ -220,6 +242,7 @@ function show() {
   const plate = plateEl.value;
   const chev = chevEl.value;
   if (!pop || !frame || !plate) return;
+  raiseLayer();
   layout();
   pop.style.visibility = "visible";
   pop.style.pointerEvents = "auto";

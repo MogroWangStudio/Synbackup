@@ -263,3 +263,9 @@ export interface UpdateProgress {
   received: number;
   total: number;
 }
+
+/** 内存占用（字节）：后端 = 常驻进程，前端 = WebView 进程；0 = 该项读不到 */
+export interface MemoryUsage {
+  backend: number;
+  frontend: number;
+}

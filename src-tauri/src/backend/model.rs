@@ -101,9 +101,9 @@ pub struct AppSettings {
     pub overview_size_ms: u32,
 }
 
-/// 总览页默认显示的数据项（与旧版固定四项一致）
+/// 总览页默认显示的数据项（与旧版固定四项一致；内存默认显示后端那项）
 fn default_overview_stats() -> Vec<String> {
-    vec!["pairs".into(), "devices".into(), "pending".into(), "memory".into()]
+    vec!["pairs".into(), "devices".into(), "pending".into(), "memory_backend".into()]
 }
 
 /// 内存占用默认 5 秒刷新一次（旧版硬编码的节奏）

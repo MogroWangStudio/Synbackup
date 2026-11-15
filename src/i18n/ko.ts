@@ -27,7 +27,8 @@ export const ko: Dict = {
   "overview.stat_size": "전체 크기",
   "overview.stat_cpu": "CPU 사용률",
   "overview.stat_gpu": "GPU 사용률(시스템)",
-  "overview.stat_memory": "메모리 사용량",
+  "overview.stat_memory_backend": "메모리 (백엔드)",
+  "overview.stat_memory_frontend": "메모리 (프론트엔드)",
   "overview.empty_pairs_title": "아직 동기화 작업이 없습니다",
   "overview.empty_pairs_desc":
     "작업을 만들어 로컬 폴더와 이동식 기기의 폴더를 지정하세요. 기기를 연결하면 Synbackup이 양쪽 차이를 자동으로 검사합니다.",

@@ -27,7 +27,8 @@ export const es: Dict = {
   "overview.stat_size": "Tamaño total",
   "overview.stat_cpu": "Uso de CPU",
   "overview.stat_gpu": "Uso de GPU (sistema)",
-  "overview.stat_memory": "Uso de memoria",
+  "overview.stat_memory_backend": "Memoria (backend)",
+  "overview.stat_memory_frontend": "Memoria (frontend)",
   "overview.empty_pairs_title": "Aún no hay tareas de sync",
   "overview.empty_pairs_desc":
     "Crea una tarea entre una carpeta local y una carpeta de tu unidad extraíble. Al conectarla, Synbackup compara ambas caras por ti.",

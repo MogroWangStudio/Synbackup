@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import { refreshVolumes, store } from "../store";
 import { api } from "../api";
 import { fmtSize, fmtTime, t } from "../i18n";
+import type { MemoryUsage } from "../types";
 import {
   MIN_POLL_MS,
   OVERVIEW_INTERVAL_FIELD,
@@ -22,16 +23,33 @@ const pendingTotal = computed(() =>
 /* ---- 轮询：只给"可轮询且正在显示"的数据项开定时器 ----
    每项自己取数、自己格式化；频率取自设置（0 / <3s 视为关闭），
    改设置即时重启定时器，隐藏某项即停掉它的定时器。 */
-const live = reactive({ memory: "", cpu: "", gpu: "", size: "" });
+const live = reactive({ memoryBackend: "", memoryFrontend: "", cpu: "", gpu: "", size: "" });
+
+/** 前后端内存由同一次取数填充：两个卡片同频，重复请求只是白跑 */
+let memInflight: Promise<MemoryUsage> | null = null;
+function memoryUsage(): Promise<MemoryUsage> {
+  if (!memInflight) {
+    memInflight = api.getMemoryUsage().finally(() => {
+      memInflight = null;
+    });
+  }
+  return memInflight;
+}
+
+/** 内存两项都要：取到就一起写，读不到的项显示占位符而不是 0 */
+async function pullMemory() {
+  const usage = await memoryUsage();
+  live.memoryBackend = usage.backend > 0 ? fmtSize(usage.backend) : "–";
+  live.memoryFrontend = usage.frontend > 0 ? fmtSize(usage.frontend) : "–";
+}
 
 /** 每一项怎么取数：取回后直接换成卡片上要显示的那句话 */
 const FETCH: Record<OverviewPolledKey, () => Promise<void>> = {
   devices: async () => {
     await refreshVolumes();
   },
-  memory: async () => {
-    live.memory = fmtSize(await api.getAppMemory());
-  },
+  memory_backend: pullMemory,
+  memory_frontend: pullMemory,
   cpu: async () => {
     live.cpu = `${(await api.getAppCpu()).toFixed(1)}%`;
   },
@@ -97,7 +115,8 @@ const stats = computed(() => {
     size: live.size || "–",
     cpu: live.cpu || "–",
     gpu: live.gpu || "–",
-    memory: live.memory || "–",
+    memory_backend: live.memoryBackend || "–",
+    memory_frontend: live.memoryFrontend || "–",
   };
   return store.settings.overviewStats
     .filter((k): k is OverviewStatKey => k in OVERVIEW_STAT_LABEL)

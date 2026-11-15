@@ -71,11 +71,11 @@ jobs:
           if (-not (Test-Path $exe)) {
             $exe = (Get-ChildItem src-tauri/target/release -Filter *.exe | Select-Object -First 1).FullName
           }
-          # 与 Release 流水线同一套产物：名不含版本号，包内固定为 Synbackup.exe
+          # 与 Release 流水线同一套产物：包名带版本号，包内固定为 Synbackup.exe
           New-Item -ItemType Directory -Force package | Out-Null
           Copy-Item $exe "package/Synbackup.exe"
           Compress-Archive -Path "package/Synbackup.exe" `
-            -DestinationPath "artifacts/Synbackup_windows-x64.zip" -CompressionLevel Optimal
+            -DestinationPath "artifacts/Synbackup_${{ steps.version.outputs.version }}_windows-x64.zip" -CompressionLevel Optimal
 
       - name: 上传产物
         uses: actions/upload-artifact@v7
@@ -125,7 +125,8 @@ jobs:
           app=$(ls -d src-tauri/target/release/bundle/macos/*.app | head -1)
           # 与 Release 流水线同一套产物：zip 内是应用包本身（顶层），
           # ditto 保留符号链接与扩展属性
-          ditto -c -k --sequesterRsrc --keepParent "$app" artifacts/Synbackup_macos-arm64.zip
+          ditto -c -k --sequesterRsrc --keepParent "$app" \
+            "artifacts/Synbackup_${{ steps.version.outputs.version }}_macos-arm64.zip"
 
       - name: 上传产物
         uses: actions/upload-artifact@v7

@@ -27,7 +27,8 @@ export const fr: Dict = {
   "overview.stat_size": "Taille totale",
   "overview.stat_cpu": "Utilisation CPU",
   "overview.stat_gpu": "Utilisation GPU (système)",
-  "overview.stat_memory": "Utilisation mémoire",
+  "overview.stat_memory_backend": "Mémoire (backend)",
+  "overview.stat_memory_frontend": "Mémoire (frontend)",
   "overview.empty_pairs_title": "Aucune paire pour l'instant",
   "overview.empty_pairs_desc":
     "Créez une paire entre un dossier local et un dossier de votre périphérique amovible. Dès son branchement, Synbackup compare les deux côtés pour vous.",

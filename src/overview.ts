@@ -4,7 +4,16 @@
 import type { AppSettings } from "./types";
 
 /** 规范顺序：对话框与卡片都按此排列；存储里也只保留这个顺序的子集 */
-export const OVERVIEW_STAT_KEYS = ["pairs", "devices", "pending", "size", "cpu", "gpu", "memory"] as const;
+export const OVERVIEW_STAT_KEYS = [
+  "pairs",
+  "devices",
+  "pending",
+  "size",
+  "cpu",
+  "gpu",
+  "memory_backend",
+  "memory_frontend",
+] as const;
 
 export type OverviewStatKey = (typeof OVERVIEW_STAT_KEYS)[number];
 
@@ -16,11 +25,19 @@ export const OVERVIEW_STAT_LABEL: Record<OverviewStatKey, string> = {
   size: "overview.stat_size",
   cpu: "overview.stat_cpu",
   gpu: "overview.stat_gpu",
-  memory: "overview.stat_memory",
+  memory_backend: "overview.stat_memory_backend",
+  memory_frontend: "overview.stat_memory_frontend",
 };
 
 /** 需要刷新间隔的项：其余项由后端事件驱动，轮询没有意义 */
-export const OVERVIEW_POLLED_KEYS = ["devices", "memory", "cpu", "gpu", "size"] as const;
+export const OVERVIEW_POLLED_KEYS = [
+  "devices",
+  "memory_backend",
+  "memory_frontend",
+  "cpu",
+  "gpu",
+  "size",
+] as const;
 
 export type OverviewPolledKey = (typeof OVERVIEW_POLLED_KEYS)[number];
 
@@ -28,10 +45,12 @@ export function isPolled(key: OverviewStatKey): key is OverviewPolledKey {
   return (OVERVIEW_POLLED_KEYS as readonly string[]).includes(key);
 }
 
-/** 每个可轮询项把间隔存在哪个设置字段里 */
+/** 每个可轮询项把间隔存在哪个设置字段里。
+    前端 / 后端内存共用同一个频率：一次取数就拿到两项，不必开两套节奏 */
 export const OVERVIEW_INTERVAL_FIELD = {
   devices: "overviewDevicesMs",
-  memory: "overviewMemoryMs",
+  memory_backend: "overviewMemoryMs",
+  memory_frontend: "overviewMemoryMs",
   cpu: "overviewCpuMs",
   gpu: "overviewGpuMs",
   size: "overviewSizeMs",

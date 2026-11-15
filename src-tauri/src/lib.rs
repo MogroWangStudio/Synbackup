@@ -336,7 +336,7 @@ pub fn run() {
             commands::get_sync_count,
             commands::clear_history,
             commands::get_app_info,
-            commands::get_app_memory,
+            commands::get_memory_usage,
             commands::get_app_cpu,
             commands::get_gpu_usage,
             commands::get_pairs_size,

@@ -27,7 +27,8 @@ export const de: Dict = {
   "overview.stat_size": "Gesamtgröße",
   "overview.stat_cpu": "CPU-Auslastung",
   "overview.stat_gpu": "GPU-Auslastung (System)",
-  "overview.stat_memory": "Speichernutzung",
+  "overview.stat_memory_backend": "Speicher (Backend)",
+  "overview.stat_memory_frontend": "Speicher (Frontend)",
   "overview.empty_pairs_title": "Noch keine Sync-Paare",
   "overview.empty_pairs_desc":
     "Lege ein Paar aus einem lokalen Ordner und einem Ordner auf deinem Wechseldatenträger an. Beim Einstecken prüft Synbackup beide Seiten für dich.",

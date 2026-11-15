@@ -27,7 +27,8 @@ export const ja: Dict = {
   "overview.stat_size": "合計サイズ",
   "overview.stat_cpu": "CPU 使用率",
   "overview.stat_gpu": "GPU 使用率（システム）",
-  "overview.stat_memory": "メモリ使用量",
+  "overview.stat_memory_backend": "メモリ（バックエンド）",
+  "overview.stat_memory_frontend": "メモリ（フロントエンド）",
   "overview.empty_pairs_title": "同期タスクがまだありません",
   "overview.empty_pairs_desc":
     "タスクを作成し、ローカルフォルダと USB ドライブ上のフォルダを指定してください。ドライブを挿入すると、Synbackup が両側の差分を自動チェックします。",
