@@ -43,6 +43,8 @@ export interface AppSettings {
   launchAnimCurve: string;
   /** 更新渠道：stable = 正式版（Release），beta = 预发布（Pre-Release） */
   updateChannel: string;
+  /** 更新下载来源：github = GitHub 直连，ghproxy = gh-proxy 加速 */
+  updateSource: string;
   /** 状态栏信息显示顺序（devices / pairs / sync / version；隐藏项保留原位） */
   statusOrder: string[];
   /** 侧栏状态区：显示设备状态 */
@@ -232,8 +234,28 @@ export interface UpdateInfo {
   current: string;
   /** 本平台安装包文件名，空 = 该平台不走自动更新 */
   asset: string;
+  /** 本平台安装包的下载直链（GitHub 原始链接，测速用），空 = 不支持自动更新 */
+  assetUrl: string;
   /** 是否支持自动下载并安装 */
   auto: boolean;
+}
+
+/** 下载来源测速结果（后端按当前来源对一条更新直链发起 Range 请求） */
+export interface SpeedProbe {
+  /** 请求成功且读到数据 */
+  reachable: boolean;
+  /** 发出请求到收到响应头的耗时（毫秒） */
+  latencyMs: number;
+  /** 实际读取的字节数 */
+  bytes: number;
+  /** 读取全程耗时（毫秒） */
+  elapsedMs: number;
+  /** 平均速度（字节/秒） */
+  speedBps: number;
+  /** 实际请求的链接（含加速前缀） */
+  url: string;
+  /** 失败原因（成功时为空） */
+  error: string;
 }
 
 /** 更新包下载进度（后端 update-progress 事件） */

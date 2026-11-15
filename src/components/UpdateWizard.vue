@@ -191,6 +191,7 @@ function handleClose() {
             <span>{{ t("upd.failed") }}</span>
           </div>
           <p class="upd-error">{{ error }}</p>
+          <p class="upd-hint">{{ t("upd.source_hint") }}</p>
         </div>
 
         <div v-else key="manual" class="upd-state">

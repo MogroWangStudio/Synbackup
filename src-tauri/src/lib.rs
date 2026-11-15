@@ -354,6 +354,7 @@ pub fn run() {
             update::download_update,
             update::cancel_update_download,
             update::install_update,
+            update::probe_update_speed,
         ])
         .setup(|app| {
             app.manage(backend::Core::new());

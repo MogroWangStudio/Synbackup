@@ -5,8 +5,8 @@ import { refreshLogoImage, store, toast } from "../store";
 import { open } from "@tauri-apps/plugin-dialog";
 import { applyUiPrefs, DEFAULT_ACCENT, persistUiPrefs, replayBootAnim, UI_THEMES, isValidHex } from "../theme";
 import { titlebarHeight } from "../ui";
-import { LOCALES, t } from "../i18n";
-import type { AppSettings, UpdateInfo } from "../types";
+import { LOCALES, fmtSize, t } from "../i18n";
+import type { AppSettings, SpeedProbe, UpdateInfo } from "../types";
 import Icon from "../components/Icon.vue";
 import Logo from "../components/Logo.vue";
 import Toggle from "../components/Toggle.vue";
@@ -222,6 +222,8 @@ const notifyTestOpen = ref(false);
 const checking = ref(false);
 let pendingUrl = "";
 const updateHint = ref("");
+/** 最近一次检查更新拿到的安装包直链：测速优先测它，最贴近真实下载 */
+let lastAssetUrl = "";
 
 async function onCheckUpdate() {
   if (checking.value) return;
@@ -232,6 +234,7 @@ async function onCheckUpdate() {
       updateHint.value = t("update.available", { v: info.version });
       // 更新说明写入提示行；点击版本行可打开下载页
       pendingUrl = info.url;
+      lastAssetUrl = info.assetUrl;
       // 向导接管后续：打开即开始下载，旧版留着"前往下载页"作为退路
       store.updateWizard = info;
     } else {
@@ -243,6 +246,43 @@ async function onCheckUpdate() {
     toast("error", String(e));
   } finally {
     checking.value = false;
+  }
+}
+
+// ---- 下载来源与测速 ----
+const sourceOptions = computed<SelectOption[]>(() => [
+  { value: "github", label: t("upsource.github") },
+  { value: "ghproxy", label: t("upsource.ghproxy") },
+]);
+const probing = ref(false);
+const probe = ref<SpeedProbe | null>(null);
+
+const speedText = computed(() => {
+  const p = probe.value;
+  if (!p) return "";
+  if (!p.reachable) return t("settings.speed_fail");
+  return t("settings.speed_ok", { ms: p.latencyMs, speed: `${fmtSize(p.speedBps)}/s` });
+});
+/** 提示行：测速结果优先，否则显示来源说明 */
+const sourceHint = computed(() => speedText.value || t("settings.update_source_hint"));
+
+function onSelectSource(v: string) {
+  // 旧结果对应的是上一个来源，切来源后不再代表现状
+  probe.value = null;
+  void update({ updateSource: v });
+}
+
+async function onProbeSpeed() {
+  if (probing.value) return;
+  probing.value = true;
+  try {
+    const result = await api.probeUpdateSpeed(lastAssetUrl || undefined);
+    probe.value = result;
+    if (!result.reachable) toast("error", result.error || t("settings.speed_fail"));
+  } catch (e) {
+    toast("error", String(e));
+  } finally {
+    probing.value = false;
   }
 }
 
@@ -705,7 +745,7 @@ function onLanguageSelect(v: string) {
             {{ updateHint }}
           </span>
         </div>
-        <span class="row-value">{{ store.appInfo?.version ?? "1.0.0" }}</span>
+        <span class="row-value">{{ store.appInfo?.version ?? "1.1.0-beta1" }}</span>
       </div>
       <div class="row">
         <div class="row-label">
@@ -718,6 +758,29 @@ function onLanguageSelect(v: string) {
           :aria-label="t('settings.update_channel')"
           @update:model-value="(v) => update({ updateChannel: v })"
         />
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.update_source") }}</span>
+          <span class="row-hint" :class="{ mono: speedText }">{{ sourceHint }}</span>
+        </div>
+        <div class="source-controls">
+          <button
+            type="button"
+            class="btn btn-sm"
+            :disabled="probing"
+            :title="t('settings.speed_test_title')"
+            @click="onProbeSpeed"
+          >
+            {{ probing ? t("settings.speed_testing") : t("settings.speed_test") }}
+          </button>
+          <Select
+            :model-value="store.settings.updateSource"
+            :options="sourceOptions"
+            :aria-label="t('settings.update_source')"
+            @update:model-value="onSelectSource"
+          />
+        </div>
       </div>
       <div class="row">
         <div class="row-label">
@@ -874,6 +937,18 @@ function onLanguageSelect(v: string) {
   align-items: center;
   gap: 10px;
   flex: none;
+}
+/* 下载来源行：测速按钮 + 来源下拉组合 */
+.source-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+/* 测速结果里的延迟与速度：等宽 + 表格数字，量出来不跳动 */
+.row-hint.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
 }
 .brand-mark {
   display: flex;

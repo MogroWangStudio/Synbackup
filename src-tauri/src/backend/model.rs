@@ -67,6 +67,8 @@ pub struct AppSettings {
     pub launch_anim_curve: String,
     /// 更新渠道：stable = 正式版（Release），beta = 预发布（Pre-Release）
     pub update_channel: String,
+    /// 更新下载来源：github = GitHub 直连（原始链接），ghproxy = gh-proxy 加速（链接前拼代理前缀）
+    pub update_source: String,
     /// 状态栏信息显示顺序（devices / pairs / sync / version；隐藏项保留原位）
     #[serde(default = "default_status_order")]
     pub status_order: Vec<String>,
@@ -170,6 +172,7 @@ impl Default for AppSettings {
             launch_anim_ms: 340,
             launch_anim_curve: "smooth".into(),
             update_channel: "stable".into(),
+            update_source: "github".into(),
             status_order: default_status_order(),
             status_devices: true,
             status_pairs: true,

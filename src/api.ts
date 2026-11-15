@@ -8,6 +8,7 @@ import type {
   Decision,
   HistoryEntry,
   PendingReview,
+  SpeedProbe,
   SyncPair,
   UpdateInfo,
   VolumeInfo,
@@ -55,6 +56,9 @@ export const api = {
   cancelUpdateDownload: () => invoke<void>("cancel_update_download"),
   /** 安装已下载的更新包并退出，由后台脚本替换文件并拉起新版本 */
   installUpdate: (version: string) => invoke<void>("install_update", { version }),
+  /** 下载来源测速：按当前来源对一条更新直链（缺省用仓库归档）量延迟与速度 */
+  probeUpdateSpeed: (url?: string) =>
+    invoke<SpeedProbe>("probe_update_speed", { url: url ?? null }),
   /** 切换数据目录（复制现有数据 + 记下指针），重启后生效 */
   setDataDir: (path: string) => invoke<string>("set_data_dir", { path }),
   /** 重启应用（前端与后台一并退出，随后自动拉起） */

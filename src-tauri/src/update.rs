@@ -29,6 +29,24 @@ const DOWNLOAD_PAGE: &str = "https://github.com/MogroWangStudio/Synbackup/releas
 /// 产物下载前缀（tag 带 v，产物名不带）
 const RELEASE_ASSET: &str = "https://github.com/MogroWangStudio/Synbackup/releases/download";
 
+/// gh-proxy 加速前缀：任意 GitHub 直链前拼此域名即经代理下载
+/// （https://gh-proxy.com/docs/github-accelerator），代理端跟随 302、
+/// 支持 Range 分块，检查 / 下载 / 测速三条链路共用
+const GH_PROXY_PREFIX: &str = "https://gh-proxy.org/";
+
+/// 未指定测速目标时的兜底直链：仓库源码归档，始终存在且有数 MB，
+/// 读一小段就足够量出可用性与速度
+const SPEED_TEST_URL: &str =
+    "https://github.com/MogroWangStudio/Synbackup/archive/refs/heads/main.zip";
+
+/// 按下载来源处理直链：gh-proxy 来源时在链接前拼加速前缀
+fn mirror_url(url: &str, source: &str) -> String {
+    match source {
+        "ghproxy" => format!("{GH_PROXY_PREFIX}{url}"),
+        _ => url.to_string(),
+    }
+}
+
 /// Atom 源里 `<link href>` 中 tag 前缀，其后即 tag 本身
 const TAG_PATH: &str = "/releases/tag/";
 
@@ -61,6 +79,8 @@ pub struct UpdateInfo {
     pub current: String,
     /// 本平台的安装包文件名（空 = 该平台不走自动更新）
     pub asset: String,
+    /// 本平台安装包的下载直链（GitHub 原始链接，测速用；空 = 不支持自动更新）
+    pub asset_url: String,
     /// 是否支持自动下载并安装
     pub auto: bool,
 }
@@ -237,7 +257,7 @@ pub async fn check_update(app: AppHandle) -> Result<UpdateInfo, String> {
         .map_err(|e| e.to_string())?;
 
     let resp = client
-        .get(ATOM_URL)
+        .get(mirror_url(ATOM_URL, &settings.update_source))
         .send()
         .await
         .map_err(|e| format!("网络请求失败: {e}"))?;
@@ -277,6 +297,11 @@ pub async fn check_update(app: AppHandle) -> Result<UpdateInfo, String> {
             UpdateInfo {
                 available: true,
                 auto: !asset.is_empty(),
+                asset_url: if asset.is_empty() {
+                    String::new()
+                } else {
+                    format!("{RELEASE_ASSET}/v{version}/{asset}")
+                },
                 asset,
                 version,
                 notes: html_to_text(&entry.notes).chars().take(3000).collect(),
@@ -292,6 +317,7 @@ pub async fn check_update(app: AppHandle) -> Result<UpdateInfo, String> {
             available: false,
             auto: false,
             asset: String::new(),
+            asset_url: String::new(),
             version: current.clone(),
             notes: String::new(),
             url: DOWNLOAD_PAGE.into(),
@@ -318,6 +344,7 @@ pub async fn download_update(app: AppHandle, version: String) -> Result<String, 
     let _busy = BusyGuard;
 
     let core = app.state::<backend::Core>();
+    let settings = core.settings();
     let asset = asset_for(&version).ok_or_else(|| "当前平台不支持自动更新".to_string())?;
     let dir = core.dir.join(backend::config::UPDATES_DIR);
     fs::create_dir_all(&dir).map_err(|e| format!("无法创建下载目录: {e}"))?;
@@ -338,7 +365,7 @@ pub async fn download_update(app: AppHandle, version: String) -> Result<String, 
         .build()
         .map_err(|e| e.to_string())?;
 
-    let url = format!("{RELEASE_ASSET}/v{version}/{asset}");
+    let url = mirror_url(&format!("{RELEASE_ASSET}/v{version}/{asset}"), &settings.update_source);
     let mut resp = client
         .get(url.as_str())
         .send()
@@ -399,6 +426,111 @@ pub async fn download_update(app: AppHandle, version: String) -> Result<String, 
     }
     fs::rename(&part, &target).map_err(|e| format!("无法保存安装包: {e}"))?;
     Ok(target.to_string_lossy().to_string())
+}
+
+/// 下载来源测速结果：reachable = 请求成功且读到数据，不可达时 error 携带原因
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpeedProbe {
+    /// 请求成功且读到数据
+    pub reachable: bool,
+    /// 发出请求到收到响应头的耗时（毫秒）
+    pub latency_ms: u64,
+    /// 实际读取的字节数
+    pub bytes: u64,
+    /// 读取全程耗时（毫秒）
+    pub elapsed_ms: u64,
+    /// 平均速度（字节/秒）
+    pub speed_bps: u64,
+    /// 实际请求的链接（含加速前缀，便于界面与排查对上号）
+    pub url: String,
+    /// 失败原因（成功时为空）
+    pub error: String,
+}
+
+impl SpeedProbe {
+    fn unreachable(url: &str, error: String) -> Self {
+        Self {
+            reachable: false,
+            latency_ms: 0,
+            bytes: 0,
+            elapsed_ms: 0,
+            speed_bps: 0,
+            url: url.to_string(),
+            error,
+        }
+    }
+}
+
+/// 测速：按当前下载来源对一条更新直链发起带 Range 的请求，读最多 1 MiB
+/// （10 秒封顶），返回延迟与平均速度。用于在切换来源前确认链接可用、
+/// 快慢如何。`url` 缺省时测仓库源码归档——它始终存在，量的是同一条路。
+#[tauri::command]
+pub async fn probe_update_speed(app: AppHandle, url: Option<String>) -> Result<SpeedProbe, String> {
+    const MAX_PROBE_BYTES: u64 = 1024 * 1024;
+    const PROBE_TIMEOUT: Duration = Duration::from_secs(10);
+
+    let core = app.state::<backend::Core>();
+    let settings = core.settings();
+    let target = mirror_url(
+        url.as_deref()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or(SPEED_TEST_URL),
+        &settings.update_source,
+    );
+
+    let client = reqwest::Client::builder()
+        .user_agent(concat!("Synbackup/", env!("CARGO_PKG_VERSION")))
+        .connect_timeout(Duration::from_secs(15))
+        .read_timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let started = std::time::Instant::now();
+    let mut resp = match client
+        .get(&target)
+        .header(reqwest::header::RANGE, "bytes=0-1048575")
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => return Ok(SpeedProbe::unreachable(&target, e.to_string())),
+    };
+    let latency_ms = started.elapsed().as_millis() as u64;
+    let status = resp.status();
+    if !status.is_success() {
+        return Ok(SpeedProbe::unreachable(&target, format!("HTTP {status}")));
+    }
+
+    let mut bytes: u64 = 0;
+    let deadline = tokio::time::Instant::from_std(started + PROBE_TIMEOUT);
+    loop {
+        if bytes >= MAX_PROBE_BYTES {
+            break;
+        }
+        // 到点即停：手头读到多少算多少，量速不需要读完整段
+        let chunk = match tokio::time::timeout_at(deadline, resp.chunk()).await {
+            Ok(Ok(Some(c))) => c,
+            Ok(Ok(None)) | Err(_) => break,
+            Ok(Err(e)) => return Ok(SpeedProbe::unreachable(&target, e.to_string())),
+        };
+        bytes += chunk.len() as u64;
+    }
+    let elapsed_ms = started.elapsed().as_millis() as u64;
+    let speed_bps = if elapsed_ms > 0 {
+        ((bytes as f64) / (elapsed_ms as f64 / 1000.0)) as u64
+    } else {
+        0
+    };
+    Ok(SpeedProbe {
+        reachable: bytes > 0,
+        latency_ms,
+        bytes,
+        elapsed_ms,
+        speed_bps,
+        url: target,
+        error: String::new(),
+    })
 }
 
 /// 取消进行中的下载（界面上的"取消下载"）
