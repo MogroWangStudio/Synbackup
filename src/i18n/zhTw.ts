@@ -125,6 +125,7 @@ export const zhTw: Dict = {
   "diff.all_counts": "共 {n} 項",
   "diff.col_status": "狀態",
   "diff.col_path": "檔案",
+  "diff.col_type": "類型",
   "diff.col_local": "本機",
   "diff.col_remote": "裝置",
   "diff.col_action": "處理方式",

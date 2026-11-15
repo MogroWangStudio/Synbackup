@@ -125,6 +125,7 @@ export const ja: Dict = {
   "diff.all_counts": "全 {n} 項目",
   "diff.col_status": "状態",
   "diff.col_path": "ファイル",
+  "diff.col_type": "種類",
   "diff.col_local": "ローカル",
   "diff.col_remote": "デバイス",
   "diff.col_action": "処理方法",

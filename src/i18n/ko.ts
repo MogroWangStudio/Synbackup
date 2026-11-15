@@ -125,6 +125,7 @@ export const ko: Dict = {
   "diff.all_counts": "총 {n}개",
   "diff.col_status": "상태",
   "diff.col_path": "파일",
+  "diff.col_type": "종류",
   "diff.col_local": "로컬",
   "diff.col_remote": "기기",
   "diff.col_action": "처리 방법",

@@ -125,6 +125,7 @@ export const fr: Dict = {
   "diff.all_counts": "{n} élément(s)",
   "diff.col_status": "État",
   "diff.col_path": "Fichier",
+  "diff.col_type": "Type",
   "diff.col_local": "Local",
   "diff.col_remote": "Périphérique",
   "diff.col_action": "Traitement",

@@ -745,7 +745,7 @@ function onLanguageSelect(v: string) {
             {{ updateHint }}
           </span>
         </div>
-        <span class="row-value">{{ store.appInfo?.version ?? "1.1.0-beta3" }}</span>
+        <span class="row-value">{{ store.appInfo?.version ?? "1.1.0-beta4" }}</span>
       </div>
       <div class="row">
         <div class="row-label">

@@ -79,6 +79,78 @@ function arrowFor(status: DiffStatus): string {
   }
 }
 
+/** 文件类型 = 路径末段扩展名（差异清单只含文件）；无扩展名显示占位符 */
+function kindOf(path: string): string {
+  const name = path.split("/").pop() ?? "";
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(dot + 1).toUpperCase() : "—";
+}
+
+/* ---- 列宽：表格式布局，除路径列外均可拖拽表头手柄调整 ----
+   列宽是纯界面偏好，存 localStorage（非状态权威）；路径列固定
+   minmax 弹性，吸收其余列的增减。 */
+type ColKey = "status" | "type" | "local" | "remote" | "action";
+const COLS_KEY = "diffColWidths";
+const DEFAULT_W: Record<ColKey, number> = { status: 96, type: 64, local: 84, remote: 84, action: 158 };
+const MIN_W: Record<ColKey, number> = { status: 72, type: 44, local: 56, remote: 56, action: 120 };
+const MAX_W = 480;
+
+function loadWidths(): Record<ColKey, number> {
+  const merged = { ...DEFAULT_W };
+  try {
+    const raw = JSON.parse(localStorage.getItem(COLS_KEY) ?? "{}");
+    for (const k of Object.keys(DEFAULT_W) as ColKey[]) {
+      const v = raw?.[k];
+      if (typeof v === "number" && Number.isFinite(v)) {
+        merged[k] = Math.max(MIN_W[k], Math.min(MAX_W, v));
+      }
+    }
+  } catch {
+    /* 损坏的偏好直接用默认 */
+  }
+  return merged;
+}
+
+const widths = reactive(loadWidths());
+
+const gridStyle = computed(() => ({
+  "--col-status": `${widths.status}px`,
+  "--col-type": `${widths.type}px`,
+  "--col-local": `${widths.local}px`,
+  "--col-remote": `${widths.remote}px`,
+  "--col-action": `${widths.action}px`,
+}));
+
+function onGripDown(key: ColKey, e: PointerEvent) {
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  // 不让按下动作冒泡进列表的框选逻辑
+  e.stopPropagation();
+  const el = e.currentTarget as HTMLElement;
+  try {
+    el.setPointerCapture(e.pointerId);
+  } catch {
+    /* 合成指针等场景 */
+  }
+  const startX = e.clientX;
+  const startW = widths[key];
+  const move = (ev: PointerEvent) => {
+    widths[key] = Math.max(MIN_W[key], Math.min(MAX_W, startW + ev.clientX - startX));
+  };
+  const stop = () => {
+    el.removeEventListener("pointermove", move);
+    el.removeEventListener("pointerup", stop);
+    el.removeEventListener("pointercancel", stop);
+    try {
+      localStorage.setItem(COLS_KEY, JSON.stringify(widths));
+    } catch {
+      /* 存不了就仅本次生效 */
+    }
+  };
+  el.addEventListener("pointermove", move);
+  el.addEventListener("pointerup", stop);
+  el.addEventListener("pointercancel", stop);
+}
+
 function applyBulk(kind: "suggest" | "l2r" | "r2l" | "skip") {
   for (const item of info.items) {
     const allowed = actionsByStatus[item.status];
@@ -273,14 +345,30 @@ function handleClose() {
 
     <!-- 审阅阶段 -->
     <template v-if="phase === 'review'">
-      <div ref="listEl" class="diff-list" @pointerdown="onListPointerDown">
+      <div ref="listEl" class="diff-list" :style="gridStyle" @pointerdown="onListPointerDown">
         <div class="diff-head">
-          <span>{{ t("diff.col_status") }}</span>
+          <span class="col-resizable">
+            {{ t("diff.col_status") }}
+            <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('status', $event)" />
+          </span>
           <span>{{ t("diff.col_path") }}</span>
-          <span class="cell-num">{{ t("diff.col_local") }}</span>
+          <span class="col-resizable">
+            {{ t("diff.col_type") }}
+            <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('type', $event)" />
+          </span>
+          <span class="cell-num col-resizable">
+            {{ t("diff.col_local") }}
+            <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('local', $event)" />
+          </span>
           <span />
-          <span class="cell-num">{{ t("diff.col_remote") }}</span>
-          <span>{{ t("diff.col_action") }}</span>
+          <span class="cell-num col-resizable">
+            {{ t("diff.col_remote") }}
+            <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('remote', $event)" />
+          </span>
+          <span class="col-resizable">
+            {{ t("diff.col_action") }}
+            <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('action', $event)" />
+          </span>
         </div>
         <div
           v-for="item in items"
@@ -289,10 +377,11 @@ function handleClose() {
           :class="{ 'is-selected': selected.has(item.path) }"
           :data-path="item.path"
         >
-          <span class="chip" :class="statusChipClass(item.status)">
+          <span class="chip" :class="statusChipClass(item.status)" :title="t(`st.${item.status}`)">
             {{ t(`st.${item.status}`) }}
           </span>
           <span class="diff-path" :title="item.path">{{ item.path }}</span>
+          <span class="diff-kind" :title="kindOf(item.path)">{{ kindOf(item.path) }}</span>
           <span
             class="cell-num"
             :title="item.local ? fmtDateTime(item.local.mtimeMs) : ''"
@@ -490,10 +579,19 @@ function handleClose() {
   overflow: auto;
   max-height: 380px;
 }
+/* 表格式：列宽由容器上的 CSS 变量给出（表头手柄可拖拽调整），
+   路径列弹性吸收其余列的增减 */
 .diff-head,
 .diff-row {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) 76px 24px 76px 158px;
+  grid-template-columns:
+    var(--col-status, 96px)
+    minmax(180px, 1fr)
+    var(--col-type, 64px)
+    var(--col-local, 84px)
+    24px
+    var(--col-remote, 84px)
+    var(--col-action, 158px);
   gap: 10px;
   align-items: center;
   padding: 0 12px;
@@ -508,6 +606,38 @@ function handleClose() {
   color: var(--text-2);
   background: var(--bg-content);
   border-bottom: 1px solid var(--hairline);
+}
+.diff-head > span {
+  position: relative;
+  min-width: 0;
+}
+/* 列宽手柄：贴在可调列的右缘、跨过列间隙的热区；悬停浮现 1px 竖线 */
+.col-grip {
+  position: absolute;
+  right: -9px;
+  top: 0;
+  bottom: 0;
+  width: 13px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.col-grip::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  top: 7px;
+  bottom: 7px;
+  width: 1.5px;
+  border-radius: 1px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.col-grip:hover::after {
+  opacity: 0.55;
+}
+.cell-num.col-resizable {
+  text-align: right;
 }
 .diff-row {
   min-height: 40px;
@@ -559,13 +689,27 @@ function handleClose() {
 }
 .diff-row .chip {
   justify-content: center;
+  /* 按内容宽居中：列被拖宽后 chip 不跟着拉满整列 */
+  justify-self: center;
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
 }
+/* 文件名跟随界面字体设置（此前固定等宽，改字体设置对它无效） */
 .diff-path {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--mono);
-  font-size: calc(11.5px * var(--font-scale, 1));
+}
+/* 类型：扩展名徽标（差异清单只含文件），小号灰字、列内右缘留白 */
+.diff-kind {
+  font-size: calc(10.5px * var(--font-scale, 1));
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
 }
 .cell-num {
   text-align: right;

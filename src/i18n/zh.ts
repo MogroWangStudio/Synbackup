@@ -124,6 +124,7 @@ export const zh = {
   "diff.all_counts": "共 {n} 项",
   "diff.col_status": "状态",
   "diff.col_path": "文件",
+  "diff.col_type": "类型",
   "diff.col_local": "本地",
   "diff.col_remote": "设备",
   "diff.col_action": "处理方式",

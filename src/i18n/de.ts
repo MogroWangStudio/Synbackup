@@ -125,6 +125,7 @@ export const de: Dict = {
   "diff.all_counts": "{n} Element(e)",
   "diff.col_status": "Status",
   "diff.col_path": "Datei",
+  "diff.col_type": "Art",
   "diff.col_local": "Lokal",
   "diff.col_remote": "Gerät",
   "diff.col_action": "Maßnahme",

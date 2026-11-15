@@ -125,6 +125,7 @@ export const ru: Dict = {
   "diff.all_counts": "Всего: {n}",
   "diff.col_status": "Статус",
   "diff.col_path": "Файл",
+  "diff.col_type": "Тип",
   "diff.col_local": "Компьютер",
   "diff.col_remote": "Устройство",
   "diff.col_action": "Действие",

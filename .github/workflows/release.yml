@@ -258,6 +258,16 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      # 兼容别名：1.1.0-beta2 的客户端按"不带版本号"的名字找包（改名前的
+      # 契约），没有就 404。上传一份同内容的无版本号副本让它能升级上来；
+      # beta1 及更早的客户端找的是旧 exe/dmg 名且没有解压逻辑，无法兼容。
+      - name: 生成不带版本号的兼容副本
+        run: |
+          for f in artifacts/Synbackup_*_windows-x64.zip artifacts/Synbackup_*_macos-arm64.zip; do
+            cp "$f" "$(echo "$f" | sed -E 's|/Synbackup_[^/]+_(windows-x64\|macos-arm64)\.zip$|/Synbackup_\1.zip|')"
+          done
+          ls -1 artifacts/
+
       - name: 提取 CHANGELOG 对应版本段作为发布说明
         run: |
           version="${RELEASE_TAG#v}"

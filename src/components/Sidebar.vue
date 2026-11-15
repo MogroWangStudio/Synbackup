@@ -40,6 +40,17 @@ const statusItems = computed<string[]>(() => {
 
 const hasFoot = computed(() => statusItems.value.length > 0);
 
+/** 点击导航：切换视图，并给该页图标播一次轻弹反馈。
+    重复点击同一项也要重播：移除类 → reflow → 再挂上 */
+function launch(key: string, e: MouseEvent) {
+  store.view = key as any;
+  const el = (e.currentTarget as HTMLElement).querySelector<HTMLElement>(".nav-icon");
+  if (!el) return;
+  el.classList.remove("launch");
+  void el.offsetWidth;
+  el.classList.add("launch");
+}
+
 /* ---- 状态项拖拽排序 ----
    变换式 FLIP：拖拽项 1:1 跟随指针（无过渡），兄弟项以过渡位移让位
    （无插入线）；松手提交顺序——兄弟项的位移与自然重排恰好抵消
@@ -172,9 +183,11 @@ onBeforeUnmount(() => {
         :key="item.key"
         class="nav-item"
         :class="{ active: store.view === item.key }"
-        @click="store.view = item.key as any"
+        @click="launch(item.key, $event)"
       >
-        <Icon :name="item.icon" :size="17" />
+        <span class="nav-icon">
+          <Icon :name="item.icon" :size="17" />
+        </span>
         <span class="nav-label">{{ item.label }}</span>
         <span v-if="item.badge > 0" class="nav-badge">{{ item.badge }}</span>
       </button>
@@ -264,6 +277,31 @@ onBeforeUnmount(() => {
 }
 .nav-label {
   flex: 1;
+}
+/* 图标反馈：点击导航后轻弹一下（commit 反馈，无过冲的短促缩放）；
+   launch 类由脚本移除后重挂，重复点击可重播 */
+.nav-icon {
+  display: inline-flex;
+  flex: none;
+}
+.nav-icon.launch {
+  animation: nav-launch 340ms var(--ease);
+}
+@keyframes nav-launch {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-icon.launch {
+    animation: none;
+  }
 }
 .nav-badge {
   min-width: 18px;
