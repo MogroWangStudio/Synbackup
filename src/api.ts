@@ -9,6 +9,7 @@ import type {
   HistoryEntry,
   MemoryUsage,
   PendingReview,
+  VersionEntry,
   SpeedProbe,
   SyncPair,
   UpdateInfo,
@@ -51,6 +52,8 @@ export const api = {
   exitApp: () => invoke<void>("exit_app"),
   destroyMainWindow: () => invoke<void>("destroy_main_window"),
   checkUpdate: () => invoke<UpdateInfo>("check_update"),
+  /** 全部发布版本（新版本在前），供手动选择安装或降级 */
+  listVersions: () => invoke<VersionEntry[]>("list_update_versions"),
   /** 下载本平台更新包（进度经 update-progress 事件回传），返回落地路径 */
   downloadUpdate: (version: string) => invoke<string>("download_update", { version }),
   /** 取消进行中的下载 */

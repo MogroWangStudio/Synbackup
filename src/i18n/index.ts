@@ -83,6 +83,16 @@ export function fmtTime(ms: number): string {
   );
 }
 
+export function fmtDate(ms: number): string {
+  if (!ms || Number.isNaN(ms)) return "—";
+  const lang = localeTag(store.settings.language);
+  return new Date(ms).toLocaleDateString(lang, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export function fmtDateTime(ms: number): string {
   if (!ms) return "—";
   const lang = localeTag(store.settings.language);

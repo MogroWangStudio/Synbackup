@@ -351,6 +351,7 @@ pub fn run() {
             commands::test_notification,
             commands::destroy_main_window,
             update::check_update,
+            update::list_update_versions,
             update::download_update,
             update::cancel_update_download,
             update::install_update,

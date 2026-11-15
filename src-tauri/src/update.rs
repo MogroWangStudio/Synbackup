@@ -122,11 +122,13 @@ struct FeedEntry {
     tag: String,
     /// 该版本的发布页
     url: String,
+    /// 发布时间（Atom `<updated>` 原文，RFC3339；界面自己解析显示）
+    updated: String,
     /// 发布说明（GitHub 渲染后的 HTML）
     notes: String,
 }
 
-/// 解析 Atom 摘要源，提取各发布的 tag / 发布页 / 说明。
+/// 解析 Atom 摘要源，提取各发布的 tag / 发布页 / 发布时间 / 说明。
 /// tag 取发布页链接 TAG_PATH 之后的部分而非 id 末段——tag 本身可含 `/`；
 /// 说明取 `<content>`（XML 转义的 HTML，由 quick-xml 反转义）。
 fn parse_feed(xml: &str) -> Result<Vec<FeedEntry>, String> {
@@ -136,11 +138,13 @@ fn parse_feed(xml: &str) -> Result<Vec<FeedEntry>, String> {
     let mut entries = Vec::new();
     let mut cur: Option<FeedEntry> = None;
     let mut in_content = false;
+    let mut in_updated = false;
     loop {
         match reader.read_event() {
             Ok(Event::Start(e)) => match e.name().as_ref() {
                 b"entry" => cur = Some(FeedEntry::default()),
                 b"content" if cur.is_some() => in_content = true,
+                b"updated" if cur.is_some() => in_updated = true,
                 _ => {}
             },
             // link 为自闭合元素，发布页链接携带 tag
@@ -164,8 +168,14 @@ fn parse_feed(xml: &str) -> Result<Vec<FeedEntry>, String> {
                     entry.notes.push_str(&text);
                 }
             }
+            Ok(Event::Text(t)) if in_updated => {
+                if let (Some(entry), Ok(text)) = (cur.as_mut(), t.unescape()) {
+                    entry.updated = text.into_owned();
+                }
+            }
             Ok(Event::End(e)) => match e.name().as_ref() {
                 b"content" => in_content = false,
+                b"updated" => in_updated = false,
                 b"entry" => {
                     if let Some(entry) = cur.take() {
                         entries.push(entry);
@@ -330,6 +340,93 @@ pub async fn check_update(app: AppHandle) -> Result<UpdateInfo, String> {
             current,
         },
     })
+}
+
+/// 版本列表条目（设置 → 关于的「版本列表」弹窗）。
+/// is_downgrade 由后端按语义化版本比好，前端不必再实现版本比较。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VersionEntry {
+    pub version: String,
+    /// 预发布（tag 含 `-`，与渠道判定同源）
+    pub is_prerelease: bool,
+    /// 是否早于当前运行版本（降级目标）
+    pub is_downgrade: bool,
+    /// 是否正是当前运行版本
+    pub is_current: bool,
+    /// 发布时间（Atom `<updated>` 原文 RFC3339；前端解析显示）
+    pub updated: String,
+    /// 发布说明（纯文本，截断到 3000 字符）
+    pub notes: String,
+    /// 发布页
+    pub url: String,
+    /// 本平台安装包名（空 = 该版本无本平台产物或平台不支持自动更新）
+    pub asset: String,
+    /// 本平台安装包直链（GitHub 原始链接）
+    pub asset_url: String,
+    /// 是否支持自动下载安装
+    pub auto: bool,
+}
+
+/// 全部发布的版本列表（新版本在前），供手动选择任意版本安装或降级。
+/// 与检查更新同一条 Atom 源，但不做"比当前新"过滤——降级也是它的职责。
+#[tauri::command]
+pub async fn list_update_versions(app: AppHandle) -> Result<Vec<VersionEntry>, String> {
+    let current_ver = semver::Version::parse(app.package_info().version.to_string().as_str())
+        .map_err(|_| "当前版本号无法解析".to_string())?;
+
+    let client = reqwest::Client::builder()
+        .user_agent(concat!("Synbackup/", env!("CARGO_PKG_VERSION")))
+        .timeout(Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let core = app.state::<backend::Core>();
+    let resp = client
+        .get(mirror_url(ATOM_URL, &core.settings().update_source))
+        .send()
+        .await
+        .map_err(|e| format!("网络请求失败: {e}"))?;
+    let status = resp.status();
+    let body = resp.text().await.map_err(|e| format!("网络请求失败: {e}"))?;
+    if !status.is_success() {
+        return Err(format!("GitHub 返回错误: {status}"));
+    }
+
+    let mut entries: Vec<(semver::Version, FeedEntry)> = parse_feed(&body)?
+        .into_iter()
+        .filter_map(|e| parse_tag(&e.tag).map(|(v, _)| (v, e)))
+        .collect();
+    // 新版本在前：语义化版本倒序（重复 tag 去重，保留第一份）
+    entries.sort_by(|a, b| b.0.cmp(&a.0));
+    entries.dedup_by(|a, b| a.0 == b.0);
+
+    Ok(entries
+        .into_iter()
+        .map(|(ver, entry)| {
+            let version = ver.to_string();
+            let asset = asset_for(&version).unwrap_or_default();
+            VersionEntry {
+                is_downgrade: ver < current_ver,
+                is_current: ver == current_ver,
+                is_prerelease: version.contains('-'),
+                asset_url: if asset.is_empty() {
+                    String::new()
+                } else {
+                    format!("{RELEASE_ASSET}/v{version}/{asset}")
+                },
+                asset: asset.clone(),
+                notes: html_to_text(&entry.notes).chars().take(3000).collect(),
+                updated: entry.updated,
+                url: if entry.url.is_empty() {
+                    DOWNLOAD_PAGE.into()
+                } else {
+                    entry.url
+                },
+                auto: !asset.is_empty(),
+                version,
+            }
+        })
+        .collect())
 }
 
 #[derive(Clone, Serialize)]

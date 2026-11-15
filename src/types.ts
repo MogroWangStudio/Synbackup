@@ -269,3 +269,26 @@ export interface MemoryUsage {
   backend: number;
   frontend: number;
 }
+
+/** 版本列表条目（后端 releases.atom 解析，按版本倒序） */
+export interface VersionEntry {
+  version: string;
+  /** 预发布（tag 含 -） */
+  isPrerelease: boolean;
+  /** 早于当前运行版本（降级目标） */
+  isDowngrade: boolean;
+  /** 正是当前运行版本 */
+  isCurrent: boolean;
+  /** 发布时间（RFC3339 原文） */
+  updated: string;
+  /** 发布说明（纯文本） */
+  notes: string;
+  /** 发布页 */
+  url: string;
+  /** 本平台安装包名，空 = 无本平台产物 */
+  asset: string;
+  /** 本平台安装包直链（GitHub 原始链接） */
+  assetUrl: string;
+  /** 是否支持自动下载安装 */
+  auto: boolean;
+}

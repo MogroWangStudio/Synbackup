@@ -6,7 +6,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { applyUiPrefs, DEFAULT_ACCENT, persistUiPrefs, replayBootAnim, UI_THEMES, isValidHex } from "../theme";
 import { titlebarHeight } from "../ui";
 import { LOCALES, fmtSize, t } from "../i18n";
-import type { AppSettings, SpeedProbe, UpdateInfo } from "../types";
+import type { AppSettings, UpdateInfo } from "../types";
 import Icon from "../components/Icon.vue";
 import Logo from "../components/Logo.vue";
 import Toggle from "../components/Toggle.vue";
@@ -14,6 +14,7 @@ import Stepper from "../components/Stepper.vue";
 import Select from "../components/Select.vue";
 import ColorPicker from "../components/ColorPicker.vue";
 import NotifyTestDialog from "../components/NotifyTestDialog.vue";
+import VersionListDialog from "../components/VersionListDialog.vue";
 import FontBrowser from "../components/FontBrowser.vue";
 import type { SelectOption } from "../components/Select.vue";
 
@@ -64,10 +65,6 @@ const logoStyleOptions = computed<SelectOption[]>(() =>
     label: t(`logostyle.${k}`),
   })),
 );
-const logoFileName = computed(() => {
-  const p = store.settings.logoImagePath;
-  return p ? p.split(/[\\/]/).pop() ?? "" : "";
-});
 
 function onLogoTextInput(e: Event) {
   // 输入过程实时预览（标题栏经 store 响应式刷新）；落盘在 change 时一次
@@ -105,13 +102,6 @@ const fontBrowserOpen = ref(false);
 const isCustomFont = computed(() => {
   const cur = store.settings.fontFamily;
   return !!cur && !fonts.includes(cur as (typeof fonts)[number]);
-});
-const fontHint = computed(() => {
-  const cur = store.settings.fontFamily;
-  if (cur && !fonts.includes(cur as (typeof fonts)[number])) {
-    return t("settings.font_custom_hint", { family: cur });
-  }
-  return t("settings.font_hint");
 });
 function onFontSelect(v: string) {
   if (v === "custom") {
@@ -211,17 +201,11 @@ function openStudioSite() {
   void api.openExternal("https://www.mogrowangstudio.top").catch((e) => toast("error", String(e)));
 }
 
-function openUpdatePage() {
-  if (pendingUrl) void api.openExternal(pendingUrl).catch((e) => toast("error", String(e)));
-}
-
 /** 测试通知窗口：标题 / 内容 / 按钮均可自定义后发送 */
 const notifyTestOpen = ref(false);
 
 // ---- 检查更新 ----
 const checking = ref(false);
-let pendingUrl = "";
-const updateHint = ref("");
 /** 最近一次检查更新拿到的安装包直链：测速优先测它，最贴近真实下载 */
 let lastAssetUrl = "";
 
@@ -231,18 +215,13 @@ async function onCheckUpdate() {
   try {
     const info: UpdateInfo = await api.checkUpdate();
     if (info.available) {
-      updateHint.value = t("update.available", { v: info.version });
-      // 更新说明写入提示行；点击版本行可打开下载页
-      pendingUrl = info.url;
       lastAssetUrl = info.assetUrl;
-      // 向导接管后续：打开即开始下载，旧版留着"前往下载页"作为退路
+      // 向导接管后续：展示版本与说明，等用户点「下载更新」
       store.updateWizard = info;
     } else {
-      updateHint.value = t("update.up_to_date");
       toast("info", t("update.up_to_date_toast"));
     }
   } catch (e) {
-    updateHint.value = "";
     toast("error", String(e));
   } finally {
     checking.value = false;
@@ -255,20 +234,8 @@ const sourceOptions = computed<SelectOption[]>(() => [
   { value: "ghproxy", label: t("upsource.ghproxy") },
 ]);
 const probing = ref(false);
-const probe = ref<SpeedProbe | null>(null);
-
-const speedText = computed(() => {
-  const p = probe.value;
-  if (!p) return "";
-  if (!p.reachable) return t("settings.speed_fail");
-  return t("settings.speed_ok", { ms: p.latencyMs, speed: `${fmtSize(p.speedBps)}/s` });
-});
-/** 提示行：测速结果优先，否则显示来源说明 */
-const sourceHint = computed(() => speedText.value || t("settings.update_source_hint"));
 
 function onSelectSource(v: string) {
-  // 旧结果对应的是上一个来源，切来源后不再代表现状
-  probe.value = null;
   void update({ updateSource: v });
 }
 
@@ -277,14 +244,20 @@ async function onProbeSpeed() {
   probing.value = true;
   try {
     const result = await api.probeUpdateSpeed(lastAssetUrl || undefined);
-    probe.value = result;
-    if (!result.reachable) toast("error", result.error || t("settings.speed_fail"));
+    if (result.reachable) {
+      toast("success", t("settings.speed_ok", { ms: result.latencyMs, speed: `${fmtSize(result.speedBps)}/s` }));
+    } else {
+      toast("error", result.error || t("settings.speed_fail"));
+    }
   } catch (e) {
     toast("error", String(e));
   } finally {
     probing.value = false;
   }
 }
+
+/** 版本列表弹窗：手动选择任意版本安装或降级 */
+const versionListOpen = ref(false);
 
 // ---- 数据目录 ----
 /** 重启前显示的目录：已切换时先展示待生效的新位置 */
@@ -377,7 +350,6 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.blank_click") }}</span>
-          <span class="row-hint">{{ t("settings.blank_click_hint") }}</span>
         </div>
         <Select
           :model-value="store.settings.blankClick"
@@ -452,7 +424,6 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.theme_label") }}</span>
-          <span class="row-hint">{{ t("settings.theme_hint") }}</span>
         </div>
         <Select
           :model-value="store.settings.theme"
@@ -464,7 +435,6 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.font") }}</span>
-          <span class="row-hint">{{ fontHint }}</span>
         </div>
         <div class="font-controls">
           <Transition name="font-browse">
@@ -518,7 +488,6 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.launch_anim") }}</span>
-          <span class="row-hint">{{ t("settings.launch_anim_hint") }}</span>
         </div>
         <Toggle
           :model-value="store.settings.launchAnimation"
@@ -566,7 +535,6 @@ function onLanguageSelect(v: string) {
         <div class="row">
           <div class="row-label">
             <span class="row-name">{{ t("settings.launch_anim_preview") }}</span>
-            <span class="row-hint">{{ t("settings.launch_anim_preview_hint") }}</span>
           </div>
           <button type="button" class="btn btn-sm" @click="replayBootAnim(store.settings)">
             {{ t("settings.launch_anim_preview_btn") }}
@@ -576,7 +544,6 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.task_btn") }}</span>
-          <span class="row-hint">{{ t("settings.task_btn_hint") }}</span>
         </div>
         <Select
           :model-value="store.settings.taskButtonStyle"
@@ -588,7 +555,6 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.logo_label") }}</span>
-          <span class="row-hint">{{ t("settings.logo_hint") }}</span>
         </div>
         <Select
           :model-value="store.settings.logoStyle"
@@ -614,7 +580,6 @@ function onLanguageSelect(v: string) {
       <div v-else-if="store.settings.logoStyle === 'custom_image'" class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.logo_image_label") }}</span>
-          <span class="row-hint">{{ logoFileName || t("settings.logo_image_none") }}</span>
         </div>
         <button type="button" class="btn btn-sm" @click="pickLogoImage">
           {{ t("settings.logo_pick") }}
@@ -630,7 +595,6 @@ function onLanguageSelect(v: string) {
 
     <section class="card group">
       <h3 class="group-title">{{ t("settings.status_bar") }}</h3>
-      <p class="group-hint">{{ t("settings.status_bar_hint") }}</p>
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.status_devices") }}</span>
@@ -674,7 +638,6 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.auto_scan") }}</span>
-          <span class="row-hint">{{ t("settings.auto_scan_hint") }}</span>
         </div>
         <Toggle
           :model-value="store.settings.autoScanOnInsert"
@@ -684,7 +647,6 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.ask_before_sync") }}</span>
-          <span class="row-hint">{{ t("settings.ask_before_sync_hint") }}</span>
         </div>
         <Toggle
           :model-value="store.settings.askBeforeSync"
@@ -694,11 +656,6 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.auto_sync") }}</span>
-          <span class="row-hint">{{
-            store.settings.askBeforeSync
-              ? t("settings.auto_sync_hint_disabled")
-              : t("settings.auto_sync_hint")
-          }}</span>
         </div>
         <Toggle
           :model-value="store.settings.autoSyncNoConflict"
@@ -709,7 +666,6 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.notify") }}</span>
-          <span class="row-hint">{{ t("settings.notify_hint") }}</span>
         </div>
         <div class="notify-controls">
           <button
@@ -741,16 +697,12 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.version") }}</span>
-          <span class="row-hint" :class="{ clickable: !!pendingUrl }" @click="openUpdatePage">
-            {{ updateHint }}
-          </span>
         </div>
-        <span class="row-value">{{ store.appInfo?.version ?? "1.1.0-beta4" }}</span>
+        <span class="row-value">{{ store.appInfo?.version ?? "1.1.0-beta5" }}</span>
       </div>
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.update_channel") }}</span>
-          <span class="row-hint">{{ t("settings.update_channel_hint") }}</span>
         </div>
         <Select
           :model-value="store.settings.updateChannel"
@@ -762,7 +714,6 @@ function onLanguageSelect(v: string) {
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.update_source") }}</span>
-          <span class="row-hint" :class="{ mono: speedText }">{{ sourceHint }}</span>
         </div>
         <div class="source-controls">
           <button
@@ -786,16 +737,18 @@ function onLanguageSelect(v: string) {
         <div class="row-label">
           <span class="row-name">{{ t("settings.check_update") }}</span>
         </div>
-        <button class="btn btn-sm" :disabled="checking" @click="onCheckUpdate">
-          {{ checking ? t("update.checking") : t("update.check") }}
-        </button>
+        <div class="check-controls">
+          <button class="btn btn-sm" :disabled="checking" @click="onCheckUpdate">
+            {{ checking ? t("update.checking") : t("update.check") }}
+          </button>
+          <button class="btn btn-sm" :aria-label="t('vlist.title')" @click="versionListOpen = true">
+            {{ t("settings.version_list") }}
+          </button>
+        </div>
       </div>
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.data") }}</span>
-          <span class="row-hint">
-            {{ store.dataDirPending ? t("settings.data_pending") : t("settings.data_hint") }}
-          </span>
         </div>
         <div class="data-controls">
           <span class="row-value mono" :title="shownDataDir">
@@ -831,6 +784,7 @@ function onLanguageSelect(v: string) {
     </section>
 
     <NotifyTestDialog v-if="notifyTestOpen" @close="notifyTestOpen = false" />
+    <VersionListDialog v-if="versionListOpen" @close="versionListOpen = false" />
   </div>
 </template>
 
@@ -927,14 +881,14 @@ function onLanguageSelect(v: string) {
   color: var(--text-2);
   padding: 10px 0 4px;
 }
-/* 板块级说明：紧跟板块标题之下、首行设置项之上 */
-.group-hint {
-  font-size: calc(11.5px * var(--font-scale, 1));
-  color: var(--text-3);
-  padding: 0 0 4px;
-}
 /* 系统通知行的测试按钮 + 开关组合 */
 .notify-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+.check-controls {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -946,11 +900,6 @@ function onLanguageSelect(v: string) {
   align-items: center;
   gap: 10px;
   flex: none;
-}
-/* 测速结果里的延迟与速度：等宽 + 表格数字，量出来不跳动 */
-.row-hint.mono {
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
 }
 .brand-mark {
   display: flex;
@@ -979,10 +928,6 @@ function onLanguageSelect(v: string) {
 .row-name {
   font-size: calc(13px * var(--font-scale, 1));
   font-weight: 500;
-}
-.row-hint {
-  font-size: calc(11.5px * var(--font-scale, 1));
-  color: var(--text-3);
 }
 .row-value {
   font-size: calc(12.5px * var(--font-scale, 1));

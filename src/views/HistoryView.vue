@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import { api } from "../api";
 import { refreshHistory, store, toast } from "../store";
 import { fmtDateTime, fmtSize, t } from "../i18n";
@@ -13,6 +13,75 @@ import type { SelectOption } from "../components/Select.vue";
 const kindFilter = ref<"all" | "sync" | "scan">("all");
 const pairFilter = ref("");
 const query = ref("");
+
+/** 文件类型 = 路径末段扩展名（差异与同步明细都只含文件） */
+function kindOf(path: string): string {
+  const name = path.split("/").pop() ?? "";
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(dot + 1).toUpperCase() : "—";
+}
+
+/* ---- 明细列宽：表格式布局，除文件列外均可拖拽列头手柄调整 ----
+   scan 与 sync 明细共用同一组列宽（动作/状态同列、类型/大小同列）；
+   列宽是纯界面偏好，存 localStorage。 */
+type ColKey = "act" | "type" | "size" | "err";
+const COLS_KEY = "historyColWidths";
+const DEFAULT_W: Record<ColKey, number> = { act: 96, type: 56, size: 72, err: 220 };
+const MIN_W: Record<ColKey, number> = { act: 72, type: 44, size: 52, err: 120 };
+const MAX_W = 480;
+
+function loadWidths(): Record<ColKey, number> {
+  const merged = { ...DEFAULT_W };
+  try {
+    const raw = JSON.parse(localStorage.getItem(COLS_KEY) ?? "{}");
+    for (const k of Object.keys(DEFAULT_W) as ColKey[]) {
+      const v = raw?.[k];
+      if (typeof v === "number" && Number.isFinite(v)) {
+        merged[k] = Math.max(MIN_W[k], Math.min(MAX_W, v));
+      }
+    }
+  } catch {
+    /* 损坏的偏好直接用默认 */
+  }
+  return merged;
+}
+
+const widths = reactive(loadWidths());
+
+const gridStyle = computed(() => ({
+  "--h-act": `${widths.act}px`,
+  "--h-type": `${widths.type}px`,
+  "--h-size": `${widths.size}px`,
+  "--h-err": `${widths.err}px`,
+}));
+
+function onGripDown(key: ColKey, e: PointerEvent) {
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  const el = e.currentTarget as HTMLElement;
+  try {
+    el.setPointerCapture(e.pointerId);
+  } catch {
+    /* 合成指针等场景 */
+  }
+  const startX = e.clientX;
+  const startW = widths[key];
+  const move = (ev: PointerEvent) => {
+    widths[key] = Math.max(MIN_W[key], Math.min(MAX_W, startW + ev.clientX - startX));
+  };
+  const stop = () => {
+    el.removeEventListener("pointermove", move);
+    el.removeEventListener("pointerup", stop);
+    el.removeEventListener("pointercancel", stop);
+    try {
+      localStorage.setItem(COLS_KEY, JSON.stringify(widths));
+    } catch {
+      /* 存不了就仅本次生效 */
+    }
+  };
+  el.addEventListener("pointermove", move);
+  el.addEventListener("pointerup", stop);
+  el.addEventListener("pointercancel", stop);
+}
 
 /** 任务下拉选项：从历史记录提取（覆盖已删除的任务），按最近出现排序 */
 const pairOptions = computed(() => {
@@ -162,6 +231,7 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
         <details
           v-if="h.kind === 'scan' ? (h.scanDiffs?.length ?? 0) > 0 : h.items.length > 0"
           class="history-detail"
+          :style="gridStyle"
         >
           <summary v-if="h.kind === 'scan'">
             {{ t("history.scan_detail") }} · {{ h.scanDiffs?.length }}
@@ -169,23 +239,59 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
           <summary v-else>{{ t("history.detail") }} · {{ h.items.length }}</summary>
 
           <template v-if="h.kind === 'scan'">
-            <div v-for="(d, k) in h.scanDiffs" :key="k" class="history-item">
-              <span class="history-item-act">
-                <span class="chip" :class="statusChipClass(d.status)">{{ t("st." + d.status) }}</span>
+            <div class="hd-head">
+              <span class="col-resizable">
+                {{ t("diff.col_status") }}
+                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('act', $event)" />
               </span>
-              <span class="history-item-path">{{ d.path }}</span>
-              <span v-if="d.size" class="history-item-size">{{ fmtSize(d.size) }}</span>
+              <span>{{ t("diff.col_path") }}</span>
+              <span class="col-resizable">
+                {{ t("diff.col_type") }}
+                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('type', $event)" />
+              </span>
+              <span class="cell-num col-resizable">
+                {{ t("history.col_size") }}
+                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('size', $event)" />
+              </span>
+            </div>
+            <div v-for="(d, k) in h.scanDiffs" :key="k" class="history-item hd-row">
+              <span class="history-item-act">
+                <span class="chip" :class="statusChipClass(d.status)" :title="t('st.' + d.status)">{{ t("st." + d.status) }}</span>
+              </span>
+              <span class="history-item-path" :title="d.path">{{ d.path }}</span>
+              <span class="history-item-kind" :title="kindOf(d.path)">{{ kindOf(d.path) }}</span>
+              <span class="history-item-size">{{ d.size ? fmtSize(d.size) : "—" }}</span>
             </div>
             <p v-if="h.scanTotal > (h.scanDiffs?.length ?? 0)" class="history-more">
               {{ t("history.items_more", { n: h.scanTotal - (h.scanDiffs?.length ?? 0) }) }}
             </p>
           </template>
           <template v-else>
-            <div v-for="(it, k) in h.items" :key="k" class="history-item">
+            <div class="hd-head has-err-col">
+              <span class="col-resizable">
+                {{ t("history.col_act") }}
+                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('act', $event)" />
+              </span>
+              <span>{{ t("diff.col_path") }}</span>
+              <span class="col-resizable">
+                {{ t("diff.col_type") }}
+                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('type', $event)" />
+              </span>
+              <span class="cell-num col-resizable">
+                {{ t("history.col_size") }}
+                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('size', $event)" />
+              </span>
+              <span class="col-resizable">
+                {{ t("history.col_err") }}
+                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('err', $event)" />
+              </span>
+            </div>
+            <div v-for="(it, k) in h.items" :key="k" class="history-item hd-row has-err-col">
               <span class="history-item-act" :class="{ failed: !it.ok }">{{ t("act." + it.action) }}</span>
-              <span class="history-item-path">{{ it.path }}</span>
-              <span v-if="it.size" class="history-item-size">{{ fmtSize(it.size) }}</span>
-              <span v-if="!it.ok && it.error" class="history-item-err">{{ it.error }}</span>
+              <span class="history-item-path" :title="it.path">{{ it.path }}</span>
+              <span class="history-item-kind" :title="kindOf(it.path)">{{ kindOf(it.path) }}</span>
+              <span class="history-item-size">{{ it.size ? fmtSize(it.size) : "—" }}</span>
+              <span class="history-item-err" :class="{ failed: !it.ok && it.error }">{{ it.ok ? "—" : it.error }}</span>
             </div>
             <p v-if="h.itemsTruncated" class="history-more">
               {{ t("history.items_more", { n: h.itemsTruncated }) }}
@@ -325,42 +431,128 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
 .history-detail.errors summary {
   color: var(--red-text);
 }
-.history-item {
-  display: flex;
-  align-items: baseline;
+/* 明细表格式：列宽由 details 上的 CSS 变量给出（列头手柄可拖拽调整），
+   文件列弹性吸收；scan 明细 4 列、sync 明细多一列错误（末列可调） */
+.hd-head {
+  display: grid;
+  grid-template-columns:
+    var(--h-act, 96px)
+    minmax(140px, 1fr)
+    var(--h-type, 56px)
+    var(--h-size, 72px);
   gap: 10px;
+  align-items: center;
+  padding: 4px 0 0 12px;
+  font-size: calc(10.5px * var(--font-scale, 1));
+  font-weight: 600;
+  color: var(--text-3);
+}
+.hd-head > span {
+  position: relative;
+  min-width: 0;
+}
+/* sync 明细多一列错误：同样的前四列 + 错误列（可调） */
+.hd-head.has-err-col {
+  grid-template-columns:
+    var(--h-act, 96px)
+    minmax(140px, 1fr)
+    var(--h-type, 56px)
+    var(--h-size, 72px)
+    var(--h-err, 220px);
+}
+.col-grip {
+  position: absolute;
+  right: -9px;
+  top: -2px;
+  bottom: -2px;
+  width: 13px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.col-grip::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  top: 3px;
+  bottom: 3px;
+  width: 1.5px;
+  border-radius: 1px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.col-grip:hover::after {
+  opacity: 0.55;
+}
+.cell-num.col-resizable {
+  text-align: right;
+}
+.history-item {
+  display: grid;
+  grid-template-columns:
+    var(--h-act, 96px)
+    minmax(140px, 1fr)
+    var(--h-type, 56px)
+    var(--h-size, 72px);
+  gap: 10px;
+  align-items: baseline;
   padding: 3px 0 0 12px;
   min-width: 0;
 }
 .history-item-act {
-  flex: none;
-  width: 78px;
   color: var(--text-3);
+  min-width: 0;
+  overflow: hidden;
+}
+/* 状态 chip 按内容宽，列拖宽后不跟着拉满 */
+.history-item-act .chip {
+  max-width: 100%;
+  overflow: hidden;
 }
 .history-item-act.failed {
   color: var(--red-text);
 }
+/* 文件名跟随界面字体设置（此前固定等宽，改字体设置对它无效） */
 .history-item-path {
-  font-family: var(--mono);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
 }
-.history-item-size {
-  flex: none;
-  font-variant-numeric: tabular-nums;
+.history-item-kind {
+  font-size: calc(10.5px * var(--font-scale, 1));
   color: var(--text-3);
-  min-width: 52px;
-  text-align: right;
-}
-.history-item-err {
-  color: var(--red-text);
+  letter-spacing: 0.04em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: none;
-  max-width: 45%;
+  user-select: none;
+}
+.history-item-size {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.history-item-err {
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.history-item-err.failed {
+  color: var(--red-text);
+}
+.history-item.hd-row.has-err-col {
+  grid-template-columns:
+    var(--h-act, 96px)
+    minmax(140px, 1fr)
+    var(--h-type, 56px)
+    var(--h-size, 72px)
+    var(--h-err, 220px);
 }
 .history-more {
   padding: 4px 0 0 12px;
