@@ -293,6 +293,10 @@
 }
 :root[data-theme="glass"] .card {
   backdrop-filter: blur(14px) saturate(1.25);
+  /* 提升为独立合成层：WebKit 上多张 backdrop-filter 卡片共用一层时，
+     任何局部重绘（悬停、控件状态变化）都会触发整片磨砂重算，
+     设置页表现为反复闪烁。各卡独立成层后重绘互不波及 */
+  transform: translateZ(0);
 }
 :root[data-appearance="dark"][data-theme="glass"] {
   --bg: #16161a;

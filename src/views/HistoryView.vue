@@ -22,40 +22,59 @@ function kindOf(path: string): string {
 }
 
 /* ---- 明细列宽：表格式布局，除文件列外均可拖拽列头手柄调整 ----
-   scan 与 sync 明细共用同一组列宽（动作/状态同列、类型/大小同列）；
-   列宽是纯界面偏好，存 localStorage。 */
+   scan（状态/类型/大小）与 sync（动作/类型/大小/错误）的列语义不同，
+   列宽各自独立成组，互不牵连；同组内跨记录共享。列宽是纯界面偏好，
+   存 localStorage（旧版共享单组的键直接废弃，回落默认）。 */
+type DetailKind = "scan" | "sync";
 type ColKey = "act" | "type" | "size" | "err";
-const COLS_KEY = "historyColWidths";
-const DEFAULT_W: Record<ColKey, number> = { act: 96, type: 56, size: 72, err: 220 };
+const COLS_KEY = "historyColWidths2";
+const DEFAULT_W: Record<DetailKind, Partial<Record<ColKey, number>>> = {
+  scan: { act: 96, type: 56, size: 72 },
+  sync: { act: 96, type: 56, size: 72, err: 220 },
+};
 const MIN_W: Record<ColKey, number> = { act: 72, type: 44, size: 52, err: 120 };
 const MAX_W = 480;
 
-function loadWidths(): Record<ColKey, number> {
-  const merged = { ...DEFAULT_W };
+function loadWidths(): Record<DetailKind, Record<ColKey, number>> {
+  const make = (kind: DetailKind) => {
+    const merged = { ...DEFAULT_W[kind] } as Record<ColKey, number>;
+    for (const k of Object.keys(DEFAULT_W[kind]) as ColKey[]) {
+      if (merged[k] === undefined) merged[k] = DEFAULT_W.sync[k] ?? 96;
+    }
+    return merged;
+  };
+  const out = { scan: make("scan"), sync: make("sync") };
   try {
     const raw = JSON.parse(localStorage.getItem(COLS_KEY) ?? "{}");
-    for (const k of Object.keys(DEFAULT_W) as ColKey[]) {
-      const v = raw?.[k];
-      if (typeof v === "number" && Number.isFinite(v)) {
-        merged[k] = Math.max(MIN_W[k], Math.min(MAX_W, v));
+    for (const kind of ["scan", "sync"] as DetailKind[]) {
+      for (const k of Object.keys(out[kind]) as ColKey[]) {
+        const v = raw?.[kind]?.[k];
+        if (typeof v === "number" && Number.isFinite(v)) {
+          out[kind][k] = Math.max(MIN_W[k], Math.min(MAX_W, v));
+        }
       }
     }
   } catch {
     /* 损坏的偏好直接用默认 */
   }
-  return merged;
+  return out;
 }
 
 const widths = reactive(loadWidths());
 
+/* 两组 CSS 变量（scan: --hs-*，sync: --hy-*）挂在每个 details 上，
+   明细各自引用自己那组 */
 const gridStyle = computed(() => ({
-  "--h-act": `${widths.act}px`,
-  "--h-type": `${widths.type}px`,
-  "--h-size": `${widths.size}px`,
-  "--h-err": `${widths.err}px`,
+  "--hs-act": `${widths.scan.act}px`,
+  "--hs-type": `${widths.scan.type}px`,
+  "--hs-size": `${widths.scan.size}px`,
+  "--hy-act": `${widths.sync.act}px`,
+  "--hy-type": `${widths.sync.type}px`,
+  "--hy-size": `${widths.sync.size}px`,
+  "--hy-err": `${widths.sync.err}px`,
 }));
 
-function onGripDown(key: ColKey, e: PointerEvent) {
+function onGripDown(kind: DetailKind, key: ColKey, e: PointerEvent) {
   if (e.pointerType === "mouse" && e.button !== 0) return;
   const el = e.currentTarget as HTMLElement;
   try {
@@ -64,9 +83,9 @@ function onGripDown(key: ColKey, e: PointerEvent) {
     /* 合成指针等场景 */
   }
   const startX = e.clientX;
-  const startW = widths[key];
+  const startW = widths[kind][key];
   const move = (ev: PointerEvent) => {
-    widths[key] = Math.max(MIN_W[key], Math.min(MAX_W, startW + ev.clientX - startX));
+    widths[kind][key] = Math.max(MIN_W[key], Math.min(MAX_W, startW + ev.clientX - startX));
   };
   const stop = () => {
     el.removeEventListener("pointermove", move);
@@ -242,16 +261,16 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
             <div class="hd-head">
               <span class="col-resizable">
                 {{ t("diff.col_status") }}
-                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('act', $event)" />
+                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('scan', 'act', $event)" />
               </span>
               <span>{{ t("diff.col_path") }}</span>
               <span class="col-resizable">
                 {{ t("diff.col_type") }}
-                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('type', $event)" />
+                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('scan', 'type', $event)" />
               </span>
               <span class="cell-num col-resizable">
                 {{ t("history.col_size") }}
-                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('size', $event)" />
+                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('scan', 'size', $event)" />
               </span>
             </div>
             <div v-for="(d, k) in h.scanDiffs" :key="k" class="history-item hd-row">
@@ -270,20 +289,20 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
             <div class="hd-head has-err-col">
               <span class="col-resizable">
                 {{ t("history.col_act") }}
-                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('act', $event)" />
+                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('sync', 'act', $event)" />
               </span>
               <span>{{ t("diff.col_path") }}</span>
               <span class="col-resizable">
                 {{ t("diff.col_type") }}
-                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('type', $event)" />
+                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('sync', 'type', $event)" />
               </span>
               <span class="cell-num col-resizable">
                 {{ t("history.col_size") }}
-                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('size', $event)" />
+                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('sync', 'size', $event)" />
               </span>
               <span class="col-resizable">
                 {{ t("history.col_err") }}
-                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('err', $event)" />
+                <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('sync', 'err', $event)" />
               </span>
             </div>
             <div v-for="(it, k) in h.items" :key="k" class="history-item hd-row has-err-col">
@@ -418,6 +437,9 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
   width: 100%;
   font-size: calc(11.5px * var(--font-scale, 1));
   color: var(--text-2);
+  /* 列拖宽超过卡片宽度时明细自身横向滚动：内容不被裁掉，
+     手柄永远可达（此前溢出被裁，手柄点不到，列宽无法恢复） */
+  overflow-x: auto;
 }
 .history-detail summary {
   cursor: pointer;
@@ -436,13 +458,13 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
 .hd-head {
   display: grid;
   grid-template-columns:
-    var(--h-act, 96px)
-    minmax(140px, 1fr)
-    var(--h-type, 56px)
-    var(--h-size, 72px);
+    var(--hs-act, 96px)
+    minmax(180px, 1fr)
+    var(--hs-type, 56px)
+    var(--hs-size, 72px);
   gap: 10px;
   align-items: center;
-  padding: 4px 0 0 12px;
+  padding: 4px 10px 0 12px;
   font-size: calc(10.5px * var(--font-scale, 1));
   font-weight: 600;
   color: var(--text-3);
@@ -454,11 +476,11 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
 /* sync 明细多一列错误：同样的前四列 + 错误列（可调） */
 .hd-head.has-err-col {
   grid-template-columns:
-    var(--h-act, 96px)
-    minmax(140px, 1fr)
-    var(--h-type, 56px)
-    var(--h-size, 72px)
-    var(--h-err, 220px);
+    var(--hy-act, 96px)
+    minmax(180px, 1fr)
+    var(--hy-type, 56px)
+    var(--hy-size, 72px)
+    var(--hy-err, 220px);
 }
 .col-grip {
   position: absolute;
@@ -490,13 +512,13 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
 .history-item {
   display: grid;
   grid-template-columns:
-    var(--h-act, 96px)
-    minmax(140px, 1fr)
-    var(--h-type, 56px)
-    var(--h-size, 72px);
+    var(--hs-act, 96px)
+    minmax(180px, 1fr)
+    var(--hs-type, 56px)
+    var(--hs-size, 72px);
   gap: 10px;
   align-items: baseline;
-  padding: 3px 0 0 12px;
+  padding: 3px 10px 0 12px;
   min-width: 0;
 }
 .history-item-act {
@@ -548,11 +570,11 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
 }
 .history-item.hd-row.has-err-col {
   grid-template-columns:
-    var(--h-act, 96px)
-    minmax(140px, 1fr)
-    var(--h-type, 56px)
-    var(--h-size, 72px)
-    var(--h-err, 220px);
+    var(--hy-act, 96px)
+    minmax(180px, 1fr)
+    var(--hy-type, 56px)
+    var(--hy-size, 72px)
+    var(--hy-err, 220px);
 }
 .history-more {
   padding: 4px 0 0 12px;

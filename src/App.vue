@@ -86,7 +86,11 @@ async function registerListeners() {
 /* ---- 空白处点击关闭（设置 → 通用；never / single / double）----
    关闭动作走 win.close()，与标题栏关闭键同一条链路（后端拦截后询问
    退出方式）。空白 = 目标在窗口树内、且不在任何交互 / 内容元素内；
-   标题栏拖拽区单独排除，双击最大化等原生语义不受影响。 */
+   标题栏拖拽区单独排除，双击最大化等原生语义不受影响。
+   页头（页面标题区）不算空白——那里是内容，误触率又高。
+   双击不用原生 dblclick：它的判定间隔由系统决定，宽松得多，重绘
+   抖动时两次不相干的点击容易被判成双击（玻璃主题闪烁下实测踩过）；
+   改为 click 自计时——400ms 内、两次落点相距 8px 以内才算。 */
 function isBlankArea(e: MouseEvent): boolean {
   const el = e.target as HTMLElement | null;
   if (!el?.closest) return false;
@@ -95,7 +99,7 @@ function isBlankArea(e: MouseEvent): boolean {
     el.closest(
       "button, a, input, textarea, select, label, summary, .card, .toggle, .mws-cbx, .mws-pop, " +
         ".picker-anchor, .modal-overlay, .foot-line, .sidebar, .nav-item, .swatches, .seg, " +
-        ".toast-host, .dev-section, .studio-link, [data-tauri-drag-region]",
+        ".toast-host, .dev-section, .studio-link, .page-head, [data-tauri-drag-region]",
     )
   ) {
     return false;
@@ -107,19 +111,30 @@ function fireWindowClose() {
   void getCurrentWindow().close().catch(() => {});
 }
 
-function onWinClick(e: MouseEvent) {
-  if (store.settings.blankClick === "single" && isBlankArea(e)) fireWindowClose();
-}
+let lastBlankClickAt = 0;
+let lastBlankClickX = 0;
+let lastBlankClickY = 0;
 
-function onWinDblClick(e: MouseEvent) {
-  if (store.settings.blankClick === "double" && isBlankArea(e)) fireWindowClose();
+function onWinClick(e: MouseEvent) {
+  if (store.settings.blankClick === "never") return;
+  if (!isBlankArea(e)) return;
+  const now = Date.now();
+  const quickSecond =
+    now - lastBlankClickAt < 400 &&
+    Math.hypot(e.clientX - lastBlankClickX, e.clientY - lastBlankClickY) < 8;
+  lastBlankClickAt = now;
+  lastBlankClickX = e.clientX;
+  lastBlankClickY = e.clientY;
+  if (store.settings.blankClick === "single" || (store.settings.blankClick === "double" && quickSecond)) {
+    // 触发后清掉点击计时：紧随其后的单击不能与已消费的双击配成新一击
+    lastBlankClickAt = 0;
+    fireWindowClose();
+  }
 }
 
 document.addEventListener("click", onWinClick);
-document.addEventListener("dblclick", onWinDblClick);
 onBeforeUnmount(() => {
   document.removeEventListener("click", onWinClick);
-  document.removeEventListener("dblclick", onWinDblClick);
 });
 </script>
 

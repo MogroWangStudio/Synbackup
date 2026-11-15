@@ -6,7 +6,7 @@
 
 把 U 盘、移动硬盘插上电脑，同备就帮你把指定文件夹同步好——**差异先列出来给你确认，你点头了才动手**。
 
-`1.1.0-beta5` · Windows / macOS · Tauri 2 + Vue 3 + TypeScript + Rust
+`1.1.0-beta6` · Windows / macOS · Tauri 2 + Vue 3 + TypeScript + Rust
 
 ## 功能特性
 
@@ -95,7 +95,7 @@ cd src-tauri && cargo check
 
 发版只有两步：把 `src-tauri/tauri.conf.json` 的版本号改掉、在 `CHANGELOG.md` 补上 `## [版本号]` 段，然后推送到 `main`。
 
-- **Release（自动）** `.github/workflows/release.yml`：推送到 `main` 后按版本号发布。这个版本已经发过就直接跳过（版本没变的日常提交不会重复构建）；是新版本就打 tag、双平台构建并发布——带 `-` 的版本（如 `1.1.0-beta5`）发预发布，纯 `x.x.x` 发正式版并标为最新。手动触发一律当作重发，按 tag 覆盖产物。
+- **Release（自动）** `.github/workflows/release.yml`：推送到 `main` 后按版本号发布。这个版本已经发过就直接跳过（版本没变的日常提交不会重复构建）；是新版本就打 tag、双平台构建并发布——带 `-` 的版本（如 `1.1.0-beta6`）发预发布，纯 `x.x.x` 发正式版并标为最新。手动触发一律当作重发，按 tag 覆盖产物。
 - **CI（手动）** `.github/workflows/ci.yml`：Actions → CI → Run workflow，按需构建校验，产物在 Actions 页面的 Artifacts 里下载：
 
   - `Synbackup_<版本>_windows-x64.zip` — Windows 64 位便携版（解压即得 `Synbackup.exe`，目标电脑需已装 WebView2 运行组件，Win10/11 默认自带）

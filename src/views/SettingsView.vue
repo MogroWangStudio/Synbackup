@@ -698,7 +698,7 @@ function onLanguageSelect(v: string) {
         <div class="row-label">
           <span class="row-name">{{ t("settings.version") }}</span>
         </div>
-        <span class="row-value">{{ store.appInfo?.version ?? "1.1.0-beta5" }}</span>
+        <span class="row-value">{{ store.appInfo?.version ?? "1.1.0-beta6" }}</span>
       </div>
       <div class="row">
         <div class="row-label">
