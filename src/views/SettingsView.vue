@@ -916,7 +916,9 @@ function onLanguageSelect(v: string) {
 }
 
 .group {
-  padding: 4px 16px;
+  /* 底部留 12px：最后一行控件若紧贴卡片圆角（此前只有 4px），
+     悬停引起的局部重绘会让边缘线与阴影一起抖动 */
+  padding: 4px 16px 12px;
   margin-bottom: 14px;
 }
 .group-title {

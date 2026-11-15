@@ -264,7 +264,11 @@ html[data-boot-anim="pop"] .window {
    盖住窗口的一块底色 + 居中品牌标识：先亮相、再让位。幕布本身只做一次
    透明度收束（64% 起淡出），logo 的入场交给预设——两者时长同源
    （--splash-ms），节奏不会打架。开关走 data-splash（与 data-boot-anim
-   分开：改预设只定义"下次怎么演"，不该让演完的幕布再盖一次）。 */
+   分开：改预设只定义"下次怎么演"，不该让演完的幕布再盖一次）。
+
+   演完必须 visibility: hidden：它是一层 z-index 400 的全屏实色层，
+   只靠 opacity: 0 收尾的话会一直留在合成树上，压在滚动内容之上——之后
+   任何 hover 重绘（卡片边缘、开关、下拉）都叠着这层重算，边缘线条会闪。 */
 .boot-veil {
   position: fixed;
   inset: 0;
@@ -274,20 +278,33 @@ html[data-boot-anim="pop"] .window {
   justify-content: center;
   background: var(--bg);
   opacity: 0;
+  /* 动画没挂上（关闭启动动画）或已播完时都不参与绘制 */
+  visibility: hidden;
   pointer-events: none;
 }
 html[data-splash="on"] .boot-veil {
+  visibility: visible;
   animation: boot-veil var(--splash-ms, 520ms) var(--ease-modal-out) both;
+}
+/* 减少动态效果时整幕不播，直接留在隐藏态 */
+@media (prefers-reduced-motion: reduce) {
+  html[data-splash="on"] .boot-veil {
+    visibility: hidden;
+    animation: none;
+  }
 }
 @keyframes boot-veil {
   0% {
     opacity: 1;
+    visibility: visible;
   }
   64% {
     opacity: 1;
+    visibility: visible;
   }
   100% {
     opacity: 0;
+    visibility: hidden;
   }
 }
 
