@@ -13,8 +13,8 @@ export const en: Dict = {
   "win.restore": "Restore",
   "win.close": "Close window",
 
-  "status.devices_connected": "{n} device(s) connected",
-  "status.no_devices": "No device connected",
+  "status.devices_connected": "{n} disk(s) connected",
+  "status.no_devices": "No disk connected",
   "status.pairs_enabled": "{on} of {total} pairs enabled",
   "status.sync_count": "{n} syncs completed",
 
@@ -22,7 +22,7 @@ export const en: Dict = {
   "overview.pending_banner": "{n} pair(s) have differences waiting for you",
   "overview.pending_cta": "Review",
   "overview.stat_pairs": "Sync pairs",
-  "overview.stat_devices": "Devices connected",
+  "overview.stat_devices": "Disks connected",
   "overview.stat_pending": "Pending differences",
   "overview.stat_size": "Total size",
   "overview.stat_cpu": "CPU usage",
@@ -88,11 +88,16 @@ export const en: Dict = {
   "editor.remote_root": "Drive root",
 
   "devices.title": "Devices",
-  "devices.none": "No removable drive detected",
-  "devices.desc": "Removable drives are monitored in the background and matched to your pairs.",
+  "devices.none": "No disk detected",
+  "devices.desc": "Disks and removable drives are monitored in the background. Partitions are grouped by physical disk and matched to your pairs.",
   "devices.matched_pairs": "Pairs",
   "devices.no_pairs": "No pairs linked",
   "devices.offline": "Not connected",
+  "devices.disk_n": "Disk {n}",
+  "devices.kind_fixed": "Built-in",
+  "devices.kind_removable": "Removable",
+  "devices.system": "System",
+  "devices.volumes": "{n} volume(s)",
 
   "history.title": "History",
   "history.filter_kind": "Record type",

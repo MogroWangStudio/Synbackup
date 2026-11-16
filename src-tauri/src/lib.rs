@@ -89,6 +89,32 @@ pub(crate) fn text(lang: &str, key: &str) -> &'static str {
             Lang::It => "Esci",
             Lang::Ru => "Выход",
         },
+        "tray_mem_backend" => match l {
+            Lang::ZhCn => "后端内存",
+            Lang::ZhTw => "後端記憶體",
+            Lang::En => "Backend memory",
+            Lang::Ja => "バックエンドのメモリ",
+            Lang::Ko => "백엔드 메모리",
+            Lang::Fr => "Mémoire du backend",
+            Lang::De => "Backend-Speicher",
+            Lang::Es => "Memoria del backend",
+            Lang::Pt => "Memória do backend",
+            Lang::It => "Memoria del backend",
+            Lang::Ru => "Память бэкенда",
+        },
+        "tray_mem_frontend" => match l {
+            Lang::ZhCn => "前端内存",
+            Lang::ZhTw => "前端記憶體",
+            Lang::En => "Frontend memory",
+            Lang::Ja => "フロントエンドのメモリ",
+            Lang::Ko => "프론트엔드 메모리",
+            Lang::Fr => "Mémoire du frontend",
+            Lang::De => "Frontend-Speicher",
+            Lang::Es => "Memoria del frontend",
+            Lang::Pt => "Memória do frontend",
+            Lang::It => "Memoria del frontend",
+            Lang::Ru => "Память фронтенда",
+        },
         "notify_action_sync" => match l {
             Lang::ZhCn | Lang::ZhTw => "开始同步",
             Lang::En => "Start sync",
@@ -272,8 +298,35 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 
     let open = MenuItem::with_id(app, "open", text(&lang, "tray_open"), true, None::<&str>)?;
     let scan = MenuItem::with_id(app, "scan_now", text(&lang, "tray_scan"), true, None::<&str>)?;
+    // 两个内存项是只读的状态显示，不可点击（禁用态也是各平台原生菜单表示
+    // "这一行只是信息"的通行做法）。文本由 spawn_tray_memory 定时改写
+    let mem_backend = MenuItem::with_id(
+        app,
+        "mem_backend",
+        text(&lang, "tray_mem_backend"),
+        false,
+        None::<&str>,
+    )?;
+    let mem_frontend = MenuItem::with_id(
+        app,
+        "mem_frontend",
+        text(&lang, "tray_mem_frontend"),
+        false,
+        None::<&str>,
+    )?;
     let quit = MenuItem::with_id(app, "quit", text(&lang, "tray_quit"), true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &scan, &PredefinedMenuItem::separator(app)?, &quit])?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &open,
+            &scan,
+            &PredefinedMenuItem::separator(app)?,
+            &mem_backend,
+            &mem_frontend,
+            &PredefinedMenuItem::separator(app)?,
+            &quit,
+        ],
+    )?;
 
     // macOS 菜单栏用模板图：系统只取 alpha 轮廓，并随明暗外观自动反色；
     // 其他平台用彩色应用图标。
@@ -307,7 +360,57 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     let builder = builder.icon_as_template(true);
 
     builder.build(app)?;
+    // 菜单留在 state 里供内存行改写；托盘本体不提供菜单的 getter
+    app.manage(TrayMenu(menu));
     Ok(())
+}
+
+/// 托盘菜单句柄：改内存行时按 id 现取菜单项
+struct TrayMenu(tauri::menu::Menu<tauri::Wry>);
+
+/// 字节 → 菜单里那一小行。MB 取整，上 GB 给两位小数；
+/// 0 表示读不到（前端进程不在、或刚启动还没起来），给占位符而不是 0 MB
+fn fmt_mem(bytes: u64) -> String {
+    if bytes == 0 {
+        return "—".into();
+    }
+    let mb = bytes as f64 / (1024.0 * 1024.0);
+    if mb >= 1024.0 {
+        format!("{:.2} GB", mb / 1024.0)
+    } else {
+        format!("{:.0} MB", mb)
+    }
+}
+
+/// 改写托盘里两行内存。菜单项按 id 现取，不持有句柄：
+/// 托盘重建（改语言后重启托盘）时不会指向已经销毁的旧菜单
+fn refresh_tray_memory(app: &AppHandle) {
+    use tauri::menu::MenuItemKind;
+    let menu = &app.state::<TrayMenu>().0;
+    let core = app.state::<backend::Core>();
+    let usage = commands::memory_usage(&core);
+    let lang = core.settings().language;
+    for (id, key, bytes) in [
+        ("mem_backend", "tray_mem_backend", usage.backend),
+        ("mem_frontend", "tray_mem_frontend", usage.frontend),
+    ] {
+        if let Some(MenuItemKind::MenuItem(item)) = menu.get(id) {
+            let _ = item.set_text(format!("{} · {}", text(&lang, key), fmt_mem(bytes)));
+        }
+    }
+}
+
+/// 托盘菜单常驻显示前后端内存。只有打开菜单时看得见，10 秒一刷足够，
+/// 也免得为了一个菜单去每秒遍历一次全系统进程表
+fn spawn_tray_memory(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(10));
+        tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        loop {
+            tick.tick().await;
+            refresh_tray_memory(&app);
+        }
+    });
 }
 
 pub fn run() {
@@ -365,6 +468,8 @@ pub fn run() {
             build_tray(&handle)?;
             // 设备监控：系统事件驱动，主循环里做去抖与快照对比
             monitor::spawn(handle);
+            // 托盘内存行：托盘建好之后再起，循环里按 id 取菜单项
+            spawn_tray_memory(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {

@@ -1,6 +1,6 @@
 [package]
 name = "synbackup"
-version = "1.1.0-beta7"
+version = "1.1.0-beta8"
 description = "Synbackup — USB 移动存储设备文件同步与备份"
 edition = "2021"
 rust-version = "1.77.2"
@@ -49,6 +49,8 @@ objc2-user-notifications = { version = "0.3", features = [
 ] }
 objc2-app-kit = { version = "0.3", features = ["NSWorkspace"] }
 block2 = "0.6"
+# 卷 → 物理磁盘：statfs 的 f_mntfromname 给出 /dev/disk3s1s1
+libc = "0.2"
 
 # Windows 设备事件：隐藏消息窗口接收 WM_DEVICECHANGE（卷插入 / 移除）
 [target.'cfg(target_os = "windows")'.dependencies]
@@ -56,6 +58,10 @@ windows = { version = "0.62", features = [
     "Win32_Foundation",
     "Win32_UI_WindowsAndMessaging",
     "Win32_System_LibraryLoader",
+    "Win32_System_IO",
+    "Win32_Storage_FileSystem",
+    # CreateFileW 挂在这个 feature 下（查物理磁盘序号要用）
+    "Win32_Security",
 ] }
 # 更新包是 zip，Windows 上由本进程直接解压。只开 deflate：包里用不到
 # 加密 / zstd / lzma。macOS 侧不解压 zip（走 ditto，见 update.rs），

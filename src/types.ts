@@ -171,6 +171,12 @@ export interface VolumeInfo {
   total: number;
   available: number;
   matchedPairIds: string[];
+  /** 所属物理磁盘序号（Windows 磁盘 0 / macOS disk3 都归到 "0" "3"），按它分组 */
+  disk: string;
+  /** 卷类型：fixed / removable / network / optical / unknown */
+  kind: string;
+  /** 系统盘（Windows 的 SystemDrive、macOS 的 /） */
+  system: boolean;
 }
 
 /** 检查到差异的单文件记录 */

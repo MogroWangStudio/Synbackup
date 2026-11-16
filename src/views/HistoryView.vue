@@ -22,23 +22,32 @@ function kindOf(path: string): string {
   return dot > 0 ? name.slice(dot + 1).toUpperCase() : "—";
 }
 
-/* ---- 明细列宽：表格式布局，除文件列外均可拖拽表头手柄调整 ----
+/* ---- 明细列宽：所有列都有明确宽度，末尾一条填充列吃掉剩余空间 ----
    扫描明细（状态/文件/类型/大小）与同步明细（动作/文件/类型/大小/错误）
    列语义不同，宽度各自独立成组；同组内跨记录共享。列宽是纯界面偏好，
-   存 localStorage。scan 组的 err 只是让两组结构同形，并不渲染。 */
+   存 localStorage。
+
+   为什么不用"文件列吸收剩余"：那样它右侧每一列的右边界都被钉死
+   （总宽 - 固定列），拖手柄时边界不动、只有左边界在动，看起来像是
+   在拖文件列，文件和类型也就分不开。填充列放在最后，所有业务列的
+   边界都严格跟手。scan 组的 err 只是为了两组结构同形，并不渲染。 */
 type DetailKind = "scan" | "sync";
-type ColKey = "act" | "type" | "size" | "err";
+type ColKey = "act" | "path" | "type" | "size" | "err";
 type Widths = Record<DetailKind, Record<ColKey, number>>;
 
 const COLS_KEY = "historyColWidths2";
 const DEFAULT_W: Widths = {
-  scan: { act: 96, type: 56, size: 76, err: 220 },
-  sync: { act: 96, type: 56, size: 76, err: 220 },
+  scan: { act: 92, path: 300, type: 64, size: 76, err: 200 },
+  sync: { act: 92, path: 260, type: 64, size: 76, err: 200 },
 };
-const MIN_W: Record<ColKey, number> = { act: 80, type: 44, size: 56, err: 120 };
-const MAX_W = 480;
-/** 文件列的最小宽度：其余列拖宽到挤不下时，表格横向滚动而不是把文件名压没 */
-const PATH_MIN = 200;
+const MIN_W: Record<ColKey, number> = { act: 76, path: 120, type: 48, size: 56, err: 110 };
+const MAX_W = 640;
+
+/** 各组实际渲染的列（顺序即表头顺序），err 只在同步明细里出现 */
+const COLS: Record<DetailKind, ColKey[]> = {
+  scan: ["act", "path", "type", "size"],
+  sync: ["act", "path", "type", "size", "err"],
+};
 
 function loadWidths(): Widths {
   const out: Widths = { scan: { ...DEFAULT_W.scan }, sync: { ...DEFAULT_W.sync } };
@@ -68,11 +77,33 @@ function saveWidths() {
   }
 }
 
-/** 表格最小宽度：各固定列之和 + 文件列下限，决定何时出现横向滚动 */
+/** 表格最小宽度：各列之和。小于它时容器横向滚动，列宽不被压缩 */
 function minWidth(kind: DetailKind): string {
   const w = widths[kind];
-  const fixed = w.act + w.type + w.size + (kind === "sync" ? w.err : 0);
-  return `${fixed + PATH_MIN}px`;
+  return `${COLS[kind].reduce((n, c) => n + w[c], 0)}px`;
+}
+
+/** 表头文案：状态列在检查记录里叫「状态」，在同步记录里叫「动作」 */
+function headerKey(kind: DetailKind, col: ColKey): string {
+  switch (col) {
+    case "act":
+      return kind === "scan" ? "diff.col_status" : "history.col_act";
+    case "path":
+      return "diff.col_path";
+    case "type":
+      return "diff.col_type";
+    case "size":
+      return "history.col_size";
+    case "err":
+      return "history.col_err";
+  }
+}
+
+/** 列对齐：类型居中、大小右对齐，其余左对齐 */
+function thClass(col: ColKey): string {
+  if (col === "type") return "hd-center";
+  if (col === "size") return "hd-num";
+  return "";
 }
 
 function resizeOpts(kind: DetailKind, key: ColKey) {
@@ -258,71 +289,39 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
           </summary>
 
           <div class="hd-scroll">
-            <table
-              v-if="h.kind === 'scan'"
-              class="hd-table"
-              :style="{ minWidth: minWidth('scan') }"
-            >
+            <table class="hd-table" :style="{ minWidth: minWidth(h.kind) }">
               <colgroup>
-                <col :style="{ width: widths.scan.act + 'px' }" />
+                <col
+                  v-for="col in COLS[h.kind]"
+                  :key="col"
+                  :style="{ width: widths[h.kind][col] + 'px' }"
+                />
                 <col />
-                <col :style="{ width: widths.scan.type + 'px' }" />
-                <col :style="{ width: widths.scan.size + 'px' }" />
               </colgroup>
               <thead>
                 <tr>
-                  <th scope="col">
-                    {{ t("diff.col_status") }}
+                  <th v-for="col in COLS[h.kind]" :key="col" scope="col" :class="thClass(col)">
+                    {{ t(headerKey(h.kind, col)) }}
                     <span
                       class="col-grip"
                       role="separator"
                       aria-orientation="vertical"
-                      :aria-label="t('diff.col_status')"
-                      :aria-valuenow="widths.scan.act"
-                      :aria-valuemin="MIN_W.act"
+                      :aria-label="t(headerKey(h.kind, col))"
+                      :aria-valuenow="widths[h.kind][col]"
+                      :aria-valuemin="MIN_W[col]"
                       :aria-valuemax="MAX_W"
                       tabindex="0"
-                      @pointerdown="onGripDown('scan', 'act', $event)"
-                      @keydown="onGripKey('scan', 'act', $event)"
-                      @dblclick="resetColumn('scan', 'act')"
+                      @pointerdown="onGripDown(h.kind, col, $event)"
+                      @keydown="onGripKey(h.kind, col, $event)"
+                      @dblclick="resetColumn(h.kind, col)"
                     />
                   </th>
-                  <th scope="col">{{ t("diff.col_path") }}</th>
-                  <th scope="col" class="hd-center">
-                    {{ t("diff.col_type") }}
-                    <span
-                      class="col-grip"
-                      role="separator"
-                      aria-orientation="vertical"
-                      :aria-label="t('diff.col_type')"
-                      :aria-valuenow="widths.scan.type"
-                      :aria-valuemin="MIN_W.type"
-                      :aria-valuemax="MAX_W"
-                      tabindex="0"
-                      @pointerdown="onGripDown('scan', 'type', $event)"
-                      @keydown="onGripKey('scan', 'type', $event)"
-                      @dblclick="resetColumn('scan', 'type')"
-                    />
-                  </th>
-                  <th scope="col" class="hd-num">
-                    {{ t("history.col_size") }}
-                    <span
-                      class="col-grip"
-                      role="separator"
-                      aria-orientation="vertical"
-                      :aria-label="t('history.col_size')"
-                      :aria-valuenow="widths.scan.size"
-                      :aria-valuemin="MIN_W.size"
-                      :aria-valuemax="MAX_W"
-                      tabindex="0"
-                      @pointerdown="onGripDown('scan', 'size', $event)"
-                      @keydown="onGripKey('scan', 'size', $event)"
-                      @dblclick="resetColumn('scan', 'size')"
-                    />
-                  </th>
+                  <!-- 填充列：吃掉业务列之外的剩余宽度。放在最后，前面每一列
+                       的右边界都只由自己的宽度决定，拖哪个手柄哪条边界动 -->
+                  <th class="hd-fill" />
                 </tr>
               </thead>
-              <tbody>
+              <tbody v-if="h.kind === 'scan'">
                 <tr v-for="(d, k) in h.scanDiffs" :key="k">
                   <td>
                     <span class="chip" :class="statusChipClass(d.status)" :title="t('st.' + d.status)">
@@ -332,94 +331,17 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
                   <td class="hd-path" :title="d.path">{{ d.path }}</td>
                   <td class="hd-kind" :title="kindOf(d.path)">{{ kindOf(d.path) }}</td>
                   <td class="hd-num">{{ d.size ? fmtSize(d.size) : "—" }}</td>
+                  <td class="hd-fill" />
                 </tr>
               </tbody>
-            </table>
-
-            <table v-else class="hd-table" :style="{ minWidth: minWidth('sync') }">
-              <colgroup>
-                <col :style="{ width: widths.sync.act + 'px' }" />
-                <col />
-                <col :style="{ width: widths.sync.type + 'px' }" />
-                <col :style="{ width: widths.sync.size + 'px' }" />
-                <col :style="{ width: widths.sync.err + 'px' }" />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th scope="col">
-                    {{ t("history.col_act") }}
-                    <span
-                      class="col-grip"
-                      role="separator"
-                      aria-orientation="vertical"
-                      :aria-label="t('history.col_act')"
-                      :aria-valuenow="widths.sync.act"
-                      :aria-valuemin="MIN_W.act"
-                      :aria-valuemax="MAX_W"
-                      tabindex="0"
-                      @pointerdown="onGripDown('sync', 'act', $event)"
-                      @keydown="onGripKey('sync', 'act', $event)"
-                      @dblclick="resetColumn('sync', 'act')"
-                    />
-                  </th>
-                  <th scope="col">{{ t("diff.col_path") }}</th>
-                  <th scope="col" class="hd-center">
-                    {{ t("diff.col_type") }}
-                    <span
-                      class="col-grip"
-                      role="separator"
-                      aria-orientation="vertical"
-                      :aria-label="t('diff.col_type')"
-                      :aria-valuenow="widths.sync.type"
-                      :aria-valuemin="MIN_W.type"
-                      :aria-valuemax="MAX_W"
-                      tabindex="0"
-                      @pointerdown="onGripDown('sync', 'type', $event)"
-                      @keydown="onGripKey('sync', 'type', $event)"
-                      @dblclick="resetColumn('sync', 'type')"
-                    />
-                  </th>
-                  <th scope="col" class="hd-num">
-                    {{ t("history.col_size") }}
-                    <span
-                      class="col-grip"
-                      role="separator"
-                      aria-orientation="vertical"
-                      :aria-label="t('history.col_size')"
-                      :aria-valuenow="widths.sync.size"
-                      :aria-valuemin="MIN_W.size"
-                      :aria-valuemax="MAX_W"
-                      tabindex="0"
-                      @pointerdown="onGripDown('sync', 'size', $event)"
-                      @keydown="onGripKey('sync', 'size', $event)"
-                      @dblclick="resetColumn('sync', 'size')"
-                    />
-                  </th>
-                  <th scope="col">
-                    {{ t("history.col_err") }}
-                    <span
-                      class="col-grip"
-                      role="separator"
-                      aria-orientation="vertical"
-                      :aria-label="t('history.col_err')"
-                      :aria-valuenow="widths.sync.err"
-                      :aria-valuemin="MIN_W.err"
-                      :aria-valuemax="MAX_W"
-                      tabindex="0"
-                      @pointerdown="onGripDown('sync', 'err', $event)"
-                      @keydown="onGripKey('sync', 'err', $event)"
-                      @dblclick="resetColumn('sync', 'err')"
-                    />
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+              <tbody v-else>
                 <tr v-for="(it, k) in h.items" :key="k">
                   <td class="hd-act" :class="{ failed: !it.ok }">{{ t("act." + it.action) }}</td>
                   <td class="hd-path" :title="it.path">{{ it.path }}</td>
                   <td class="hd-kind" :title="kindOf(it.path)">{{ kindOf(it.path) }}</td>
                   <td class="hd-num">{{ it.size ? fmtSize(it.size) : "—" }}</td>
                   <td class="hd-err" :class="{ failed: !it.ok }">{{ it.ok ? "—" : it.error }}</td>
+                  <td class="hd-fill" />
                 </tr>
               </tbody>
             </table>
@@ -637,12 +559,37 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
   text-overflow: ellipsis;
   vertical-align: middle;
 }
+/* 表头按列序递减层级：手柄伸出自己单元格的那半截必须画在右邻表头之上，
+   否则会被右邻的底色盖掉，看着像挂在错误的列边界上 */
+.hd-table th:nth-child(1) {
+  z-index: 6;
+}
+.hd-table th:nth-child(2) {
+  z-index: 5;
+}
+.hd-table th:nth-child(3) {
+  z-index: 4;
+}
+.hd-table th:nth-child(4) {
+  z-index: 3;
+}
+.hd-table th:nth-child(5) {
+  z-index: 2;
+}
+.hd-table th:nth-child(6) {
+  z-index: 1;
+}
+/* 填充列：只保留表头底色与行分隔线，不承载内容也不参与列宽调节 */
+.hd-table th.hd-fill,
+.hd-table td.hd-fill {
+  padding: 0;
+}
 .hd-table th:first-child,
 .hd-table td:first-child {
   padding-left: 10px;
 }
-.hd-table th:last-child,
-.hd-table td:last-child {
+.hd-table th:nth-last-child(2),
+.hd-table td:nth-last-child(2) {
   padding-right: 10px;
 }
 .hd-table tbody tr:last-child td {
@@ -659,13 +606,23 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
   text-align: right;
 }
 /* 文件是这条明细的主角：用主文本色，其余列退到次级灰 */
-.hd-path {
+.hd-table td.hd-path {
+  padding-right: 14px;
   color: var(--text);
 }
-.hd-kind {
+/* 类型是独立一列，不是文件名的尾巴：左侧一道竖线把两者分开，
+   值用等宽感的小字并居中，和路径的长文本明显不是一路。
+   线比行分隔线重一档——同一个颜色会混在行线里看不出是列边界 */
+.hd-table th.hd-center,
+.hd-table td.hd-kind {
+  border-left: 1px solid var(--hairline-strong);
+}
+.hd-table td.hd-kind {
   font-size: calc(10.5px * var(--font-scale, 1));
   letter-spacing: 0.04em;
   color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 .hd-num {
   color: var(--text-3);
@@ -685,8 +642,8 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
 }
 
 /* 列宽手柄：贴在列右缘，常显一道淡线说明"这里能拖"；
-   悬停或键盘聚焦时变强调色，加长加粗。末列手柄收进单元格内，
-   否则末列右缘那道会被横向滚动容器裁掉一半 */
+   悬停或键盘聚焦时变强调色，加长加粗。最后一个业务列（填充列之前）
+   的手柄收进单元格内，否则那道线会被横向滚动容器裁掉一半 */
 .col-grip {
   position: absolute;
   top: 0;
@@ -700,7 +657,7 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
   touch-action: none;
   outline: none;
 }
-.hd-table th:last-child .col-grip {
+.hd-table th:nth-last-child(2) .col-grip {
   right: 0;
 }
 .col-grip::after {

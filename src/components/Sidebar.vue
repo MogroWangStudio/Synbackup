@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref } from "vue";
-import { store } from "../store";
+import { diskCount, store } from "../store";
 import { api } from "../api";
 import { toast } from "../store";
 import { t } from "../i18n";
@@ -212,8 +212,8 @@ onBeforeUnmount(() => {
           <span class="dot" :class="store.volumes.length ? 'ok' : 'idle'" />
           <span class="foot-text">
             {{
-              store.volumes.length
-                ? t("status.devices_connected", { n: store.volumes.length })
+              diskCount
+                ? t("status.devices_connected", { n: diskCount })
                 : t("status.no_devices")
             }}
           </span>

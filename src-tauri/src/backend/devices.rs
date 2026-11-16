@@ -1,7 +1,12 @@
-//! 移动存储设备枚举与识别。
+//! 存储设备枚举与识别。
 //!
 //! 识别策略：优先比对配对时写入设备的标记文件（卷标变更、盘符变化后依然有效），
 //! 其次回退到卷标匹配。
+//!
+//! 每块物理磁盘上的分区归成一组：Windows 用
+//! IOCTL_STORAGE_GET_DEVICE_NUMBER 拿磁盘序号，macOS 用 statfs 的设备名
+//! （/dev/disk3s1s1 → disk3）。系统盘也列出来——它同样可能是同步的目标，
+//! 例如把一个工作目录备份到另一块内置盘的某个分区。
 
 use std::path::{Path, PathBuf};
 
@@ -9,7 +14,7 @@ use sysinfo::Disks;
 
 use super::model::{SyncPair, VolumeInfo, MARKER_FILE};
 
-/// 枚举当前接入的移动存储设备
+/// 枚举当前接入的卷（本地分区与可移动存储）
 pub fn list_volumes() -> Vec<VolumeInfo> {
     let disks = Disks::new_with_refreshed_list();
     let mut out = Vec::new();
@@ -20,6 +25,7 @@ pub fn list_volumes() -> Vec<VolumeInfo> {
         }
         let mount_str = normalize_mount(mount);
         let label = volume_label(disk, &mount_str);
+        let (disk_no, kind, system) = disk_facts(&mount_str);
         out.push(VolumeInfo {
             mount: mount_str,
             label,
@@ -27,6 +33,9 @@ pub fn list_volumes() -> Vec<VolumeInfo> {
             total: disk.total_space(),
             available: disk.available_space(),
             matched_pair_ids: Vec::new(),
+            disk: disk_no,
+            kind: kind.to_string(),
+            system,
         });
     }
     out.sort_by(|a, b| a.mount.cmp(&b.mount));
@@ -36,8 +45,10 @@ pub fn list_volumes() -> Vec<VolumeInfo> {
 #[cfg(target_os = "macos")]
 fn is_candidate_mount(mount: &Path) -> bool {
     let s = mount.to_string_lossy();
-    // 排除根分区与 /System 下的数据卷，只保留 /Volumes 下的用户可见卷
-    s.starts_with("/Volumes/") && s.len() > "/Volumes/".len()
+    // 根卷即系统盘；/Volumes 下是用户可见的其他卷。
+    // /System/Volumes 里的 Data / Preboot / VM 是 APFS 的内部构造，
+    // 列出来只会让人以为盘变多了
+    s == "/" || (s.starts_with("/Volumes/") && s.len() > "/Volumes/".len())
 }
 
 #[cfg(target_os = "windows")]
@@ -47,13 +58,153 @@ fn is_candidate_mount(mount: &Path) -> bool {
     if bytes.len() < 2 || bytes.len() > 3 || bytes[1] != b':' {
         return false;
     }
-    let sys = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".into());
-    !s[..2].eq_ignore_ascii_case(&sys)
+    // 只留固定盘与可移动盘：光驱、网络盘、RAM 盘没有可写的稳定存储
+    matches!(drive_type(&s), DRIVE_REMOVABLE | DRIVE_FIXED)
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn is_candidate_mount(_mount: &Path) -> bool {
     false
+}
+
+/// 卷 → (物理磁盘序号, 卷类型, 是否系统盘)
+#[cfg(target_os = "macos")]
+fn disk_facts(mount: &str) -> (String, &'static str, bool) {
+    let system = mount == "/";
+    // 与根卷共用同一块盘的卷算内置盘；其余（/Volumes 下另挂的）算可移动
+    match macos_whole_disk(mount) {
+        Some(no) => {
+            let builtin = root_disk() == Some(no.as_str());
+            let kind = if builtin { "fixed" } else { "removable" };
+            (no, kind, system)
+        }
+        None => (mount.to_string(), "unknown", system),
+    }
+}
+
+/// 根卷所在的整盘序号，只算一次
+#[cfg(target_os = "macos")]
+fn root_disk() -> Option<&'static str> {
+    static ROOT: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    ROOT.get_or_init(|| macos_whole_disk("/")).as_deref()
+}
+
+/// 挂载点所属整盘序号：/dev/disk3s1s1 → "3"
+#[cfg(target_os = "macos")]
+fn macos_whole_disk(mount: &str) -> Option<String> {
+    let c = std::ffi::CString::new(mount).ok()?;
+    let mut buf = std::mem::MaybeUninit::<libc::statfs>::uninit();
+    if unsafe { libc::statfs(c.as_ptr(), buf.as_mut_ptr()) } != 0 {
+        return None;
+    }
+    let buf = unsafe { buf.assume_init() };
+    let dev = unsafe { std::ffi::CStr::from_ptr(buf.f_mntfromname.as_ptr()) };
+    let dev = dev.to_string_lossy();
+    let name = dev.strip_prefix("/dev/")?.strip_prefix("disk")?;
+    let digits: String = name.chars().take_while(|c| c.is_ascii_digit()).collect();
+    if digits.is_empty() {
+        None
+    } else {
+        Some(digits)
+    }
+}
+
+#[cfg(target_os = "windows")]
+const DRIVE_REMOVABLE: u32 = 2;
+#[cfg(target_os = "windows")]
+const DRIVE_FIXED: u32 = 3;
+#[cfg(target_os = "windows")]
+const DRIVE_NETWORK: u32 = 4;
+#[cfg(target_os = "windows")]
+const DRIVE_CDROM: u32 = 5;
+
+#[cfg(target_os = "windows")]
+fn disk_facts(mount: &str) -> (String, &'static str, bool) {
+    let letter = mount.chars().next().unwrap_or('C');
+    let sys = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".into());
+    let system = format!("{letter}:").eq_ignore_ascii_case(&sys);
+    let kind = match drive_type(mount) {
+        DRIVE_REMOVABLE => "removable",
+        DRIVE_FIXED => "fixed",
+        DRIVE_NETWORK => "network",
+        DRIVE_CDROM => "optical",
+        _ => "unknown",
+    };
+    // 拿不到磁盘号（某些虚拟盘 / 权限不足）时退回盘符，仍然能分组显示
+    let no = disk_number(letter).unwrap_or_else(|| letter.to_string());
+    (no, kind, system)
+}
+
+#[cfg(target_os = "windows")]
+fn drive_type(root: &str) -> u32 {
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::GetDriveTypeW;
+
+    let wide: Vec<u16> = root.encode_utf16().chain(std::iter::once(0)).collect();
+    unsafe { GetDriveTypeW(PCWSTR(wide.as_ptr())) }
+}
+
+/// 盘符 → 物理磁盘序号（设备管理器里那个"磁盘 0 / 磁盘 1"）
+#[cfg(target_os = "windows")]
+fn disk_number(letter: char) -> Option<String> {
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::Storage::FileSystem::{
+        CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+    };
+    use windows::Win32::System::IO::DeviceIoControl;
+
+    /// IOCTL_STORAGE_GET_DEVICE_NUMBER：CTL_CODE(0x2D, 0x0420, METHOD_BUFFERED, FILE_ANY_ACCESS)
+    const IOCTL_STORAGE_GET_DEVICE_NUMBER: u32 = 0x002D_1080;
+
+    #[repr(C)]
+    #[derive(Default)]
+    struct StorageDeviceNumber {
+        device_type: u32,
+        device_number: u32,
+        partition_number: u32,
+    }
+
+    // "\\.\C:" 打开卷句柄；只查设备号，不要读写权限
+    let path: Vec<u16> = format!("\\\\.\\{letter}:")
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
+    let handle = unsafe {
+        CreateFileW(
+            PCWSTR(path.as_ptr()),
+            0,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            None,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            None,
+        )
+    }
+    .ok()?;
+
+    let mut info = StorageDeviceNumber::default();
+    let mut returned = 0u32;
+    let res = unsafe {
+        DeviceIoControl(
+            handle,
+            IOCTL_STORAGE_GET_DEVICE_NUMBER,
+            None,
+            0,
+            Some(&mut info as *mut _ as *mut _),
+            std::mem::size_of::<StorageDeviceNumber>() as u32,
+            Some(&mut returned),
+            None,
+        )
+    };
+    let _ = unsafe { CloseHandle(handle) };
+    res.ok()?;
+    Some(info.device_number.to_string())
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn disk_facts(mount: &str) -> (String, &'static str, bool) {
+    (mount.to_string(), "unknown", false)
 }
 
 fn normalize_mount(mount: &Path) -> String {

@@ -1,4 +1,4 @@
-import { reactive } from "vue";
+import { computed, reactive } from "vue";
 import { api } from "./api";
 import { applyUiPrefs, DEFAULT_ACCENT, loadUiPrefs, persistUiPrefs } from "./theme";
 import type {
@@ -156,3 +156,6 @@ export async function refreshHistory() {
   store.history = history;
   store.syncCount = syncCount;
 }
+
+/** 已连接的物理磁盘数：设备页按磁盘分组，统计口径也按磁盘而不是分区 */
+export const diskCount = computed(() => new Set(store.volumes.map((v) => v.disk)).size);

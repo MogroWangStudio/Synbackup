@@ -364,6 +364,13 @@ pub struct VolumeInfo {
     pub available: u64,
     /// 当前匹配到的同步任务 id 列表
     pub matched_pair_ids: Vec<String>,
+    /// 所属物理磁盘的序号（Windows 的磁盘 0 / macOS 的 disk3 都归到 "0" "3"）。
+    /// 界面按它把同一块磁盘上的分区归成一组；拿不到时退回盘符 / 挂载点
+    pub disk: String,
+    /// 卷类型：fixed / removable / network / optical / unknown
+    pub kind: String,
+    /// 是否为系统盘（Windows 的 SystemDrive、macOS 的 /）
+    pub system: bool,
 }
 
 /// 同步历史条目。

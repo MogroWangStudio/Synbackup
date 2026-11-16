@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
-import { refreshVolumes, store } from "../store";
+import { diskCount, refreshVolumes, store } from "../store";
 import { api } from "../api";
 import { fmtSize, fmtTime, t } from "../i18n";
 import type { MemoryUsage } from "../types";
@@ -110,7 +110,7 @@ watch(
 const stats = computed(() => {
   const valueOf: Record<OverviewStatKey, string> = {
     pairs: String(store.pairs.length),
-    devices: String(store.volumes.length),
+    devices: String(diskCount.value),
     pending: String(pendingTotal.value),
     size: live.size || "–",
     cpu: live.cpu || "–",

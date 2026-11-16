@@ -194,6 +194,12 @@ static MEM_TREE_SYS: OnceLock<Mutex<System>> = OnceLock::new();
 /// 一次全量刷新拿到两者，避免界面为两个卡片各发一次 IPC。
 #[tauri::command]
 pub fn get_memory_usage(core: State<'_, backend::Core>) -> CmdResult<MemoryUsage> {
+    Ok(memory_usage(&core))
+}
+
+/// 内存占用的实现本体：命令与托盘菜单的定时刷新共用同一套口径，
+/// 免得两处各写一份进程树遍历、数字对不上。
+pub fn memory_usage(core: &backend::Core) -> MemoryUsage {
     let me = Pid::from_u32(std::process::id());
     let sys = MEM_TREE_SYS.get_or_init(|| {
         let mut s = System::new();
@@ -201,12 +207,12 @@ pub fn get_memory_usage(core: State<'_, backend::Core>) -> CmdResult<MemoryUsage
         Mutex::new(s)
     });
     let Ok(mut guard) = sys.lock() else {
-        return Ok(MemoryUsage { backend: 0, frontend: 0 });
+        return MemoryUsage { backend: 0, frontend: 0 };
     };
     guard.refresh_processes(ProcessesToUpdate::All, false);
     let backend = guard.process(me).map(|p| p.memory()).unwrap_or(0);
     let frontend = frontend_memory(&guard, me, core.started_at);
-    Ok(MemoryUsage { backend, frontend })
+    MemoryUsage { backend, frontend }
 }
 
 /// 进程树里 root 的全部子孙（WebView2 / WebKitGTK 都挂在应用进程下）
