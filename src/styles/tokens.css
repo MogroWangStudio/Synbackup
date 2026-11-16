@@ -291,12 +291,27 @@
     ),
     var(--bg);
 }
+/* 磨砂挂在一个不含交互内容的静态层上，卡片本体不再直接吃 backdrop-filter：
+   卡片的边框与阴影留在普通绘制层，悬停控件只重绘控件自己，不会连带触发
+   整张卡片的 backdrop 重捕获。此前把 backdrop-filter（外加一层
+   translateZ(0) 合成层）直接挂在卡片上，WebKit 每帧都要重算整片磨砂，
+   卡片底边这条 1px 线与淡阴影最先表现为闪烁。
+   伪元素位于 padding box，圆角取卡片圆角减去 1px 边框，与边框内缘严丝合缝 */
 :root[data-theme="glass"] .card {
+  position: relative;
+  isolation: isolate;
+  background: transparent;
+}
+:root[data-theme="glass"] .card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: calc(var(--radius-m) - 1px);
+  background: var(--bg-content);
   backdrop-filter: blur(14px) saturate(1.25);
-  /* 提升为独立合成层：WebKit 上多张 backdrop-filter 卡片共用一层时，
-     任何局部重绘（悬停、控件状态变化）都会触发整片磨砂重算，
-     设置页表现为反复闪烁。各卡独立成层后重绘互不波及 */
-  transform: translateZ(0);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+  pointer-events: none;
 }
 :root[data-appearance="dark"][data-theme="glass"] {
   --bg: #16161a;
@@ -324,8 +339,9 @@
     --bg-content: #f6f7fa;
     --bg-sidebar: #e9ebf2;
   }
-  :root[data-theme="glass"] .card {
+  :root[data-theme="glass"] .card::before {
     backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
   :root[data-theme="glass"] .content {
     background: none;

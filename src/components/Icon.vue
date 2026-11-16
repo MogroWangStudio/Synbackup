@@ -24,6 +24,7 @@ const icons: Record<string, string> = {
   arrow_down: '<path d="M12 19.5v-15"/><path d="m5.5 13 6.5 6.5L18.5 13"/>',
   arrow_r: '<path d="M4.5 12h15"/><path d="m13 5.5 6.5 6.5-6.5 6.5"/>',
   arrow_l: '<path d="M19.5 12h-15"/><path d="m11 5.5-6.5 6.5 6.5 6.5"/>',
+  chevron: '<path d="m9.5 6 6 6-6 6"/>',
   edit:
     '<path d="M17 3a2.828 2.828 0 1 1 4 4L7 21l-4 1 1-4Z"/><path d="m15 5 4 4"/>',
   trash:

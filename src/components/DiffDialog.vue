@@ -8,7 +8,7 @@ import type { ApplyResult, Decision, DiffStatus, SyncAction } from "../types";
 import Icon from "./Icon.vue";
 import Modal from "./Modal.vue";
 import Select from "./Select.vue";
-import { statusChipClass } from "../ui";
+import { statusChipClass, nudgeColumn, startColumnDrag } from "../ui";
 import type { SelectOption } from "./Select.vue";
 
 const info = store.diffDialog!;
@@ -121,34 +121,38 @@ const gridStyle = computed(() => ({
   "--col-action": `${widths.action}px`,
 }));
 
-function onGripDown(key: ColKey, e: PointerEvent) {
-  if (e.pointerType === "mouse" && e.button !== 0) return;
-  // 不让按下动作冒泡进列表的框选逻辑
-  e.stopPropagation();
-  const el = e.currentTarget as HTMLElement;
+function saveWidths() {
   try {
-    el.setPointerCapture(e.pointerId);
+    localStorage.setItem(COLS_KEY, JSON.stringify(widths));
   } catch {
-    /* 合成指针等场景 */
+    /* 存不了就仅本次生效 */
   }
-  const startX = e.clientX;
-  const startW = widths[key];
-  const move = (ev: PointerEvent) => {
-    widths[key] = Math.max(MIN_W[key], Math.min(MAX_W, startW + ev.clientX - startX));
+}
+
+function resizeOpts(key: ColKey) {
+  return {
+    width: widths[key],
+    min: MIN_W[key],
+    max: MAX_W,
+    apply: (v: number) => {
+      widths[key] = v;
+    },
+    onEnd: saveWidths,
   };
-  const stop = () => {
-    el.removeEventListener("pointermove", move);
-    el.removeEventListener("pointerup", stop);
-    el.removeEventListener("pointercancel", stop);
-    try {
-      localStorage.setItem(COLS_KEY, JSON.stringify(widths));
-    } catch {
-      /* 存不了就仅本次生效 */
-    }
-  };
-  el.addEventListener("pointermove", move);
-  el.addEventListener("pointerup", stop);
-  el.addEventListener("pointercancel", stop);
+}
+
+function onGripDown(key: ColKey, e: PointerEvent) {
+  startColumnDrag(e, resizeOpts(key));
+}
+
+function onGripKey(key: ColKey, e: KeyboardEvent) {
+  nudgeColumn(e, resizeOpts(key));
+}
+
+/** 双击手柄：该列回到默认宽度 */
+function resetColumn(key: ColKey) {
+  widths[key] = DEFAULT_W[key];
+  saveWidths();
 }
 
 function applyBulk(kind: "suggest" | "l2r" | "r2l" | "skip") {
@@ -349,25 +353,85 @@ function handleClose() {
         <div class="diff-head">
           <span class="col-resizable">
             {{ t("diff.col_status") }}
-            <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('status', $event)" />
+            <span
+              class="col-grip"
+              role="separator"
+              aria-orientation="vertical"
+              :aria-label="t('diff.col_status')"
+              :aria-valuenow="widths.status"
+              :aria-valuemin="MIN_W.status"
+              :aria-valuemax="MAX_W"
+              tabindex="0"
+              @pointerdown="onGripDown('status', $event)"
+              @keydown="onGripKey('status', $event)"
+              @dblclick="resetColumn('status')"
+            />
           </span>
           <span>{{ t("diff.col_path") }}</span>
           <span class="col-resizable">
             {{ t("diff.col_type") }}
-            <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('type', $event)" />
+            <span
+              class="col-grip"
+              role="separator"
+              aria-orientation="vertical"
+              :aria-label="t('diff.col_type')"
+              :aria-valuenow="widths.type"
+              :aria-valuemin="MIN_W.type"
+              :aria-valuemax="MAX_W"
+              tabindex="0"
+              @pointerdown="onGripDown('type', $event)"
+              @keydown="onGripKey('type', $event)"
+              @dblclick="resetColumn('type')"
+            />
           </span>
           <span class="cell-num col-resizable">
             {{ t("diff.col_local") }}
-            <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('local', $event)" />
+            <span
+              class="col-grip"
+              role="separator"
+              aria-orientation="vertical"
+              :aria-label="t('diff.col_local')"
+              :aria-valuenow="widths.local"
+              :aria-valuemin="MIN_W.local"
+              :aria-valuemax="MAX_W"
+              tabindex="0"
+              @pointerdown="onGripDown('local', $event)"
+              @keydown="onGripKey('local', $event)"
+              @dblclick="resetColumn('local')"
+            />
           </span>
           <span />
           <span class="cell-num col-resizable">
             {{ t("diff.col_remote") }}
-            <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('remote', $event)" />
+            <span
+              class="col-grip"
+              role="separator"
+              aria-orientation="vertical"
+              :aria-label="t('diff.col_remote')"
+              :aria-valuenow="widths.remote"
+              :aria-valuemin="MIN_W.remote"
+              :aria-valuemax="MAX_W"
+              tabindex="0"
+              @pointerdown="onGripDown('remote', $event)"
+              @keydown="onGripKey('remote', $event)"
+              @dblclick="resetColumn('remote')"
+            />
           </span>
           <span class="col-resizable">
             {{ t("diff.col_action") }}
-            <span class="col-grip" :aria-hidden="true" @pointerdown="onGripDown('action', $event)" />
+            <span
+              class="col-grip"
+              role="separator"
+              aria-orientation="vertical"
+              :aria-label="t('diff.col_action')"
+              :aria-valuenow="widths.action"
+              :aria-valuemin="MIN_W.action"
+              :aria-valuemax="MAX_W"
+              tabindex="0"
+              @pointerdown="onGripDown('action', $event)"
+              @keydown="onGripKey('action', $event)"
+              @dblclick="resetColumn('action')"
+            />
           </span>
         </div>
         <div
@@ -611,30 +675,37 @@ function handleClose() {
   position: relative;
   min-width: 0;
 }
-/* 列宽手柄：贴在可调列的右缘、跨过列间隙的热区；悬停浮现 1px 竖线 */
+/* 列宽手柄：贴在可调列的右缘、跨过列间隙的热区；
+   常显一道淡线说明"这里能拖"，悬停或键盘聚焦时变强调色、加长加粗 */
 .col-grip {
   position: absolute;
   right: -9px;
   top: 0;
   bottom: 0;
-  width: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
   cursor: col-resize;
   touch-action: none;
+  outline: none;
 }
 .col-grip::after {
   content: "";
-  position: absolute;
-  right: 6px;
-  top: 7px;
-  bottom: 7px;
-  width: 1.5px;
+  width: 1px;
+  height: 13px;
   border-radius: 1px;
-  background: var(--accent);
-  opacity: 0;
-  transition: opacity 120ms ease;
+  background: var(--hairline-strong);
+  transition:
+    width 120ms var(--ease),
+    height 120ms var(--ease),
+    background-color 120ms var(--ease);
 }
-.col-grip:hover::after {
-  opacity: 0.55;
+.col-grip:hover::after,
+.col-grip:focus-visible::after {
+  width: 2px;
+  height: 20px;
+  background: var(--accent);
 }
 .cell-num.col-resizable {
   text-align: right;

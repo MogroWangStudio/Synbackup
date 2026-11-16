@@ -160,6 +160,15 @@ button {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+/* ---- 表头列宽拖拽 ----
+   拖拽期间指针会滑过表格文字，全局换成列宽光标并禁止选中；
+   否则光标在文本区反复跳变、还会顺手选中一片单元格 */
+html.is-col-resizing,
+html.is-col-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
 /* ---- 卡片 / 芯片 ---- */
 
 .card {
