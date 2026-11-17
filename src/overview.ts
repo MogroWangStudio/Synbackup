@@ -56,16 +56,24 @@ export const OVERVIEW_INTERVAL_FIELD = {
   size: "overviewSizeMs",
 } as const satisfies Record<OverviewPolledKey, keyof AppSettings>;
 
-/** 实时指标的刷新频率：5 秒起，够读又不空转 */
-const METRIC_INTERVALS = [0, 5000, 10000, 15000, 30000, 60000] as const;
+/** "即时更新"档对应的毫秒数（每 0.1 秒取一次） */
+export const LIVE_MS = 100;
+
+/** 实时指标档位：即时（0.1 秒）/ 1 秒 / 3 秒起步的老档位都在一列，
+    取值节奏交给用户，界面只在后台静默轮询 */
+const METRIC_INTERVALS = [0, LIVE_MS, 1000, 3000, 5000, 10000, 15000, 30000, 60000] as const;
+
+/** 设备状态每次取数都要枚举一遍挂载点（系统调用），不给 0.1 秒档 */
+const DEVICE_INTERVALS = [0, 1000, 3000, 5000, 10000, 15000, 30000, 60000] as const;
 
 /** 项目总大小要遍历全部本地目录：只给稀疏档位，分钟级起步 */
 const SIZE_INTERVALS = [0, 60_000, 300_000, 900_000] as const;
 
 /** 某项可选的刷新频率（毫秒；0 = 关闭轮询） */
 export function overviewIntervals(key: OverviewPolledKey): readonly number[] {
-  return key === "size" ? SIZE_INTERVALS : METRIC_INTERVALS;
+  if (key === "size") return SIZE_INTERVALS;
+  return key === "devices" ? DEVICE_INTERVALS : METRIC_INTERVALS;
 }
 
-/** 轮询下限：低于 3 秒的间隔只会白耗 CPU */
-export const MIN_POLL_MS = 3000;
+/** 轮询下限：0 = 关闭；其余档位最低到"即时"（0.1 秒） */
+export const MIN_POLL_MS = LIVE_MS;

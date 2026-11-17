@@ -586,3 +586,40 @@ pub fn test_notification(
     buttons.truncate(3);
     crate::notify::test_notify(&app, &title, &body, &buttons)
 }
+
+/// 通知权限状态：granted / denied / unknown（macOS），not_needed = 平台无需授权。
+#[tauri::command]
+pub fn get_notification_auth() -> CmdResult<String> {
+    Ok(crate::notify::auth_status().to_string())
+}
+
+/// 主动请求通知授权：macOS 在未决时会弹出系统授权对话框，已决时立即回调
+/// 既有状态；其余平台直接返回 not_needed。授权接口须在主线程触碰。
+#[tauri::command]
+pub async fn request_notification_auth(app: AppHandle) -> CmdResult<String> {
+    use tokio::sync::oneshot;
+    let (tx, rx) = oneshot::channel::<&'static str>();
+    // 回调要求 Fn（可能被多次调用）：sender 包进 Mutex<Option>，只取走一次
+    let tx = std::sync::Mutex::new(Some(tx));
+    app.run_on_main_thread(move || {
+        crate::notify::request_authorization(move |state| {
+            if let Some(tx) = tx.lock().ok().and_then(|mut g| g.take()) {
+                let _ = tx.send(state);
+            }
+        });
+    })
+    .map_err(|e| e.to_string())?;
+    rx.await.map(|s| s.to_string()).map_err(|_| "授权请求被取消".to_string())
+}
+
+/// 打开系统通知设置（macOS：系统设置 → 通知 → Synbackup；其余平台不支持）。
+#[tauri::command]
+pub async fn open_notification_settings(app: AppHandle) -> CmdResult<()> {
+    use tokio::sync::oneshot;
+    let (tx, rx) = oneshot::channel::<Result<(), String>>();
+    app.run_on_main_thread(move || {
+        let _ = tx.send(crate::notify::open_system_settings());
+    })
+    .map_err(|e| e.to_string())?;
+    rx.await.map_err(|_| "打开系统设置被取消".to_string())?
+}

@@ -74,4 +74,10 @@ export const api = {
       body: opts?.body ?? null,
       buttons: opts?.buttons ?? null,
     }),
+  /** 通知权限状态：granted / denied / unknown（macOS），not_needed = 平台无需授权 */
+  getNotificationAuth: () => invoke<string>("get_notification_auth"),
+  /** 主动请求通知授权（macOS 未决时弹系统对话框），返回最终状态 */
+  requestNotificationAuth: () => invoke<string>("request_notification_auth"),
+  /** 打开系统通知设置（macOS；其余平台报错） */
+  openNotificationSettings: () => invoke<void>("open_notification_settings"),
 };

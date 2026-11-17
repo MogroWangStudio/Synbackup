@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { api } from "../api";
 import { refreshLogoImage, store, toast } from "../store";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -130,6 +130,45 @@ const animPresetOptions = computed<SelectOption[]>(() =>
 const animCurveOptions = computed<SelectOption[]>(() =>
   ["smooth", "spring", "linear", "swift"].map((c) => ({ value: c, label: t(`curve.${c}`) })),
 );
+// 页面切换转场：none = 不做转场（瞬时切换），其余与启动动画同名单同措辞
+const viewTransitionOptions = computed<SelectOption[]>(() =>
+  ["rise", "fade", "zoom", "slide", "blur", "none"].map((p) => ({
+    value: p,
+    label: t(`anim.${p}`),
+  })),
+);
+
+/** 通知权限（macOS 有系统级授权，其余平台返回 not_needed，整行隐藏） */
+const notifAuth = ref<string>("not_needed");
+onMounted(async () => {
+  try {
+    notifAuth.value = await api.getNotificationAuth();
+  } catch {
+    /* 读不到就不显示状态，保留原有功能 */
+  }
+});
+async function onRequestAuth() {
+  try {
+    notifAuth.value = await api.requestNotificationAuth();
+  } catch (e) {
+    toast("error", String(e));
+  }
+}
+async function onOpenNotifySettings() {
+  try {
+    await api.openNotificationSettings();
+  } catch (e) {
+    toast("error", String(e));
+    return;
+  }
+  toast("info", t("settings.notify_perm_hint"));
+  // 给用户一点时间去系统设置，回来后自动复查一次状态
+  window.setTimeout(() => {
+    api.getNotificationAuth()
+      .then((v) => (notifAuth.value = v))
+      .catch(() => {});
+  }, 3000);
+}
 
 // ---- 自定义主题色 ----
 const pickerOpen = ref(false);
@@ -494,6 +533,17 @@ function onLanguageSelect(v: string) {
           @update:model-value="(v) => update({ launchAnimation: v })"
         />
       </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.view_transition") }}</span>
+        </div>
+        <Select
+          :model-value="store.settings.viewTransition"
+          :options="viewTransitionOptions"
+          :aria-label="t('settings.view_transition')"
+          @update:model-value="(v) => update({ viewTransition: v })"
+        />
+      </div>
       <template v-if="store.settings.launchAnimation">
         <div class="row">
           <div class="row-label">
@@ -624,6 +674,24 @@ function onLanguageSelect(v: string) {
       </div>
       <div class="row">
         <div class="row-label">
+          <span class="row-name">{{ t("settings.status_pending") }}</span>
+        </div>
+        <Toggle
+          :model-value="store.settings.statusPending"
+          @update:model-value="(v) => update({ statusPending: v })"
+        />
+      </div>
+      <div class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.status_last_sync") }}</span>
+        </div>
+        <Toggle
+          :model-value="store.settings.statusLastSync"
+          @update:model-value="(v) => update({ statusLastSync: v })"
+        />
+      </div>
+      <div class="row">
+        <div class="row-label">
           <span class="row-name">{{ t("settings.status_version") }}</span>
         </div>
         <Toggle
@@ -663,6 +731,34 @@ function onLanguageSelect(v: string) {
           @update:model-value="(v) => update({ autoSyncNoConflict: v })"
         />
       </div>
+      <!-- macOS 的通知有系统级授权：未决时给"请求授权"，被拒后引导去系统设置
+           （被拒后系统不会再弹授权框）；其余平台无需授权，整行不渲染 -->
+      <div v-if="notifAuth !== 'not_needed'" class="row">
+        <div class="row-label">
+          <span class="row-name">{{ t("settings.notify_perm") }}</span>
+        </div>
+        <div class="notify-perm">
+          <span class="row-value" :class="{ 'perm-denied': notifAuth === 'denied' }">
+            {{ t(`notifyperm.${notifAuth}`) }}
+          </span>
+          <button
+            v-if="notifAuth === 'unknown'"
+            type="button"
+            class="btn btn-sm"
+            @click="onRequestAuth"
+          >
+            {{ t("notifyperm.request") }}
+          </button>
+          <button
+            v-else-if="notifAuth === 'denied'"
+            type="button"
+            class="btn btn-sm"
+            @click="onOpenNotifySettings"
+          >
+            {{ t("notifyperm.open_settings") }}
+          </button>
+        </div>
+      </div>
       <div class="row">
         <div class="row-label">
           <span class="row-name">{{ t("settings.notify") }}</span>
@@ -698,7 +794,7 @@ function onLanguageSelect(v: string) {
         <div class="row-label">
           <span class="row-name">{{ t("settings.version") }}</span>
         </div>
-        <span class="row-value">{{ store.appInfo?.version ?? "1.1.0-beta9" }}</span>
+        <span class="row-value">{{ store.appInfo?.version ?? "1.1.0-beta10" }}</span>
       </div>
       <div class="row">
         <div class="row-label">
@@ -887,6 +983,19 @@ function onLanguageSelect(v: string) {
   align-items: center;
   gap: 10px;
   flex: none;
+}
+/* 通知权限行：状态文本 + 操作按钮组合；被拒时文字转警示色 */
+.notify-perm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+.notify-perm .row-value {
+  max-width: none;
+}
+.perm-denied {
+  color: var(--orange-text);
 }
 .check-controls {
   display: flex;

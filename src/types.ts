@@ -41,11 +41,13 @@ export interface AppSettings {
   launchAnimMs: number;
   /** 启动动画曲线（smooth / spring / linear / swift） */
   launchAnimCurve: string;
+  /** 页面切换转场效果（rise / fade / zoom / slide / blur / none；slide 按页面前进后退换方向） */
+  viewTransition: string;
   /** 更新渠道：stable = 正式版（Release），beta = 预发布（Pre-Release） */
   updateChannel: string;
   /** 更新下载来源：github = GitHub 直连，ghproxy = gh-proxy 加速 */
   updateSource: string;
-  /** 状态栏信息显示顺序（devices / pairs / sync / version；隐藏项保留原位） */
+  /** 状态栏信息显示顺序（devices / pairs / sync / pending / last_sync / version；隐藏项保留原位） */
   statusOrder: string[];
   /** 侧栏状态区：显示设备状态 */
   statusDevices: boolean;
@@ -53,6 +55,10 @@ export interface AppSettings {
   statusPairs: boolean;
   /** 侧栏状态区：累计同步次数 */
   statusSyncCount: boolean;
+  /** 侧栏状态区：待处理差异数 */
+  statusPending: boolean;
+  /** 侧栏状态区：最近一次同步时间 */
+  statusLastSync: boolean;
   /** 侧栏状态区：版本号 */
   statusVersion: boolean;
   /** 总览页显示的数据项（顺序即展示顺序） */

@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, ref } from "vue";
 import { diskCount, store } from "../store";
 import { api } from "../api";
 import { toast } from "../store";
-import { t } from "../i18n";
+import { fmtTime, t } from "../i18n";
 import Icon from "./Icon.vue";
 
 const items = computed(() => [
@@ -23,11 +23,22 @@ const enabledPairs = computed(() => store.pairs.filter((p) => p.enabled).length)
 // 状态区各项均可在设置中开关；全部关闭时整个状态区不渲染
 const s = computed(() => store.settings);
 
+/** 待处理差异总数（与总览卡、导航徽标同一口径） */
+const pendingTotal = computed(() =>
+  store.pending.reduce((n, p) => n + p.items.length, 0),
+);
+/** 最近一次同步的时间文本（历史最新的那条；从未同步给占位） */
+const lastSyncText = computed(() =>
+  store.history.length ? fmtTime(store.history[0].ts) : t("status.last_sync_none"),
+);
+
 /** 各状态项的可见开关（key 与设置字段对应） */
 const visibleMap = computed<Record<string, boolean>>(() => ({
   devices: s.value.statusDevices,
   pairs: s.value.statusPairs,
   sync: s.value.statusSyncCount,
+  pending: s.value.statusPending,
+  last_sync: s.value.statusLastSync,
   version: s.value.statusVersion,
 }));
 
@@ -226,6 +237,14 @@ onBeforeUnmount(() => {
         <template v-else-if="key === 'sync'">
           <span class="foot-text">{{ t("status.sync_count", { n: store.syncCount }) }}</span>
         </template>
+        <template v-else-if="key === 'pending'">
+          <span class="foot-text" :class="{ 'foot-warn': pendingTotal > 0 }">
+            {{ pendingTotal ? t("status.pending", { n: pendingTotal }) : t("status.pending_none") }}
+          </span>
+        </template>
+        <template v-else-if="key === 'last_sync'">
+          <span class="foot-text">{{ t("status.last_sync", { time: lastSyncText }) }}</span>
+        </template>
         <template v-else>
           <span class="foot-text">v{{ store.appInfo?.version ?? "–" }}</span>
         </template>
@@ -379,5 +398,10 @@ onBeforeUnmount(() => {
 .foot-text {
   font-size: calc(11.5px * var(--font-scale, 1));
   color: var(--text-2);
+}
+/* 有差异待处理时的警示色：让这一行在状态区里能被一眼找到 */
+.foot-text.foot-warn {
+  color: var(--orange-text);
+  font-weight: 500;
 }
 </style>

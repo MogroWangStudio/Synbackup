@@ -95,6 +95,24 @@ pub fn test_notify(app: &AppHandle, title: &str, body: &str, buttons: &[String])
     Ok(())
 }
 
+/// 通知权限状态，供设置页显示：
+/// `granted` = 已授权 / `denied` = 已拒绝 / `unknown` = 未决 / `not_needed` = 平台无需授权。
+pub fn auth_status() -> &'static str {
+    imp::auth_status()
+}
+
+/// 主动请求通知授权（macOS）：未决时弹出系统授权对话框，已决时立即回调
+/// 既有状态。结果经回调返回最终状态字符串。
+pub fn request_authorization(done: impl Fn(&'static str) + 'static) {
+    imp::request_authorization(done);
+}
+
+/// 打开系统通知设置（macOS：系统设置 → 通知 → Synbackup）。
+/// 其余平台没有集中的按应用通知设置，返回不支持。
+pub fn open_system_settings() -> Result<(), String> {
+    imp::open_settings()
+}
+
 #[cfg(target_os = "macos")]
 mod imp {
     use std::sync::atomic::{AtomicI8, Ordering};
@@ -262,9 +280,67 @@ mod imp {
         request_auth(|_| {});
     }
 
+    /// 当前授权状态（设置页显示与发送前判断共用同一来源）
+    pub fn auth_status() -> &'static str {
+        match AUTH.load(Ordering::Relaxed) {
+            -1 => "denied",
+            1 => "granted",
+            _ => "unknown",
+        }
+    }
+
+    /// 主动请求授权：未决时弹系统对话框，已决立即回调既有状态
+    pub fn request_authorization(done: impl Fn(&'static str) + 'static) {
+        request_auth(move |ok| done(if ok { "granted" } else { "denied" }));
+    }
+
+    /// 打开系统设置的通知页（x-apple.systempreferences 是系统注册的深链）。
+    /// 授权被拒后系统不会再弹授权框，去系统设置开启是唯一的出路。
+    pub fn open_settings() -> Result<(), String> {
+        use objc2_app_kit::NSWorkspace;
+        use objc2_foundation::NSURL;
+
+        // openURL 需要主线程：调用方（命令）已通过 run_on_main_thread 转主线程，
+        // 这里再核验一次，提早暴露错漏
+        MainThreadMarker::new().ok_or("打开系统设置须在主线程调用")?;
+        let url = NSURL::URLWithString(&NSString::from_str(
+            "x-apple.systempreferences:com.apple.preference.notifications",
+        ))
+        .ok_or_else(|| "无法构造系统设置地址".to_string())?;
+        let _ = NSWorkspace::sharedWorkspace().openURL(&url);
+        Ok(())
+    }
+
+    /// 授权门卫：所有通知发送的共同前置。已授权直接投递；被拒时返回错误
+    /// （系统本来也会静默丢弃，提前拦下至少留得下日志）；仍未决（启动时的
+    /// 请求可能早于系统就绪而失败）就再请求一次——未决状态重复请求是幂等的，
+    /// 通过后把投递转回主线程补发。
+    fn gated_deliver(deliver: impl Fn() + Send + Sync + Clone + 'static) -> Result<(), String> {
+        match AUTH.load(Ordering::Relaxed) {
+            -1 => Err(ERR_DENIED.to_string()),
+            1 => {
+                deliver();
+                Ok(())
+            }
+            _ => {
+                // 授权回调要求 Fn（可能被多次调用），投递闭包放进 Arc 里按需克隆
+                let deliver = std::sync::Arc::new(deliver);
+                request_auth(move |ok| {
+                    if ok {
+                        if let Some(app) = super::APP.get() {
+                            let deliver = deliver.clone();
+                            let _ = app.run_on_main_thread(move || deliver());
+                        }
+                    }
+                });
+                Ok(())
+            }
+        }
+    }
+
     /// 投递一条普通通知。标识符带时间戳：同一标识符的请求会互相替换，
     /// 固定 id 会让连续提醒在通知中心里只剩最后一条。
-    pub fn send(title: &str, body: &str) -> Result<(), String> {
+    fn deliver_plain(title: &str, body: &str) {
         let center = UNUserNotificationCenter::currentNotificationCenter();
 
         let content = UNMutableNotificationContent::new();
@@ -284,7 +360,6 @@ mod imp {
             }
         });
         center.addNotificationRequest_withCompletionHandler(&request, Some(&done));
-        Ok(())
     }
 
     /// 当前毫秒时间戳（通知标识符用）
@@ -306,7 +381,7 @@ mod imp {
 
     /// 同步前询问：注册 sync-review 类别（两个动作），请求 ID 携带
     /// pairId；类别每次按当前语言重建（幂等替换）
-    pub fn send_ask(title: &str, body: &str, actions: &[String], pair_id: &str) -> Result<(), String> {
+    fn deliver_ask(title: &str, body: &str, actions: &[String], pair_id: &str) {
         let center = UNUserNotificationCenter::currentNotificationCenter();
 
         let defs = [
@@ -348,41 +423,27 @@ mod imp {
             }
         });
         center.addNotificationRequest_withCompletionHandler(&request, Some(&done));
-        Ok(())
+    }
+
+    /// 普通通知：与询问 / 测试通知共用授权门卫——此前只有测试通知检查授权，
+    /// 普通通知在授权被拒时照样派发，系统静默丢弃，日志里连原因都没有。
+    pub fn send(title: &str, body: &str) -> Result<(), String> {
+        let (title, body) = (title.to_owned(), body.to_owned());
+        gated_deliver(move || deliver_plain(&title, &body))
+    }
+
+    /// 同步前询问通知
+    pub fn send_ask(title: &str, body: &str, actions: &[String], pair_id: &str) -> Result<(), String> {
+        let (title, body, pair_id) = (title.to_owned(), body.to_owned(), pair_id.to_owned());
+        let actions = actions.to_vec();
+        gated_deliver(move || deliver_ask(&title, &body, &actions, &pair_id))
     }
 
     /// 测试通知：标题 / 内容自由，buttons 非空时注册测试类别挂动作按钮。
     /// 请求 ID 唯一（时间戳），连续发多条测试通知不会被系统去重合并。
-    ///
-    /// 发送前先看授权：被拒绝直接回错误码（界面据此提示去系统设置开启）；
-    /// 仍未决（启动时的请求可能早于系统就绪而静默失败）就再请求一次，
-    /// 授权通过后再补发——这是"点测试通知没反应"的根治点。
     pub fn send_test(title: &str, body: &str, buttons: &[String]) -> Result<(), String> {
-        match AUTH.load(Ordering::Relaxed) {
-            -1 => Err(ERR_DENIED.to_string()),
-            1 => {
-                deliver_test(title, body, buttons);
-                Ok(())
-            }
-            _ => {
-                let (t, b, btns) = (title.to_owned(), body.to_owned(), buttons.to_vec());
-                request_auth(move |ok| {
-                    if !ok {
-                        if let Some(app) = super::APP.get() {
-                            let _ = app.emit("notification-error", ERR_DENIED);
-                        }
-                        return;
-                    }
-                    if let Some(app) = super::APP.get() {
-                        let app = app.clone();
-                        // 授权回调是 Fn（可能被重复调用），闭包内只克隆、不搬走捕获值
-                        let (t, b, btns) = (t.clone(), b.clone(), btns.clone());
-                        let _ = app.run_on_main_thread(move || deliver_test(&t, &b, &btns));
-                    }
-                });
-                Ok(())
-            }
-        }
+        let (title, body, buttons) = (title.to_owned(), body.to_owned(), buttons.to_vec());
+        gated_deliver(move || deliver_test(&title, &body, &buttons))
     }
 
     /// 组装并投递测试通知（须在主线程调用）
@@ -438,6 +499,21 @@ mod imp {
     /// 非 macOS 平台没有需要提前拦截的授权状态
     pub fn precheck() -> Result<(), String> {
         Ok(())
+    }
+
+    /// 非 macOS 平台不需要通知授权：状态恒为"无需授权"，设置页据此隐藏权限行
+    pub fn auth_status() -> &'static str {
+        "not_needed"
+    }
+
+    /// 非 macOS 平台无需授权流程：立即回调 not_needed
+    pub fn request_authorization(done: impl Fn(&'static str) + 'static) {
+        done("not_needed");
+    }
+
+    /// 非 macOS 平台没有按应用的集中通知设置页
+    pub fn open_settings() -> Result<(), String> {
+        Err("当前平台没有可打开的系统通知设置".to_string())
     }
 
     pub fn send(title: &str, body: &str) -> Result<(), String> {

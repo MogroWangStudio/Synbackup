@@ -7,6 +7,7 @@ import { store, toast } from "../store";
 import { t } from "../i18n";
 import type { AppSettings } from "../types";
 import {
+  LIVE_MS,
   OVERVIEW_INTERVAL_FIELD,
   OVERVIEW_STAT_KEYS,
   OVERVIEW_STAT_LABEL,
@@ -27,16 +28,19 @@ const modalRef = ref<InstanceType<typeof Modal>>();
 const shown = computed(() => new Set(store.settings.overviewStats));
 
 /** 频率下拉：0 档的措辞按项区分——设备仍会被系统事件推送，其余是真的停更；
-    项目总大小的档位是分钟级，别读成"300 秒" */
+    "即时更新"档是 0.1 秒，不写成"0.1 秒"；项目总大小的档位是分钟级，
+    别读成"300 秒" */
 function intervalOptions(key: OverviewPolledKey): SelectOption[] {
   return overviewIntervals(key).map((ms) => ({
     value: String(ms),
     label:
       ms === 0
         ? t(key === "devices" ? "overview.refresh_event" : "overview.refresh_off")
-        : ms >= 60_000
-          ? t("overview.minutes", { n: ms / 60_000 })
-          : t("overview.seconds", { n: ms / 1000 }),
+        : ms === LIVE_MS
+          ? t("overview.refresh_live")
+          : ms >= 60_000
+            ? t("overview.minutes", { n: ms / 60_000 })
+            : t("overview.seconds", { n: ms / 1000 }),
   }));
 }
 

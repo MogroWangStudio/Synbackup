@@ -406,16 +406,115 @@ html.is-col-resizing * {
   transform: translateY(8px);
 }
 
-/* ---- 视图切换 ---- */
+/* ---- 视图切换转场 ----
+   预设名与启动动画对齐（设置 → 个性化 → 页面转场）。进出同路径：
+   旧页沿新页来的方向退出（slide 按导航前进 / 后退换向，在 App.vue 里
+   以 view-slide-fwd / view-slide-back 两个名字区分）。none = 瞬时切换。 */
 
-.view-fade-enter-active {
+.view-rise-enter-active {
   transition:
     opacity 160ms var(--ease),
     transform 200ms var(--ease);
 }
-.view-fade-enter-from {
+.view-rise-leave-active {
+  transition:
+    opacity 120ms var(--ease),
+    transform 140ms var(--ease);
+}
+.view-rise-enter-from {
   opacity: 0;
-  transform: translateY(4px);
+  transform: translateY(6px);
+}
+.view-rise-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.view-fade-enter-active {
+  transition: opacity 160ms var(--ease);
+}
+.view-fade-leave-active {
+  transition: opacity 120ms var(--ease);
+}
+.view-fade-enter-from,
+.view-fade-leave-to {
+  opacity: 0;
+}
+
+.view-zoom-enter-active {
+  transition:
+    opacity 160ms var(--ease),
+    transform 200ms var(--ease);
+}
+.view-zoom-leave-active {
+  transition:
+    opacity 120ms var(--ease),
+    transform 140ms var(--ease);
+}
+.view-zoom-enter-from {
+  opacity: 0;
+  transform: scale(0.985);
+}
+.view-zoom-leave-to {
+  opacity: 0;
+  transform: scale(0.99);
+}
+
+/* 滑入：前进 = 新页从右来、旧页向左去；后退 = 镜像。
+   位移取小幅度（16/10px）——整页内容的大位移在高频切换里发晕。 */
+.view-slide-fwd-enter-active,
+.view-slide-back-enter-active {
+  transition:
+    opacity 160ms var(--ease),
+    transform 200ms var(--ease);
+}
+.view-slide-fwd-leave-active,
+.view-slide-back-leave-active {
+  transition:
+    opacity 120ms var(--ease),
+    transform 140ms var(--ease);
+}
+.view-slide-fwd-enter-from {
+  opacity: 0;
+  transform: translateX(16px);
+}
+.view-slide-fwd-leave-to {
+  opacity: 0;
+  transform: translateX(-10px);
+}
+.view-slide-back-enter-from {
+  opacity: 0;
+  transform: translateX(-16px);
+}
+.view-slide-back-leave-to {
+  opacity: 0;
+  transform: translateX(10px);
+}
+
+/* 虚化：材质从磨砂里显影（与启动动画 blur、弹窗遮罩同语言）。
+   退出阶段只淡出——filter 动画代价高，不值得花在"正在消失"的内容上。 */
+.view-blur-enter-active {
+  transition:
+    opacity 160ms var(--ease),
+    filter 200ms var(--ease),
+    transform 200ms var(--ease);
+}
+.view-blur-leave-active {
+  transition: opacity 120ms var(--ease);
+}
+.view-blur-enter-from {
+  opacity: 0;
+  filter: blur(8px);
+  transform: scale(0.995);
+}
+.view-blur-leave-to {
+  opacity: 0;
+}
+
+/* 瞬时切换：过渡时长为零，Vue 立即完成进出场 */
+.view-instant-enter-active,
+.view-instant-leave-active {
+  transition: none;
 }
 
 /* ---- 动效偏好 ---- */

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, computed } from "vue";
+import { onBeforeUnmount, onMounted, computed, ref, watch } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { api } from "./api";
@@ -29,6 +29,29 @@ const logoVariant = computed(
       : "full") as "full" | "mark" | "custom_text" | "custom_image",
 );
 const logoCustomText = computed(() => store.settings.logoCustomText.trim() || "Synbackup");
+
+/* ---- 页面切换转场 ----
+   效果取自设置（viewTransition）；滑入（slide）按导航的前进 / 后退换方向——
+   页面有固定的前后次序，进退方向一致才符合"从哪来回哪去"的空间直觉，
+   其余预设不区分方向。none 时名字指向一组不存在的类，Vue 找不到过渡样式
+   就直接切换，等于瞬时换页。 */
+const VIEW_ORDER = ["overview", "pairs", "devices", "history", "settings"];
+const viewDir = ref(1);
+watch(
+  () => store.view,
+  (nv, ov) => {
+    if (!nv || !ov) return;
+    const next = VIEW_ORDER.indexOf(nv);
+    const prev = VIEW_ORDER.indexOf(ov);
+    if (next >= 0 && prev >= 0) viewDir.value = next >= prev ? 1 : -1;
+  },
+);
+const viewTransitionName = computed(() => {
+  const effect = store.settings.viewTransition;
+  if (!effect || effect === "none") return "view-instant";
+  if (effect === "slide") return viewDir.value > 0 ? "view-slide-fwd" : "view-slide-back";
+  return `view-${effect}`;
+});
 
 onMounted(async () => {
   // 冷启动：首帧后才重播启动动画——挂载即播的动画在真实窗口首次
@@ -145,7 +168,7 @@ onBeforeUnmount(() => {
     <div class="app-shell">
       <Sidebar />
       <main class="content">
-        <Transition name="view-fade" mode="out-in">
+        <Transition :name="viewTransitionName" mode="out-in">
           <OverviewView v-if="store.view === 'overview'" />
           <PairsView v-else-if="store.view === 'pairs'" />
           <DevicesView v-else-if="store.view === 'devices'" />

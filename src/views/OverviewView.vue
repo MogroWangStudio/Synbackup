@@ -21,7 +21,7 @@ const pendingTotal = computed(() =>
 );
 
 /* ---- 轮询：只给"可轮询且正在显示"的数据项开定时器 ----
-   每项自己取数、自己格式化；频率取自设置（0 / <3s 视为关闭），
+   每项自己取数、自己格式化；频率取自设置（0 视为关闭），
    改设置即时重启定时器，隐藏某项即停掉它的定时器。 */
 const live = reactive({ memoryBackend: "", memoryFrontend: "", cpu: "", gpu: "", size: "" });
 

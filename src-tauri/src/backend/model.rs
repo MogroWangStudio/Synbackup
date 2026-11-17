@@ -65,6 +65,10 @@ pub struct AppSettings {
     pub launch_anim_ms: u32,
     /// 启动动画曲线（smooth / spring / linear / swift）
     pub launch_anim_curve: String,
+    /// 页面切换转场效果（rise / fade / zoom / slide / blur / none）。
+    /// slide 会按页面前进 / 后退换方向
+    #[serde(default = "default_view_transition")]
+    pub view_transition: String,
     /// 更新渠道：stable = 正式版（Release），beta = 预发布（Pre-Release）
     pub update_channel: String,
     /// 更新下载来源：github = GitHub 直连（原始链接），ghproxy = gh-proxy 加速（链接前拼代理前缀）
@@ -78,6 +82,12 @@ pub struct AppSettings {
     pub status_pairs: bool,
     /// 侧栏状态区：显示累计同步次数
     pub status_sync_count: bool,
+    /// 侧栏状态区：显示待处理差异数
+    #[serde(default)]
+    pub status_pending: bool,
+    /// 侧栏状态区：显示最近一次同步时间
+    #[serde(default)]
+    pub status_last_sync: bool,
     /// 侧栏状态区：显示版本号
     pub status_version: bool,
     /// 总览页显示的数据项（顺序即展示顺序；未知项忽略）
@@ -146,6 +156,11 @@ fn default_logo_style() -> String {
     "full".into()
 }
 
+/// 页面切换转场的默认效果：上浮（旧版固定的入场样式）
+fn default_view_transition() -> String {
+    "rise".into()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -171,12 +186,15 @@ impl Default for AppSettings {
             launch_anim_preset: "rise".into(),
             launch_anim_ms: 340,
             launch_anim_curve: "smooth".into(),
+            view_transition: default_view_transition(),
             update_channel: "stable".into(),
             update_source: "github".into(),
             status_order: default_status_order(),
             status_devices: true,
             status_pairs: true,
             status_sync_count: true,
+            status_pending: false,
+            status_last_sync: false,
             status_version: false,
             overview_stats: default_overview_stats(),
             overview_memory_ms: default_overview_memory_ms(),
