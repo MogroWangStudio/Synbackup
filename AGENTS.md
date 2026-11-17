@@ -68,7 +68,7 @@
 
 发版两步：改上面六处版本号 + 在 `CHANGELOG.md` 补 `## [新版本号]` 段，推送到 `main`。流水线发现该版本 Release 已存在就跳过；版本是新的才打 tag、双平台构建并发布。含 `-` 的版本号发 Pre-Release，纯 `x.y.z` 发正式版并标记 latest。
 
-**产物文件名不得改动**：`Synbackup_<版本>_windows-x64.zip` / `Synbackup_<版本>_macos-arm64.zip` 是应用内自动更新的下载依据，改名会让更新直接失效。压缩包名带版本号（与 tag 一致），包内文件名固定：Windows 是 `Synbackup.exe`，macOS 是 `Synbackup.app`。装回时也不改名——用户手里的程序文件名与升级次数无关。Release 里另附**不带版本号的同名副本**（release.yml 生成），专供 1.1.0-beta2 客户端（按改名前命名找包）自动更新识别，别删。
+**产物文件名不得改动**：`Synbackup_<版本>_windows-x64.zip` / `Synbackup_<版本>_macos-arm64.zip` 是应用内自动更新的下载依据，改名会让更新直接失效。压缩包名带版本号（与 tag 一致），包内文件名固定：Windows 是 `Synbackup.exe`，macOS 是 `Synbackup.app`。装回时也不改名——用户手里的程序文件名与升级次数无关。Release 只附带版本号的产物，不再生成无版本号副本（曾经的副本只为 1.1.0-beta2 客户端升级留路，该兼容已于 2026-11 移除）。
 
 ---
 
