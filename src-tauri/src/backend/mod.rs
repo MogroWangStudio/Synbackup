@@ -12,7 +12,7 @@ pub mod model;
 pub mod scan;
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, RwLock};
 
 use model::{
@@ -41,6 +41,10 @@ pub struct Core {
     pub sync_lock: tokio::sync::Mutex<()>,
     /// 前端是否已完成初始化（未就绪时关闭窗口直接销毁，不弹确认框）
     ui_ready: AtomicBool,
+    /// 主窗口最近一次创建的时刻（Unix 秒）。macOS 的前端进程挂在 launchd 下，
+    /// 归属只能按时间猜——用这个时间窗把"本次开窗拉起的 WebContent"圈出来，
+    /// 免得把别的应用后来新开的 WebView 进程也算进来
+    window_at: AtomicU64,
 }
 
 impl Core {
@@ -74,6 +78,7 @@ impl Core {
             pending: Mutex::new(Vec::new()),
             sync_lock: tokio::sync::Mutex::new(()),
             ui_ready: AtomicBool::new(false),
+            window_at: AtomicU64::new((now_ms() / 1000) as u64),
         }
     }
 
@@ -84,6 +89,15 @@ impl Core {
 
     pub fn ui_ready(&self) -> bool {
         self.ui_ready.load(Ordering::SeqCst)
+    }
+
+    /// 主窗口建成时记录时刻：前端进程的内存归属以它为锚点
+    pub fn mark_window_spawned(&self) {
+        self.window_at.store((now_ms() / 1000) as u64, Ordering::SeqCst);
+    }
+
+    pub fn window_spawned_at(&self) -> u64 {
+        self.window_at.load(Ordering::SeqCst)
     }
 
     pub fn config_snapshot(&self) -> Config {

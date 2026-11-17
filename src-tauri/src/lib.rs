@@ -12,6 +12,8 @@ mod update;
 
 use tauri::{AppHandle, Emitter, Manager, RunEvent, WebviewWindowBuilder};
 
+use commands::MAIN_WINDOW;
+
 /// 后端支持的语言集合（与前端 src/i18n/ 保持一致）。
 #[derive(Clone, Copy)]
 enum Lang {
@@ -279,14 +281,45 @@ pub fn show_main_window(app: &AppHandle) {
         let _ = win.show();
         let _ = win.unminimize();
         let _ = win.set_focus();
-    } else if let Some(cfg) = app.config().app.windows.iter().find(|w| w.label == "main").cloned() {
-        if let Ok(builder) = WebviewWindowBuilder::from_config(app, &cfg) {
-            let _ = builder.build();
-        }
+        // 窗口可见时机：前端以此事件重播启动动画。挂载即播的动画在真实窗口
+        // 首次绘制前就已放完；托盘重开的已挂载窗口更不会自己重播
+        let _ = app.emit("window-shown", ());
+        return;
     }
-    // 窗口可见时机：前端以此事件重播启动动画。挂载即播的动画在真实窗口
-    // 首次绘制前就已放完；托盘重开的已挂载窗口更不会自己重播
-    let _ = app.emit("window-shown", ());
+    // 窗口已销毁（或正在销毁）：重建一个。
+    // 放到异步任务里并带重试——刚点完"关闭窗口"马上又点托盘时，旧窗口的
+    // label 还占着，这一拍 build 会失败。不重试就成了"点了没反应"，
+    // 重试则最多多等几百毫秒
+    let app2 = app.clone();
+    tauri::async_runtime::spawn(async move {
+        for attempt in 0..6u32 {
+            if attempt > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(120)).await;
+            }
+            // 期间可能已被别的调用建好（连点托盘）
+            if let Some(win) = app2.get_webview_window(MAIN_WINDOW) {
+                let _ = win.show();
+                let _ = win.unminimize();
+                let _ = win.set_focus();
+                let _ = app2.emit("window-shown", ());
+                return;
+            }
+            let Some(cfg) = app2.config().app.windows.iter().find(|w| w.label == MAIN_WINDOW).cloned()
+            else {
+                return;
+            };
+            let Ok(builder) = WebviewWindowBuilder::from_config(&app2, &cfg) else {
+                continue;
+            };
+            if builder.build().is_ok() {
+                // 记下这一刻：macOS 的 WebContent 进程没有父子关系可循，
+                // 内存归属要靠这个时间窗把本次开窗拉起的进程圈出来
+                app2.state::<backend::Core>().mark_window_spawned();
+                return;
+            }
+        }
+        eprintln!("[synbackup] 主窗口重建失败：旧窗口可能一直没销毁完");
+    });
 }
 
 fn build_tray(app: &AppHandle) -> tauri::Result<()> {
@@ -388,7 +421,7 @@ fn refresh_tray_memory(app: &AppHandle) {
     use tauri::menu::MenuItemKind;
     let menu = &app.state::<TrayMenu>().0;
     let core = app.state::<backend::Core>();
-    let usage = commands::memory_usage(&core);
+    let usage = commands::memory_usage(app, &core);
     let lang = core.settings().language;
     for (id, key, bytes) in [
         ("mem_backend", "tray_mem_backend", usage.backend),

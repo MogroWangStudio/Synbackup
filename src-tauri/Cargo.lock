@@ -3938,7 +3938,7 @@ dependencies = [
 
 [[package]]
 name = "synbackup"
-version = "1.1.0-beta8"
+version = "1.1.0-beta9"
 dependencies = [
  "base64 0.22.1",
  "block2",

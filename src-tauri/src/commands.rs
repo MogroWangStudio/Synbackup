@@ -14,6 +14,9 @@ use crate::sync_flow::{self, ScanFailure};
 
 type CmdResult<T> = Result<T, String>;
 
+/// 主窗口的标签（与 tauri.conf.json 的 windows[0].label 一致）
+pub const MAIN_WINDOW: &str = "main";
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppInfo {
@@ -193,13 +196,13 @@ static MEM_TREE_SYS: OnceLock<Mutex<System>> = OnceLock::new();
 /// 拆分后的内存占用：后端 = 本进程，前端 = WebView 进程。
 /// 一次全量刷新拿到两者，避免界面为两个卡片各发一次 IPC。
 #[tauri::command]
-pub fn get_memory_usage(core: State<'_, backend::Core>) -> CmdResult<MemoryUsage> {
-    Ok(memory_usage(&core))
+pub fn get_memory_usage(app: AppHandle, core: State<'_, backend::Core>) -> CmdResult<MemoryUsage> {
+    Ok(memory_usage(&app, &core))
 }
 
 /// 内存占用的实现本体：命令与托盘菜单的定时刷新共用同一套口径，
 /// 免得两处各写一份进程树遍历、数字对不上。
-pub fn memory_usage(core: &backend::Core) -> MemoryUsage {
+pub fn memory_usage(app: &AppHandle, core: &backend::Core) -> MemoryUsage {
     let me = Pid::from_u32(std::process::id());
     let sys = MEM_TREE_SYS.get_or_init(|| {
         let mut s = System::new();
@@ -209,9 +212,17 @@ pub fn memory_usage(core: &backend::Core) -> MemoryUsage {
     let Ok(mut guard) = sys.lock() else {
         return MemoryUsage { backend: 0, frontend: 0 };
     };
-    guard.refresh_processes(ProcessesToUpdate::All, false);
+    // 必须移除已退出的进程：留着死进程的旧条目，它们的 memory 仍是退出前的
+    // 数值，每次开关窗口都会往合计里多加一份，数字只增不减
+    guard.refresh_processes(ProcessesToUpdate::All, true);
     let backend = guard.process(me).map(|p| p.memory()).unwrap_or(0);
-    let frontend = frontend_memory(&guard, me, core.started_at);
+    // 窗口不在 = 没有前端。WebView 进程退出要几秒，这段时间不能
+    // 把它算成"前端内存"，否则关窗后卡片还挂着数字
+    let frontend = if app.get_webview_window(MAIN_WINDOW).is_some() {
+        frontend_memory(&guard, me, core.started_at, core.window_spawned_at())
+    } else {
+        0
+    };
     MemoryUsage { backend, frontend }
 }
 
@@ -234,7 +245,7 @@ fn descendants(sys: &System, root: Pid) -> Vec<Pid> {
 /// Windows：WebView2 的各进程（browser / renderer / GPU / utility）都在
 /// 主进程的子树里，按名字筛出来即可，归属精确。
 #[cfg(target_os = "windows")]
-fn frontend_memory(sys: &System, me: Pid, _started_at: u64) -> u64 {
+fn frontend_memory(sys: &System, me: Pid, _started_at: u64, _window_at: u64) -> u64 {
     descendants(sys, me)
         .iter()
         .filter_map(|p| sys.process(*p))
@@ -248,29 +259,34 @@ fn frontend_memory(sys: &System, me: Pid, _started_at: u64) -> u64 {
         .sum()
 }
 
-/// macOS：WKWebView 的 WebContent 进程由 launchd 启动（ppid = 1），
-/// 和应用没有子树关系，系统里同时还有别的 WKWebView 应用的同名进程；
-/// 没有公开 API 能查"这个 WebContent 为谁工作"（responsibility 接口
-/// 未导出）。只能按"启动时间不早于本应用"归属——同一时段其他应用
-/// 新开的界面进程也会被计入，是这个口径的已知误差。
+/// macOS：WKWebView 的 WebContent 进程由 launchd 启动（ppid = 1），和应用
+/// 没有子树关系，进程本身也看不出在为谁工作（responsibility 接口未导出）。
+/// 只能按时间归属，但**只取一个**：本应用开窗前后启动的那个 WebContent。
+///
+/// 早先的写法是把"应用启动之后出现过的所有 WebContent"求和，后果有两个：
+/// 别的应用后来新开的界面进程会被算进来，数字只增不减；窗口关掉后残留
+/// 几秒的进程也还在合计里。
 #[cfg(target_os = "macos")]
-fn frontend_memory(sys: &System, _me: Pid, started_at: u64) -> u64 {
+fn frontend_memory(sys: &System, _me: Pid, started_at: u64, window_at: u64) -> u64 {
+    // 窗口刚建时 WebContent 可能比时间戳早一两秒起来，留一点余量
+    let floor = started_at.max(window_at.saturating_sub(3));
     sys.processes()
         .values()
-        .filter(|p| p.start_time() >= started_at)
+        .filter(|p| p.start_time() >= floor)
         .filter(|p| {
             p.name()
                 .to_string_lossy()
                 .to_ascii_lowercase()
                 .contains("webcontent")
         })
+        .max_by_key(|p| p.start_time())
         .map(|p| p.memory())
-        .sum()
+        .unwrap_or(0)
 }
 
 /// 其他平台（Linux 的 WebKitGTK 在应用进程内或子树里）：按子树合计
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-fn frontend_memory(sys: &System, me: Pid, _started_at: u64) -> u64 {
+fn frontend_memory(sys: &System, me: Pid, _started_at: u64, _window_at: u64) -> u64 {
     descendants(sys, me)
         .iter()
         .filter_map(|p| sys.process(*p))
@@ -531,7 +547,7 @@ pub fn exit_app(app: AppHandle) -> CmdResult<()> {
 /// 前端 destroy IPC 受 capability 管控，权限缺失时由此命令完成同一动作。
 #[tauri::command]
 pub fn destroy_main_window(app: AppHandle) -> CmdResult<()> {
-    if let Some(win) = app.get_webview_window("main") {
+    if let Some(win) = app.get_webview_window(MAIN_WINDOW) {
         let _ = win.destroy();
     }
     Ok(())
