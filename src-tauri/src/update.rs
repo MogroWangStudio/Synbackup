@@ -17,7 +17,10 @@
 //! 包内文件名固定（`Synbackup.exe` / `Synbackup.app`），替换时也不改名——
 //! 用户手里的程序文件名从此与升级多少次无关。
 
-use std::cmp::Ordering;
+// 版本比较要的是 std::cmp::Ordering，而下载取消开关用的是
+// std::sync::atomic::Ordering，两者同名——比较键这边起个别名，别让
+// 后者被顶掉（Ordering::SeqCst 会一起失踪）
+use std::cmp::Ordering as CmpOrdering;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -124,22 +127,22 @@ enum PreId {
 }
 
 impl Ord for VersionKey {
-    fn cmp(&self, other: &Self) -> Ordering {
+    fn cmp(&self, other: &Self) -> CmpOrdering {
         self.major
             .cmp(&other.major)
             .then_with(|| self.minor.cmp(&other.minor))
             .then_with(|| self.patch.cmp(&other.patch))
             .then_with(|| match (&self.pre, &other.pre) {
-                (None, None) => Ordering::Equal,
-                (None, Some(_)) => Ordering::Greater,
-                (Some(_), None) => Ordering::Less,
+                (None, None) => CmpOrdering::Equal,
+                (None, Some(_)) => CmpOrdering::Greater,
+                (Some(_), None) => CmpOrdering::Less,
                 (Some(a), Some(b)) => a.cmp(b),
             })
     }
 }
 
 impl PartialOrd for VersionKey {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<CmpOrdering> {
         Some(self.cmp(other))
     }
 }
