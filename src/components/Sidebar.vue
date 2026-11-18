@@ -290,6 +290,10 @@ onBeforeUnmount(() => {
 .nav-item:hover {
   background: var(--bg-hover);
 }
+/* 按下即时变深：反馈落在指针按下那一刻，而不是等页面切换完成 */
+.nav-item:active {
+  background: var(--bg-active);
+}
 .nav-item.active {
   background: var(--accent);
   color: var(--text-on-accent);

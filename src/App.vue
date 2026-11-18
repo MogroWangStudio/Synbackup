@@ -310,7 +310,7 @@ html[data-boot-anim="pop"] .window {
 .boot-veil {
   position: fixed;
   inset: 0;
-  z-index: 400;
+  z-index: var(--z-splash);
   display: flex;
   align-items: center;
   justify-content: center;

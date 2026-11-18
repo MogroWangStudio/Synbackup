@@ -173,6 +173,10 @@ function close() {
 .vlist-row:hover {
   background: var(--bg-hover);
 }
+/* 按下即变深：选中反馈不能等到松手 */
+.vlist-row:active {
+  background: var(--bg-active);
+}
 .vlist-row.is-selected {
   background: var(--accent-soft);
 }

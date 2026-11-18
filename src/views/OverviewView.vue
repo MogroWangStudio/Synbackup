@@ -9,6 +9,7 @@ import {
   OVERVIEW_INTERVAL_FIELD,
   OVERVIEW_POLLED_KEYS,
   OVERVIEW_STAT_LABEL,
+  normalizeInterval,
   type OverviewPolledKey,
   type OverviewStatKey,
 } from "../overview";
@@ -85,7 +86,7 @@ function restartPolling() {
     if (!shown.has(key)) continue;
     // 新露出的项先取一次值，别让卡片挂着占位符空等一个周期
     if (!shownBefore.has(key)) void pull(key);
-    const ms = store.settings[OVERVIEW_INTERVAL_FIELD[key]];
+    const ms = normalizeInterval(key, store.settings[OVERVIEW_INTERVAL_FIELD[key]]);
     if (ms < MIN_POLL_MS) continue;
     timers.set(key, window.setInterval(() => void pull(key), ms));
   }

@@ -58,6 +58,9 @@
   --z-popup: 120;
   --z-titlebar: 150;
   --z-toast: 200;
+  /* 启动幕布：开场几秒内盖住整窗，演完立即 visibility: hidden。
+     它出现时还没有任何弹窗与通知，因此排在通知之上 */
+  --z-splash: 400;
 
   /* 自定义标题栏：高度与左侧留白（macOS 留给红绿灯），见文件末尾的 html[data-os] */
   --titlebar-h: 40px;

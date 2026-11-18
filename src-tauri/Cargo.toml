@@ -1,6 +1,6 @@
 [package]
 name = "synbackup"
-version = "1.1.0-beta10"
+version = "1.1.0-beta11"
 description = "Synbackup — USB 移动存储设备文件同步与备份"
 edition = "2021"
 rust-version = "1.77.2"
@@ -62,6 +62,8 @@ windows = { version = "0.62", features = [
     "Win32_Storage_FileSystem",
     # CreateFileW 挂在这个 feature 下（查物理磁盘序号要用）
     "Win32_Security",
+    # GPU 占用走 PDH 性能计数器（gpu.rs），与任务管理器同一条数据源
+    "Win32_System_Performance",
 ] }
 # 更新包是 zip，Windows 上由本进程直接解压。只开 deflate：包里用不到
 # 加密 / zstd / lzma。macOS 侧不解压 zip（走 ditto，见 update.rs），

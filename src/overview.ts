@@ -66,14 +66,30 @@ const METRIC_INTERVALS = [0, LIVE_MS, 1000, 3000, 5000, 10000, 15000, 30000, 600
 /** 设备状态每次取数都要枚举一遍挂载点（系统调用），不给 0.1 秒档 */
 const DEVICE_INTERVALS = [0, 1000, 3000, 5000, 10000, 15000, 30000, 60000] as const;
 
+/** GPU 占用取的是"距上次采样这段时间里的平均值"，采得太密只会把噪声
+    放大成跳动的数字；1 秒起步也能与任务管理器的刷新节奏对上 */
+const GPU_INTERVALS = [0, 1000, 3000, 5000, 10000, 15000, 30000, 60000] as const;
+
 /** 项目总大小要遍历全部本地目录：只给稀疏档位，分钟级起步 */
 const SIZE_INTERVALS = [0, 60_000, 300_000, 900_000] as const;
 
 /** 某项可选的刷新频率（毫秒；0 = 关闭轮询） */
 export function overviewIntervals(key: OverviewPolledKey): readonly number[] {
   if (key === "size") return SIZE_INTERVALS;
+  if (key === "gpu") return GPU_INTERVALS;
   return key === "devices" ? DEVICE_INTERVALS : METRIC_INTERVALS;
 }
 
-/** 轮询下限：0 = 关闭；其余档位最低到"即时"（0.1 秒） */
+/** 已保存的间隔折算到档位表里：取不小于原值的最小档（越界就取最大档）。
+    旧配置里的 GPU 0.1 秒档不再提供，于是落到 1 秒——不会因为换算
+    变成 0 而把这一项悄悄关掉 */
+export function normalizeInterval(key: OverviewPolledKey, ms: number): number {
+  const list = overviewIntervals(key);
+  if (list.includes(ms)) return ms;
+  const above = list.find((v) => v > ms);
+  return above ?? list[list.length - 1];
+}
+
+/** 轮询下限：低于此值即视为关闭（0 档）；具体档位由 overviewIntervals 给出，
+    GPU 这类要走系统计数器的项不提供 0.1 秒档 */
 export const MIN_POLL_MS = LIVE_MS;

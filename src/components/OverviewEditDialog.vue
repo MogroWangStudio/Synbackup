@@ -12,6 +12,7 @@ import {
   OVERVIEW_STAT_KEYS,
   OVERVIEW_STAT_LABEL,
   isPolled,
+  normalizeInterval,
   overviewIntervals,
   type OverviewPolledKey,
   type OverviewStatKey,
@@ -45,7 +46,9 @@ function intervalOptions(key: OverviewPolledKey): SelectOption[] {
 }
 
 function intervalOf(key: OverviewPolledKey): string {
-  return String(store.settings[OVERVIEW_INTERVAL_FIELD[key]]);
+  // 旧配置里的间隔可能已不在档位表里（例如 GPU 曾提供 0.1 秒档），
+  // 显示与实际轮询都按折算后的档走，下拉不会变成空白
+  return String(normalizeInterval(key, store.settings[OVERVIEW_INTERVAL_FIELD[key]]));
 }
 
 /* 模板里按规范顺序遍历全部键，只有可轮询项才渲染下拉；

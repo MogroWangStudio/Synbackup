@@ -17,6 +17,7 @@
 //! 包内文件名固定（`Synbackup.exe` / `Synbackup.app`），替换时也不改名——
 //! 用户手里的程序文件名从此与升级多少次无关。
 
+use std::cmp::Ordering;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -96,12 +97,107 @@ fn accepts_prerelease(channel: &str) -> bool {
     channel == "beta"
 }
 
-/// tag → 语义化版本 + 是否预发布。
-/// 预发布判定与 CI 发布规则同源：去 v/V 前缀后含 `-` 即 Pre-Release
+/// 版本比较键：主次修订号 + 预发布段。
+///
+/// 为什么不直接用 `semver::Version` 排序：站内的预发布 tag 写作
+/// `1.1.0-beta10`（beta 与序号之间没有点），语义化版本会把整段 `beta10`
+/// 当成**一个**字母数字标识、按 ASCII 字典序比较——`beta10` 因此小于
+/// `beta9`（'1' < '9'）。beta 序号一进两位，旧版就再也收不到更新，
+/// 版本列表里它也被标成"旧版"。这里把标识再按字母 / 数字切开，数字段
+/// 按数值比，才符合"序号越大越新"。
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct VersionKey {
+    major: u64,
+    minor: u64,
+    patch: u64,
+    /// None = 正式版，比同号的预发布更新
+    pre: Option<Vec<PreId>>,
+}
+
+/// 预发布标识的一段：`beta10` → [Text("beta"), Num(10)]。
+/// 变体顺序即优先级：数字段排在字母段之前，与语义化版本的规则一致
+/// （纯数字标识的优先级低于字母数字标识）。
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum PreId {
+    Num(u64),
+    Text(String),
+}
+
+impl Ord for VersionKey {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.major
+            .cmp(&other.major)
+            .then_with(|| self.minor.cmp(&other.minor))
+            .then_with(|| self.patch.cmp(&other.patch))
+            .then_with(|| match (&self.pre, &other.pre) {
+                (None, None) => Ordering::Equal,
+                (None, Some(_)) => Ordering::Greater,
+                (Some(_), None) => Ordering::Less,
+                (Some(a), Some(b)) => a.cmp(b),
+            })
+    }
+}
+
+impl PartialOrd for VersionKey {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+/// 语义化版本 → 比较键（构建元数据不参与比较，与语义化版本一致）
+fn version_key(v: &semver::Version) -> VersionKey {
+    VersionKey {
+        major: v.major,
+        minor: v.minor,
+        patch: v.patch,
+        pre: if v.pre.is_empty() {
+            None
+        } else {
+            Some(pre_ids(v.pre.as_str()))
+        },
+    }
+}
+
+/// 预发布段拆成可比较的段序列：先按 `.` 分标识，再把每个标识里连续的
+/// 字母 / 数字各切一段（`rc1` → Text("rc") + Num(1)）。`beta.10` 与
+/// `beta10` 因此落到同一个键上，两种写法混用时也不会排错。
+fn pre_ids(pre: &str) -> Vec<PreId> {
+    let mut out = Vec::new();
+    for ident in pre.split('.') {
+        let mut run = String::new();
+        let mut digits = false;
+        for ch in ident.chars() {
+            let is_digit = ch.is_ascii_digit();
+            if !run.is_empty() && is_digit != digits {
+                push_run(&mut out, &run, digits);
+                run.clear();
+            }
+            digits = is_digit;
+            run.push(ch);
+        }
+        if !run.is_empty() {
+            push_run(&mut out, &run, digits);
+        }
+    }
+    out
+}
+
+fn push_run(out: &mut Vec<PreId>, run: &str, digits: bool) {
+    match (digits, run.parse::<u64>()) {
+        // 超长数字段退回文本比较，别让一次解析失败吞掉整条版本
+        (true, Ok(n)) => out.push(PreId::Num(n)),
+        _ => out.push(PreId::Text(run.to_string())),
+    }
+}
+
+/// tag → (比较键, 规范化版本号, 是否预发布)。
+/// 预发布判定与 CI 发布规则同源：pre 段非空即 Pre-Release
 /// （draft 不会出现在 Atom 源中，无需过滤）。
-fn parse_tag(tag: &str) -> Option<(semver::Version, bool)> {
+fn parse_tag(tag: &str) -> Option<(VersionKey, semver::Version, bool)> {
     let t = tag.trim_start_matches(['v', 'V']);
-    Some((semver::Version::parse(t).ok()?, t.contains('-')))
+    let ver = semver::Version::parse(t).ok()?;
+    let pre = !ver.pre.is_empty();
+    Some((version_key(&ver), ver, pre))
 }
 
 /// 当前平台对应的发布产物名（与 `.github/workflows/release.yml` 的
@@ -288,26 +384,27 @@ pub async fn check_update(app: AppHandle) -> Result<UpdateInfo, String> {
 
     let current_ver = semver::Version::parse(&current)
         .map_err(|_| format!("当前版本号无法解析: {current}"))?;
+    let current_key = version_key(&current_ver);
     let accept_pre = accepts_prerelease(&settings.update_channel);
 
-    // 渠道过滤 + 语义化比较,取比当前新的最新发布;
+    // 渠道过滤 + 版本比较,取比当前新的最新发布;
     // 预发布按 tag 判定,与 CI 发布规则一致
     let target = parse_feed(&body)?
         .into_iter()
         .filter_map(|e| {
-            let (ver, pre) = parse_tag(&e.tag)?;
+            let (key, ver, pre) = parse_tag(&e.tag)?;
             if !accept_pre && pre {
                 return None;
             }
-            if ver <= current_ver {
+            if key <= current_key {
                 return None;
             }
-            Some((ver, e))
+            Some((key, ver, e))
         })
         .max_by(|a, b| a.0.cmp(&b.0));
 
     Ok(match target {
-        Some((ver, entry)) => {
+        Some((_, ver, entry)) => {
             let version = ver.to_string();
             let asset = asset_for(&version).unwrap_or_default();
             UpdateInfo {
@@ -343,12 +440,12 @@ pub async fn check_update(app: AppHandle) -> Result<UpdateInfo, String> {
 }
 
 /// 版本列表条目（设置 → 关于的「版本列表」弹窗）。
-/// is_downgrade 由后端按语义化版本比好，前端不必再实现版本比较。
+/// is_downgrade 由后端按版本比较键比好，前端不必再实现版本比较。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VersionEntry {
     pub version: String,
-    /// 预发布（tag 含 `-`，与渠道判定同源）
+    /// 预发布（pre 段非空，与渠道判定同源）
     pub is_prerelease: bool,
     /// 是否早于当前运行版本（降级目标）
     pub is_downgrade: bool,
@@ -374,6 +471,7 @@ pub struct VersionEntry {
 pub async fn list_update_versions(app: AppHandle) -> Result<Vec<VersionEntry>, String> {
     let current_ver = semver::Version::parse(app.package_info().version.to_string().as_str())
         .map_err(|_| "当前版本号无法解析".to_string())?;
+    let current_key = version_key(&current_ver);
 
     let client = reqwest::Client::builder()
         .user_agent(concat!("Synbackup/", env!("CARGO_PKG_VERSION")))
@@ -392,23 +490,26 @@ pub async fn list_update_versions(app: AppHandle) -> Result<Vec<VersionEntry>, S
         return Err(format!("GitHub 返回错误: {status}"));
     }
 
-    let mut entries: Vec<(semver::Version, FeedEntry)> = parse_feed(&body)?
+    let mut entries: Vec<(VersionKey, semver::Version, FeedEntry)> = parse_feed(&body)?
         .into_iter()
-        .filter_map(|e| parse_tag(&e.tag).map(|(v, _)| (v, e)))
+        .filter_map(|e| {
+            let (key, ver, _) = parse_tag(&e.tag)?;
+            Some((key, ver, e))
+        })
         .collect();
-    // 新版本在前：语义化版本倒序（重复 tag 去重，保留第一份）
+    // 新版本在前：按比较键倒序（重复 tag 去重，保留第一份）
     entries.sort_by(|a, b| b.0.cmp(&a.0));
     entries.dedup_by(|a, b| a.0 == b.0);
 
     Ok(entries
         .into_iter()
-        .map(|(ver, entry)| {
+        .map(|(key, ver, entry)| {
             let version = ver.to_string();
             let asset = asset_for(&version).unwrap_or_default();
             VersionEntry {
-                is_downgrade: ver < current_ver,
-                is_current: ver == current_ver,
-                is_prerelease: version.contains('-'),
+                is_downgrade: key < current_key,
+                is_current: key == current_key,
+                is_prerelease: !ver.pre.is_empty(),
                 asset_url: if asset.is_empty() {
                     String::new()
                 } else {
