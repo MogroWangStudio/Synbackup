@@ -106,15 +106,32 @@ pub fn compute_diff(local_root: &Path, remote_root: &Path, manifest: &Manifest) 
     let local = index_tree(local_root);
     let remote = index_tree(remote_root);
 
-    let mut keys: Vec<String> = local.keys().chain(remote.keys()).cloned().collect();
-    keys.sort_unstable();
-    keys.dedup();
+    // 两侧都是有序的 BTreeMap：归并一次即可得到有序去重的键序列。
+    // 先 clone 全部键再排序去重会多出两份全量字符串，扫描动辄上万文件。
+    let mut keys: Vec<&String> = Vec::with_capacity(local.len().max(remote.len()));
+    let mut li = local.keys().peekable();
+    let mut ri = remote.keys().peekable();
+    loop {
+        match (li.peek(), ri.peek()) {
+            (Some(a), Some(b)) => match a.cmp(b) {
+                std::cmp::Ordering::Less => keys.extend(li.next()),
+                std::cmp::Ordering::Greater => keys.extend(ri.next()),
+                std::cmp::Ordering::Equal => {
+                    keys.extend(li.next());
+                    ri.next();
+                }
+            },
+            (Some(_), None) => keys.extend(li.next()),
+            (None, Some(_)) => keys.extend(ri.next()),
+            (None, None) => break,
+        }
+    }
 
     let mut items = Vec::new();
     for key in keys {
-        let l = local.get(&key).copied();
-        let r = remote.get(&key).copied();
-        let m = manifest.entries.get(&key);
+        let l = local.get(key).copied();
+        let r = remote.get(key).copied();
+        let m = manifest.entries.get(key);
 
         match (l, r) {
             (Some(l), Some(r)) => {
@@ -137,7 +154,7 @@ pub fn compute_diff(local_root: &Path, remote_root: &Path, manifest: &Manifest) 
                     (false, false) => DiffStatus::BothChanged,
                 };
                 items.push(DiffItem {
-                    path: key,
+                    path: key.to_string(),
                     status,
                     local: Some(l),
                     remote: Some(r),
@@ -152,7 +169,7 @@ pub fn compute_diff(local_root: &Path, remote_root: &Path, manifest: &Manifest) 
                     DiffStatus::NewLocal
                 };
                 items.push(DiffItem {
-                    path: key,
+                    path: key.to_string(),
                     status,
                     local: Some(l),
                     remote: None,
@@ -166,7 +183,7 @@ pub fn compute_diff(local_root: &Path, remote_root: &Path, manifest: &Manifest) 
                     DiffStatus::NewRemote
                 };
                 items.push(DiffItem {
-                    path: key,
+                    path: key.to_string(),
                     status,
                     local: None,
                     remote: Some(r),

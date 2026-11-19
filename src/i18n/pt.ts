@@ -339,6 +339,7 @@ export const pt: Dict = {
   "upd.syncing": "Uma sincronização está em andamento; o app reinicia ao terminar.",
   "settings.data_change": "Alterar…",
   "settings.data_pick": "Escolher pasta de dados",
+  "settings.data_pending": "Pasta de dados alterada. Reinicie o aplicativo para aplicar.",
   "settings.data_restart": "Reiniciar app",
   "settings.developer": "Desenvolvedor",
   "settings.studio_hint": "Visite o site do MogroWang Studio",

@@ -211,6 +211,9 @@ pub async fn sync_with_suggestions(app: &AppHandle, pair_id: &str) -> Result<(),
         text(&settings.language, "app_title"),
         &text_fmt(&settings.language, "sync_started_body", &pair.name, scan.items.len()),
     );
+    // 手动同步进来时可能正在跑：等它收尾再动手，否则两路同时改同一棵目录树，
+    // 后落盘的那份清单会把另一份的结果整个覆盖掉
+    let _sync_guard = core.sync_lock.lock().await;
     let (result, updated_manifest) = {
         let lr = scan.local_root;
         let rr = scan.remote_root;
@@ -256,14 +259,17 @@ pub async fn check_all_devices(app: &AppHandle) {
     }
 }
 
-/// 设备侧被监视目录：卷挂载点 + 任务相对路径（相对路径为空即卷根目录）
+/// 设备侧被监视目录：卷挂载点 + 任务相对路径（相对路径为空即卷根目录）。
+///
+/// 直接用 Path::join 拼，不要手工去掉挂载点末尾的分隔符：Windows 的卷根是
+/// "D:\"，截成 "D:" 就成了"驱动器相对路径"（D:foo），macOS 的根卷 "/" 截成
+/// 空串则彻底变成相对路径——两者的监视都会静默失效。
 fn device_watch_dir(pair: &SyncPair, vol: &VolumeInfo) -> PathBuf {
-    let base = vol.mount.trim_end_matches(['/', '\\']);
     let rel = pair.remote_path.trim_start_matches(['/', '\\']);
     if rel.is_empty() {
-        PathBuf::from(base)
+        PathBuf::from(&vol.mount)
     } else {
-        Path::new(base).join(rel)
+        Path::new(&vol.mount).join(rel)
     }
 }
 
@@ -343,8 +349,12 @@ fn start_watch_consumer(app: AppHandle, rx: std::sync::mpsc::Receiver<String>) {
     });
 }
 
-/// 监视重扫：差异签名（路径 + 建议动作）有变化时更新待处理并通知 /
-/// 按设置自动同步；签名未变只静默跳过（不重复提醒）；差异消失则移除待处理
+/// 监视重扫：差异签名（路径 + 建议动作）有变化时更新待处理并通知；
+/// 签名未变只静默跳过（不重复提醒）；差异消失则移除待处理。
+///
+/// 这里只提醒、不执行：自动同步仍由设备插入事件触发。文件监视回调会在
+/// 用户还在写文件时连续触发，直接接上自动同步等于把"保存中"的中间态
+/// 也当成一次同步去跑。
 async fn rescan_watched_pair(app: &AppHandle, pair_id: &str) -> Result<(), String> {
     let core = app.state::<backend::Core>();
     let (dir, settings, pair) = {
@@ -512,6 +522,8 @@ async fn handle_volume_inserted(
                 .iter()
                 .map(|i| Decision { path: i.path.clone(), action: i.suggested })
                 .collect();
+            // 与手动同步互斥：界面上的「立即同步」可能刚好也在跑同一个任务
+            let _sync_guard = core.sync_lock.lock().await;
             let (result, updated_manifest) = {
                 let lr = scan.local_root;
                 let rr = scan.remote_root;

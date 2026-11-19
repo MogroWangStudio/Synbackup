@@ -1,4 +1,4 @@
-import { computed, reactive } from "vue";
+import { computed, markRaw, reactive } from "vue";
 import { api } from "./api";
 import { applyUiPrefs, DEFAULT_ACCENT, loadUiPrefs, persistUiPrefs } from "./theme";
 import type {
@@ -117,7 +117,9 @@ export async function refreshAll() {
   store.pairs = cfg.pairs;
   store.volumes = volumes;
   store.pending = pending;
-  store.history = history;
+  // markRaw：历史是只读快照，整体替换、从不就地改。深代理会在每次读取时
+  // 为 200 条记录下最多 4 万个明细对象各建一层 Proxy，纯属白付
+  store.history = markRaw(history);
   store.syncCount = syncCount;
   store.appInfo = appInfo;
   // 权威配置到位后以它为准，重新应用外观并把增量落回 localStorage
@@ -156,7 +158,7 @@ export async function refreshPending() {
 
 export async function refreshHistory() {
   const [history, syncCount] = await Promise.all([api.getHistory(200), api.getSyncCount()]);
-  store.history = history;
+  store.history = markRaw(history);
   store.syncCount = syncCount;
 }
 

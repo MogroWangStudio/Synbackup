@@ -334,6 +334,7 @@ async function update(patch: Partial<AppSettings>) {
   // 显式保存取代挂起的防抖保存，避免重复写盘
   window.clearTimeout(saveTimer);
   saveTimer = undefined;
+  const before = store.settings;
   const next = { ...store.settings, ...patch };
   store.settings = next;
   // 外观 / 字体 / 缩放先落 DOM 再存后端，切换即时可见
@@ -342,6 +343,11 @@ async function update(patch: Partial<AppSettings>) {
   try {
     await api.saveSettings(next);
   } catch (e) {
+    // 写盘失败就退回改动前的样子：否则开关停在"已开"，重启后又变回关闭，
+    // 而中间这段时间界面一直显示着一个后端并不认可的状态
+    store.settings = before;
+    applyUiPrefs(before);
+    persistUiPrefs(before);
     toast("error", String(e));
     return;
   }
@@ -794,7 +800,7 @@ function onLanguageSelect(v: string) {
         <div class="row-label">
           <span class="row-name">{{ t("settings.version") }}</span>
         </div>
-        <span class="row-value">{{ store.appInfo?.version ?? "1.1.0-beta11" }}</span>
+        <span class="row-value">{{ store.appInfo?.version ?? "1.1.0-beta12" }}</span>
       </div>
       <div class="row">
         <div class="row-label">

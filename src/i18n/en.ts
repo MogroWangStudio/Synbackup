@@ -339,6 +339,7 @@ export const en: Dict = {
   "upd.syncing": "A sync is running — the app will restart once it finishes.",
   "settings.data_change": "Change…",
   "settings.data_pick": "Choose data folder",
+  "settings.data_pending": "Data folder changed. Restart the app to apply.",
   "settings.data_restart": "Restart app",
   "settings.developer": "Developer",
   "settings.studio_hint": "Visit the MogroWang Studio website",

@@ -170,10 +170,16 @@ function setAction(path: string, action: string) {
   decisions.set(path, action as SyncAction);
 }
 
-/** 各差异状态允许的处理方式（复用 actionsByStatus，供 Select 组件渲染） */
-function actionsFor(status: DiffStatus): SelectOption[] {
-  return actionsByStatus[status].map((a) => ({ value: a, label: t(`act.${a}`) }));
-}
+/** 各差异状态允许的处理方式（复用 actionsByStatus，供 Select 组件渲染）。
+    按状态缓存：差异状态只有六种，每次渲染都新建数组会让每一行的 Select
+    都收到新 props、整表重绘——框选拖拽时这发生在每个指针事件上 */
+const actionOptions = computed<Record<string, SelectOption[]>>(() => {
+  const out: Record<string, SelectOption[]> = {};
+  for (const [status, list] of Object.entries(actionsByStatus)) {
+    out[status] = list.map((a) => ({ value: a, label: t(`act.${a}`) }));
+  }
+  return out;
+});
 
 /* ---- 多选：左键按住框选 + 单击行切换选中，所选条目可批量改处理方式 ----
    框选用 Pointer Capture 在列表上画选框（视口坐标），行矩形与选框相交
@@ -269,18 +275,27 @@ function onListPointerDown(e: PointerEvent) {
 }
 
 let unlisten: (() => void) | null = null;
+// listen 是异步的：弹窗在注册返回前就被关掉时，onBeforeUnmount 拿到的还是
+// null，监听会留在全局事件表里，之后每次进度事件都往已卸载的组件写状态
+let disposed = false;
 onMounted(async () => {
-  unlisten = await listen<{ pairId: string; done: number; total: number; current: string }>(
+  const un = await listen<{ pairId: string; done: number; total: number; current: string }>(
     "sync-progress",
     (e) => {
-      if (e.payload.pairId !== info.pairId) return;
+      if (disposed || e.payload.pairId !== info.pairId) return;
       progress.done = e.payload.done;
       progress.total = e.payload.total;
       progress.current = e.payload.current;
     },
   );
+  if (disposed) un();
+  else unlisten = un;
 });
-onBeforeUnmount(() => unlisten?.());
+onBeforeUnmount(() => {
+  disposed = true;
+  unlisten?.();
+  unlisten = null;
+});
 
 async function startSync() {
   if (phase.value !== "review") return;
@@ -465,7 +480,7 @@ function handleClose() {
             class="diff-action"
             fill
             :model-value="decisions.get(item.path) ?? ''"
-            :options="actionsFor(item.status)"
+            :options="actionOptions[item.status]"
             :aria-label="t('diff.col_action')"
             @update:model-value="(v) => setAction(item.path, v)"
           />

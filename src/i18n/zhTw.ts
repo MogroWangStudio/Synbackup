@@ -339,6 +339,7 @@ export const zhTw: Dict = {
   "upd.syncing": "同步任務進行中，完成後才會重新啟動安裝。",
   "settings.data_change": "更改…",
   "settings.data_pick": "選擇資料目錄",
+  "settings.data_pending": "資料目錄已切換，重新啟動應用程式後生效",
   "settings.data_restart": "重新啟動",
   "settings.developer": "開發者",
   "settings.studio_hint": "點擊前往 MogroWang Studio 官方網站",

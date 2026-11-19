@@ -44,15 +44,23 @@ const readyText = computed(() =>
   syncing.value || !counting.value ? t("upd.ready_now") : t("upd.ready", { n: countdown.value }),
 );
 
+/** 卸载后不再接收进度：listen 返回前就关掉向导时，回调会写到已销毁的组件上 */
+let disposed = false;
+
 onMounted(async () => {
-  unlisten = await listen<UpdateProgress>("update-progress", (e) => {
+  const un = await listen<UpdateProgress>("update-progress", (e) => {
+    if (disposed) return;
     received.value = e.payload.received;
     total.value = e.payload.total;
   });
+  if (disposed) un();
+  else unlisten = un;
 });
 
 onBeforeUnmount(() => {
+  disposed = true;
   unlisten?.();
+  unlisten = undefined;
   window.clearInterval(tick);
 });
 

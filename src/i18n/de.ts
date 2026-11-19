@@ -339,6 +339,7 @@ export const de: Dict = {
   "upd.syncing": "Eine Synchronisierung läuft – die App startet danach neu.",
   "settings.data_change": "Ändern…",
   "settings.data_pick": "Datenordner wählen",
+  "settings.data_pending": "Datenordner geändert. Zum Übernehmen die App neu starten.",
   "settings.data_restart": "App neu starten",
   "settings.developer": "Entwickler",
   "settings.studio_hint": "Zur Website von MogroWang Studio",

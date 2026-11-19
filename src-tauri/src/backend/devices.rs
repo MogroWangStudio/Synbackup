@@ -211,7 +211,15 @@ fn normalize_mount(mount: &Path) -> String {
     let s = mount.to_string_lossy().to_string();
     #[cfg(target_os = "macos")]
     {
-        s.trim_end_matches('/').to_string()
+        // 根卷的挂载点就是 "/"。去尾分隔符会把它变成空串，而空路径不是绝对
+        // 路径：与相对路径拼出来的设备侧目录会落到进程的当前工作目录，
+        // 同步就成了往编译器/启动目录里散文件
+        let trimmed = s.trim_end_matches('/');
+        if trimmed.is_empty() {
+            "/".to_string()
+        } else {
+            trimmed.to_string()
+        }
     }
     #[cfg(not(target_os = "macos"))]
     {

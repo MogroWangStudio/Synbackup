@@ -339,6 +339,7 @@ export const ko: Dict = {
   "upd.syncing": "동기화 작업이 진행 중입니다. 끝난 뒤 다시 시작합니다.",
   "settings.data_change": "변경…",
   "settings.data_pick": "데이터 폴더 선택",
+  "settings.data_pending": "데이터 폴더를 변경했습니다. 앱을 다시 시작하면 적용됩니다.",
   "settings.data_restart": "앱 다시 시작",
   "settings.developer": "개발자",
   "settings.studio_hint": "MogroWang Studio 공식 홈페이지로 이동",

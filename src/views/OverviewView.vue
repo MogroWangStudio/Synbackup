@@ -182,7 +182,11 @@ function goPairs() {
     <section v-if="store.history.length" class="recent">
       <h2 class="section-title">{{ t("overview.recent") }}</h2>
       <div class="card">
-        <div v-for="(h, i) in store.history.slice(0, 6)" :key="i" class="recent-row">
+        <div
+          v-for="h in store.history.slice(0, 6)"
+          :key="`${h.kind}:${h.pairId}:${h.ts}`"
+          class="recent-row"
+        >
           <Icon name="drive" :size="14" class="recent-icon" />
           <span class="recent-name">{{ h.pairName }}</span>
           <span class="recent-chip" :class="h.errors.length ? 'chip-red-text' : 'chip-green-text'">

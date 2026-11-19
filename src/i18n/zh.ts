@@ -338,6 +338,7 @@ export const zh = {
   "upd.syncing": "同步任务进行中，完成后才会重启安装。",
   "settings.data_change": "更改…",
   "settings.data_pick": "选择数据目录",
+  "settings.data_pending": "数据目录已切换，重启应用后生效",
   "settings.data_restart": "重启应用",
   "settings.developer": "开发者",
   "settings.studio_hint": "点击前往 MogroWang Studio 官方网站",

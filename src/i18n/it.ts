@@ -339,6 +339,7 @@ export const it: Dict = {
   "upd.syncing": "Sincronizzazione in corso; l'app si riavvierà al termine.",
   "settings.data_change": "Cambia…",
   "settings.data_pick": "Scegli cartella dati",
+  "settings.data_pending": "Cartella dati modificata. Riavvia l'app per applicarla.",
   "settings.data_restart": "Riavvia app",
   "settings.developer": "Sviluppatore",
   "settings.studio_hint": "Visita il sito di MogroWang Studio",

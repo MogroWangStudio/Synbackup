@@ -1,12 +1,18 @@
 //! 同步执行：按用户裁决逐文件执行复制/删除，并更新同步清单。
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use filetime::{FileTime, set_file_mtime};
 
 use super::devices;
 use super::manifest::Manifest;
 use super::model::{ApplyError, ApplyOutcome, ApplyResult, Decision, DiffItem, FileStat, SyncAction};
+
+/// 进度回调的最小间隔：万级文件逐个 emit 会把 IPC 通道打满，
+/// 界面上的进度条反而卡住（前端每次都要重排整条提示）
+const PROGRESS_INTERVAL: Duration = Duration::from_millis(60);
 
 pub fn apply(
     local_root: &Path,
@@ -18,9 +24,16 @@ pub fn apply(
 ) -> ApplyResult {
     let mut result = ApplyResult::default();
     let total = decisions.len() as u32;
+    // 每次裁决都要回查"该文件是否还在重扫结果里"，线性查找在千级文件上
+    // 是 O(n²) 的字符串比较，换成集合后增删都只看一次
+    let present: HashSet<&str> = items.iter().map(|i| i.path.as_str()).collect();
+    let mut last_emit: Option<Instant> = None;
     for (idx, d) in decisions.iter().enumerate() {
-        on_progress(idx as u32, total, &d.path);
-        if !items.iter().any(|i| i.path == d.path) {
+        if last_emit.map_or(true, |t| t.elapsed() >= PROGRESS_INTERVAL) {
+            on_progress(idx as u32, total, &d.path);
+            last_emit = Some(Instant::now());
+        }
+        if !present.contains(d.path.as_str()) {
             // 该文件在重新扫描后已消失，按跳过处理
             result.skipped += 1;
             result.items.push(ApplyOutcome::failed(
@@ -34,8 +47,7 @@ pub fn apply(
         let rp = devices::remote_root(&remote_root.to_string_lossy(), &d.path);
 
         match run_step(d.action, local_root, remote_root, &d.path, &lp, &rp) {
-            Ok(size_path) => {
-                let size = size_path.as_deref().and_then(file_size);
+            Ok((size, synced)) => {
                 match d.action {
                     SyncAction::LocalToRemote => result.copied_to_remote += 1,
                     SyncAction::RemoteToLocal => result.copied_to_local += 1,
@@ -44,7 +56,12 @@ pub fn apply(
                     SyncAction::Skip => result.skipped += 1,
                 }
                 result.total_bytes += size.unwrap_or(0);
-                refresh_entry(manifest, &d.path, &lp, &rp);
+                // 跳过不代表两侧状态变了：刷新清单会把"设备侧已删除"记成
+                // "设备侧从来没有过"，下次扫描就退化成新文件，自动同步会把
+                // 用户特意留着不删的文件又拷回去
+                if synced {
+                    refresh_entry(manifest, &d.path, &lp, &rp);
+                }
                 result.items.push(ApplyOutcome::done(&d.path, d.action, size));
             }
             Err(e) => {
@@ -57,9 +74,9 @@ pub fn apply(
     result
 }
 
-/// 执行单条决策对应的操作，成功时返回"涉及文件"的路径（复制 = 源文件，
-/// 删除 = 被删文件；Skip 为 None）。删除动作在删除之后计量，目录或
-/// 已不存在的路径由 [`file_size`] 归为 None，与既有统计口径一致。
+/// 执行单条决策对应的操作。返回 `(涉及文件的字节数, 是否需要刷新清单)`：
+/// 字节数供本次统计，删除类动作在删除前计量（删完再 stat 只剩 0）；
+/// 清单只在两侧状态真的被改写时才刷新。
 fn run_step(
     action: SyncAction,
     local_root: &Path,
@@ -67,26 +84,28 @@ fn run_step(
     rel: &str,
     lp: &Path,
     rp: &Path,
-) -> Result<Option<PathBuf>, String> {
+) -> Result<(Option<u64>, bool), String> {
     match action {
         SyncAction::LocalToRemote => {
             copy_over(lp, rp)?;
-            Ok(Some(lp.to_path_buf()))
+            Ok((file_size(lp), true))
         }
         SyncAction::RemoteToLocal => {
             copy_over(rp, lp)?;
-            Ok(Some(rp.to_path_buf()))
+            Ok((file_size(rp), true))
         }
         SyncAction::DeleteRemote => {
+            let size = file_size(rp);
             remove_path(remote_root, rel)?;
-            Ok(Some(rp.to_path_buf()))
+            Ok((size, true))
         }
         SyncAction::DeleteLocal => {
+            let size = file_size(lp);
             remove_path(local_root, rel)?;
-            Ok(Some(lp.to_path_buf()))
+            Ok((size, true))
         }
-        // 跳过：保留当前实际状态，下次扫描仍会提示
-        SyncAction::Skip => Ok(None),
+        // 跳过：保留当前实际状态，清单不动，下次扫描仍会提示
+        SyncAction::Skip => Ok((None, false)),
     }
 }
 

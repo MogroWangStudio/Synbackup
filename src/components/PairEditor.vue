@@ -157,19 +157,44 @@ onBeforeUnmount(() => {
 /**
  * 浏览设备上的文件夹：系统目录对话框里选中设备卷内的文件夹，
  * 自动换算成相对设备根目录的路径填入（设备路径本身不是绝对定位的）。
+ *
+ * 比较前两侧都要归一：Windows 的卷根是 "D:\"（带尾分隔符），对话框返回的
+ * 是 "D:\照片"，直接拼 "/" 永远比不上；盘符大小写也不固定。归一后统一用
+ * "/" 比较，Windows 再按不区分大小写。macOS 的根卷是 "/"，去尾分隔符时
+ * 不能把它变成空串。
  */
+function toSlash(p: string): string {
+  return p.replace(/\\/g, "/");
+}
+
+function stripTrailingSlash(p: string): string {
+  const s = p.replace(/\/+$/, "");
+  return s === "" ? "/" : s;
+}
+
 async function pickRemote() {
   if (!form.deviceLabel) return void (error.value = t("editor.err_device"));
   const vol = store.volumes.find((v) => v.label === form.deviceLabel);
   if (!vol) return;
   const path = await open({ directory: true, multiple: false, title: t("editor.remote_pick") });
   if (typeof path !== "string") return;
-  if (path !== vol.mount && !path.startsWith(vol.mount + "/")) {
+
+  const rawMount = stripTrailingSlash(toSlash(vol.mount));
+  const rawPicked = stripTrailingSlash(toSlash(path));
+  const ci = document.documentElement.dataset.os === "windows";
+  const fold = (s: string) => (ci ? s.toLowerCase() : s);
+  const mount = fold(rawMount);
+  const picked = fold(rawPicked);
+  // 根卷 "/" 只占一个字符，不能拼成 "//" 去比对
+  const prefix = mount === "/" ? "/" : `${mount}/`;
+
+  if (picked !== mount && !picked.startsWith(prefix)) {
     error.value = t("editor.err_remote_volume");
     return;
   }
   error.value = "";
-  form.remotePath = path === vol.mount ? "" : path.slice(vol.mount.length + 1);
+  // 相对路径从原串上切，不能用折叠后的串：大小写可能改变字符长度
+  form.remotePath = picked === mount ? "" : rawPicked.slice(mount === "/" ? 1 : rawMount.length + 1);
 }
 
 async function save() {

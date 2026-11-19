@@ -339,6 +339,7 @@ export const ja: Dict = {
   "upd.syncing": "同期タスクの実行中です。完了後に再起動します。",
   "settings.data_change": "変更…",
   "settings.data_pick": "データフォルダーを選択",
+  "settings.data_pending": "データフォルダーを変更しました。アプリを再起動すると反映されます。",
   "settings.data_restart": "アプリを再起動",
   "settings.developer": "開発者",
   "settings.studio_hint": "MogroWang Studio 公式サイトへ",

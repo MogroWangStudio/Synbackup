@@ -77,6 +77,23 @@ function saveWidths() {
   }
 }
 
+/* ---- 明细展开状态 ----
+   明细表默认不渲染：历史最多 200 条、每条最多 200 项明细，全量铺出来是
+   几万个单元格。折叠状态下没人看得到它们，却要为每次重绘（包括拖列宽时
+   每一帧）付代价。这里只记住"哪些条目被展开过"，展开时才挂 DOM。 */
+const expanded = reactive(new Set<string>());
+
+/** 条目的稳定标识：历史刷新会重排，不能拿数组下标当键 */
+function rowKey(h: HistoryEntry): string {
+  return `${h.kind}:${h.pairId}:${h.ts}`;
+}
+
+function onToggle(key: string, e: Event) {
+  const open = (e.target as HTMLDetailsElement).open;
+  if (open) expanded.add(key);
+  else expanded.delete(key);
+}
+
 /** 表格最小宽度：各列之和。小于它时容器横向滚动，列宽不被压缩 */
 function minWidth(kind: DetailKind): string {
   const w = widths[kind];
@@ -237,7 +254,7 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
     </div>
 
     <div v-if="store.history.length && filtered.length" class="card history-list">
-      <div v-for="(h, i) in filtered" :key="i" class="history-row">
+      <div v-for="h in filtered" :key="rowKey(h)" class="history-row">
         <span class="history-time">{{ fmtDateTime(h.ts) }}</span>
         <span class="history-name">{{ h.pairName }}</span>
         <span class="chip" :class="h.trigger === 'auto' ? 'chip-accent' : 'chip-gray'">
@@ -277,10 +294,12 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
         </span>
 
         <!-- 逐项明细：同步记录显示做了什么，检查记录显示发现的差异。
-             表格式排布，表头手柄可拖拽调列宽（双击复位、聚焦后方向键微调） -->
+             表格式排布，表头手柄可拖拽调列宽（双击复位、聚焦后方向键微调）。
+             内容按需挂载：折叠时不占 DOM，展开时才渲染整张表 -->
         <details
           v-if="h.kind === 'scan' ? (h.scanDiffs?.length ?? 0) > 0 : h.items.length > 0"
           class="history-detail"
+          @toggle="onToggle(rowKey(h), $event)"
         >
           <summary>
             <Icon name="chevron" :size="12" class="hd-caret" />
@@ -288,7 +307,7 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
             <span class="hd-count">{{ h.kind === "scan" ? h.scanDiffs?.length : h.items.length }}</span>
           </summary>
 
-          <div class="hd-scroll">
+          <div v-if="expanded.has(rowKey(h))" class="hd-scroll">
             <table class="hd-table" :style="{ minWidth: minWidth(h.kind) }">
               <colgroup>
                 <col
@@ -610,13 +629,9 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
   padding-right: 14px;
   color: var(--text);
 }
-/* 类型是独立一列，不是文件名的尾巴：左侧一道竖线把两者分开，
-   值用等宽感的小字并居中，和路径的长文本明显不是一路。
-   线比行分隔线重一档——同一个颜色会混在行线里看不出是列边界 */
-.hd-table th.hd-center,
-.hd-table td.hd-kind {
-  border-left: 1px solid var(--hairline-strong);
-}
+/* 类型是独立一列，不是文件名的尾巴：靠字号、颜色与居中对齐区分，
+   不再额外画一道竖线——表体里只有这一处有竖线，看起来像没画完的
+   分隔符，也和表头的列宽手柄线叠在同一个位置，拖起来分不清哪根是手 */
 .hd-table td.hd-kind {
   font-size: calc(10.5px * var(--font-scale, 1));
   letter-spacing: 0.04em;
@@ -643,7 +658,8 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
 
 /* 列宽手柄：贴在列右缘，常显一道淡线说明"这里能拖"；
    悬停或键盘聚焦时变强调色，加长加粗。最后一个业务列（填充列之前）
-   的手柄收进单元格内，否则那道线会被横向滚动容器裁掉一半 */
+   的手柄收进单元格内，否则那道线会被横向滚动容器裁掉一半——但线靠右对齐，
+   仍然压在列边界上，和其他列看到的位置一致 */
 .col-grip {
   position: absolute;
   top: 0;
@@ -659,6 +675,7 @@ const { confirming: confirmingClear, confirm: onClear } = useConfirmAction(clear
 }
 .hd-table th:nth-last-child(2) .col-grip {
   right: 0;
+  justify-content: flex-end;
 }
 .col-grip::after {
   content: "";

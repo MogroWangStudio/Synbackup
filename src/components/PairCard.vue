@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { api } from "../api";
 import { refreshConfig, refreshPending, store, toast } from "../store";
 import { fmtTime, t } from "../i18n";
@@ -43,13 +43,20 @@ const matchedVolume = computed(() =>
       v.matchedPairIds.includes(props.pair.id) || v.label === props.pair.deviceLabel,
   ),
 );
-/** 设备侧可打开的绝对路径：卷挂载点 + 相对路径；设备离线时为 null */
+/** 设备侧可打开的绝对路径：卷挂载点 + 相对路径；设备离线时为 null。
+    分隔符跟随卷本身：Windows 卷根是 "D:\"，直接用 "/" 拼会得到混合分隔符，
+    而把尾分隔符去掉又会变成驱动器相对路径（D:foo）；macOS 根卷 "/" 去掉尾
+    分隔符就什么都不剩了。 */
 const deviceOpenPath = computed(() => {
   const vol = matchedVolume.value;
   if (!vol) return null;
-  const base = vol.mount.replace(/\/+$/, "");
-  const rel = props.pair.remotePath.replace(/^\/+/, "");
-  return rel ? `${base}/${rel}` : base;
+  const sep = vol.mount.includes("\\") ? "\\" : "/";
+  const rel = props.pair.remotePath
+    .replace(/^[\\/]+/, "")
+    .replace(/[\\/]/g, sep);
+  if (!rel) return vol.mount;
+  const base = /[\\/]$/.test(vol.mount) ? vol.mount : vol.mount + sep;
+  return base + rel;
 });
 
 function openLocal() {
@@ -72,7 +79,13 @@ function removePair() {
 
 const { confirming: confirmingDelete, confirm: onDelete } = useConfirmAction(removePair);
 
+/** 扫描中：按钮置灰。重复点击会真的跑第二次全盘扫描（慢盘上要几十秒），
+    还会往历史里多记一条同样的「检查到差异」 */
+const checking = ref(false);
+
 async function onCheck() {
+  if (checking.value) return;
+  checking.value = true;
   try {
     const review = await api.scanPair(props.pair.id);
     await refreshPending();
@@ -83,6 +96,8 @@ async function onCheck() {
     store.diffDialog = { ...review, source: "manual" };
   } catch (e) {
     toast("error", String(e));
+  } finally {
+    checking.value = false;
   }
 }
 
@@ -156,7 +171,7 @@ function onToggleEnabled() {
       </button>
       <button
         class="btn btn-sm btn-primary"
-        :disabled="syncing"
+        :disabled="syncing || checking"
         :title="t('pairs.check')"
         :aria-label="t('pairs.check')"
         @click="onCheck"

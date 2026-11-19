@@ -339,6 +339,7 @@ export const ru: Dict = {
   "upd.syncing": "Идёт синхронизация — приложение перезапустится после её завершения.",
   "settings.data_change": "Изменить…",
   "settings.data_pick": "Выбрать папку данных",
+  "settings.data_pending": "Папка данных изменена. Перезапустите приложение, чтобы применить.",
   "settings.data_restart": "Перезапустить",
   "settings.developer": "Разработчик",
   "settings.studio_hint": "Сайт MogroWang Studio",

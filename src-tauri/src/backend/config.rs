@@ -183,8 +183,24 @@ pub fn save_config(dir: &Path, config: &Config) -> std::io::Result<()> {
 }
 
 /// 原子写入：先写临时文件再替换，避免写入中途断电/拔盘导致配置损坏。
+///
+/// 临时名带进程号 + 自增序号：后台自动同步（更新同步时间）与界面保存设置
+/// 可能同时落盘，共用一个 `config.tmp` 时后一个会截断前一个的内容，
+/// rename 还会因为源文件已被搬走而失败。
 pub fn atomic_write(path: &Path, contents: &[u8]) -> std::io::Result<()> {
-    let tmp = path.with_extension("tmp");
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+
+    let mut tmp = path.to_path_buf();
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "data".into());
+    tmp.set_file_name(format!(
+        ".{name}.{}.{}.tmp",
+        std::process::id(),
+        SEQ.fetch_add(1, Ordering::Relaxed)
+    ));
     {
         let mut f = fs::File::create(&tmp)?;
         f.write_all(contents)?;
@@ -194,5 +210,7 @@ pub fn atomic_write(path: &Path, contents: &[u8]) -> std::io::Result<()> {
     if path.exists() {
         let _ = fs::remove_file(path);
     }
-    fs::rename(&tmp, path)
+    fs::rename(&tmp, path).inspect_err(|_| {
+        let _ = fs::remove_file(&tmp);
+    })
 }
